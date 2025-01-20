@@ -3,7 +3,6 @@ __pycache__
 .DS_Store
 *.swp
 .env
-*.sqlite3
 /venv/
 /.venv/
 /tmp/
