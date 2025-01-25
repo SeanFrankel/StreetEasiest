@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>NYC Address Lookup</h1>
+<p>Enter an address to retrieve NYC OpenData information, including 311 complaints, lead violations, bedbug reports, housing violations, and NYCHA data.</p>
+
+<form id="lookup-form">
+    <label for="address">Enter Address:</label>
+    <input type="text" id="address" name="address" placeholder="e.g., 123 Main St" required>
+    <button type="submit">Search</button>
+</form>
+
+<div id="results"></div>
+
+<script>
+    document.getElementById('lookup-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const address = document.getElementById('address').value;
+
+        try {
+            const response = await fetch(`?address=${encodeURIComponent(address)}`);
+            const data = await response.json();
+
+            if (data.success) {
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '<h2>Results</h2>' +
+                    Object.entries(data.data).map(([key, items]) => `
+                        <div>
+                            <h3>${key.replace(/_/g, ' ')}</h3>
+                            ${items.map(item => `
+                                <div>
+                                    <strong>${item.type}</strong>: ${item.description} (${item.date || 'N/A'})
+                                </div>
+                            `).join('')}
+                        </div>
+                    `).join('');
+            } else {
+                alert(data.error);
+            }
+        } catch (err) {
+            alert('An error occurred: ' + err.message);
+        }
+    });
+</script>
+{% endblock %}
