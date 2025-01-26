@@ -2,32 +2,15 @@
 {% load wagtailcore_tags wagtailimages_tags static %}
 
 {% block content %}
-    {% block breadcrumbs %}
-        {% include "navigation/breadcrumbs.html" %}
-    {% endblock %}
     <div class="site-padding site-container">
-        
         <!-- Header Section -->
         <div class="flex flex-col md:flex-row md:items-center py-20">
             <h1 class="font-serif4 [word-spacing:-6px] font-bold text-8xl lg:text-10xl
-            md:pr-16
-            lg:pr-20
-            {% if page.instructions %}
-                md:border-r-[1px]
-                md:basis-2/6
-                border-grey-200
-            {% endif %}">
+            md:pr-16 lg:pr-20 {% if page.instructions %} md:border-r-[1px] md:basis-2/6 border-grey-200 {% endif %}">
                 {{ page.header }}
             </h1>
             {% if page.instructions %}
-                <div class="
-                    max-w-[636px]
-                    rich-text
-                    pt-5
-                    md:w-2/3
-                    md:pl-16
-                    lg:pl-20
-                ">
+                <div class="max-w-[636px] rich-text pt-5 md:w-2/3 md:pl-16 lg:pl-20">
                     <p>{{ page.instructions|linebreaks }}</p>
                 </div>
             {% endif %}
@@ -68,7 +51,7 @@
 
 <script>
 document.getElementById("lookup-form").addEventListener("submit", async function (e) {
-    e.preventDefault(); // Prevent form submission
+    e.preventDefault();
 
     const addressInput = document.getElementById("address").value.trim();
     const zipCodeInput = document.getElementById("zip-code").value.trim();
@@ -79,41 +62,19 @@ document.getElementById("lookup-form").addEventListener("submit", async function
         return;
     }
 
-    // Show loading indicator
     resultsDiv.innerHTML = "<p>Loading...</p>";
     resultsDiv.setAttribute("aria-busy", "true");
 
     try {
         const requestUrl = `${window.location.pathname}?address=${encodeURIComponent(addressInput)}&zip_code=${encodeURIComponent(zipCodeInput)}`;
-        const response = await fetch(requestUrl, {
-            headers: { "X-Requested-With": "XMLHttpRequest" },
-        });
+        const response = await fetch(requestUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
 
         const data = await response.json();
         if (data.success) {
-            const uniqueLocations = data.unique_locations || [];
             resultsDiv.innerHTML = `
                 <h2 class="text-2xl font-bold mb-6">Results</h2>
-                ${
-                    uniqueLocations.length > 0
-                        ? `<p class="mb-4"><strong>Building's coordinates:</strong> ${uniqueLocations.join(", ")}</p>`
-                        : "<p class='mb-4'><strong>Building's coordinates:</strong> No coordinates available</p>"
-                }
                 ${Object.entries(data.data)
-                    .map(([key, items]) => `
-                        <div class="result-category mb-8">
-                            <h3 class="text-xl font-semibold mb-4">${key.replace(/_/g, " ")}</h3>
-                            ${items
-                                .map(item => `
-                                    <div class="result-item mb-4 p-4 border border-gray-200 rounded-md">
-                                        <strong>${item.type}</strong>: ${item.description || "No description"} (${item.date || "No date"})
-                                        ${item.resolution_description ? `<br><em>Resolution:</em> ${item.resolution_description}` : ""}
-                                        ${item.status ? `<br><em>Status:</em> ${item.status}` : ""}
-                                    </div>
-                                `)
-                                .join("")}
-                        </div>
-                    `)
+                    .map(([key, value]) => renderCategoryTable(key, value.entries, value.total))
                     .join("")}
             `;
         } else {
@@ -125,5 +86,62 @@ document.getElementById("lookup-form").addEventListener("submit", async function
         resultsDiv.setAttribute("aria-busy", "false");
     }
 });
+
+function renderCategoryTable(category, entries, total) {
+    const tableRows = entries.map(item => `
+        <tr>
+            <td class="border px-4 py-2">${item.type}</td>
+            <td class="border px-4 py-2">${item.description || "No description"}</td>
+            <td class="border px-4 py-2">${item.date || "No date"}</td>
+            <td class="border px-4 py-2">${item.resolution_description || "No resolution"}</td>
+            <td class="border px-4 py-2">${item.status || "Unknown"}</td>
+        </tr>
+    `).join("");
+
+    return `
+        <div class="result-category mb-8" data-category="${category}">
+            <h3 class="text-xl font-semibold mb-4">${category.replace(/_/g, " ")}</h3>
+            <table class="table-auto w-full border-collapse border border-gray-300">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border px-4 py-2">Type</th>
+                        <th class="border px-4 py-2">Description</th>
+                        <th class="border px-4 py-2">Date</th>
+                        <th class="border px-4 py-2">Resolution</th>
+                        <th class="border px-4 py-2">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+            <div class="mt-4 flex gap-4">
+                <button class="btn btn-secondary" onclick="loadMore('${category}', 15)">Show 15 More</button>
+                <button class="btn btn-secondary" onclick="loadMore('${category}', 'all')">Show All</button>
+            </div>
+        </div>
+    `;
+}
+
+async function loadMore(category, count) {
+    const addressInput = document.getElementById("address").value.trim();
+    const zipCodeInput = document.getElementById("zip-code").value.trim();
+
+    try {
+        const requestUrl = `${window.location.pathname}?address=${encodeURIComponent(addressInput)}&zip_code=${encodeURIComponent(zipCodeInput)}&category=${category}&count=${count}`;
+        const response = await fetch(requestUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+
+        const data = await response.json();
+        if (data.success && data.data[category]) {
+            const updatedTable = renderCategoryTable(category, data.data[category].entries, data.data[category].total);
+            const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
+            if (categoryDiv) {
+                categoryDiv.outerHTML = updatedTable;
+            }
+        }
+    } catch (error) {
+        console.error("Error loading more entries:", error);
+    }
+}
 </script>
 {% endblock %}

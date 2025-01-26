@@ -7,8 +7,10 @@ from dataclasses import dataclass
 from typing import Optional, Dict, List, Any, Tuple
 from datetime import datetime
 import requests
+import logging
 from myproject.utils.models import BasePage
 
+logger = logging.getLogger(__name__)
 
 class NYCAddressLookupPage(BasePage):
     template = "pages/nyc_address_lookup_page.html"
@@ -38,43 +40,63 @@ class NYCAddressLookupPage(BasePage):
     subpage_types = []
 
     def serve(self, request):
-        # Check if it's an AJAX request
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             address = request.GET.get("address", "").strip()
             zip_code = request.GET.get("zip_code", "").strip()
+            count = request.GET.get("count", "").strip()
+            category = request.GET.get("category", "").strip()
 
             if not address or not zip_code:
                 return JsonResponse({"success": False, "error": "Address and zip code are required."}, status=400)
 
-            # Fetch data
             try:
                 service = AddressService()
-                data = service.get_address_data(address, zip_code)  # Pass two arguments here
+                data = service.get_address_data(address, zip_code)
 
-                # Extract unique coordinates
+                # Determine the count value
+                if count == "all":
+                    count = max(len(items) for items in data.values())
+                else:
+                    count = int(count) if count.isdigit() else 5
+
+                # Filter by category if specified
+                if category and category in data:
+                    filtered_data = {category: data[category]}
+                else:
+                    filtered_data = data
+
+                # Serialize the data
+                serialized_data = {
+                    key: {
+                        "entries": [item.to_dict() for item in value[:count]],
+                        "total": len(value)
+                    }
+                    for key, value in filtered_data.items()
+                }
+
                 unique_locations = set()
-                for complaint in data.get("311_complaints", []):
-                    location = complaint.additional_info.get("location")
-                    if location:
-                        if isinstance(location, dict):
-                            lat = location.get("latitude", "N/A")
-                            lon = location.get("longitude", "N/A")
-                            unique_locations.add(f"{lat}, {lon}")
-                        else:
-                            unique_locations.add(location)
+                for items in data.values():
+                    for item in items:
+                        location = item.additional_info.get("location")
+                        if location:
+                            if isinstance(location, dict):
+                                lat = location.get("latitude", "N/A")
+                                lon = location.get("longitude", "N/A")
+                                unique_locations.add(f"{lat}, {lon}")
+                            else:
+                                unique_locations.add(location)
 
                 response_data = {
                     "success": True,
-                    "data": {k: [item.to_dict() for item in v] for k, v in data.items()},
+                    "data": serialized_data,
                     "unique_locations": list(unique_locations),
                 }
                 return JsonResponse(response_data)
             except Exception as e:
-                print(f"Error fetching data: {e}")
+                logger.error(f"Error fetching data: {e}")
                 return JsonResponse({"success": False, "error": "Internal server error. Please try again later."}, status=500)
 
         return render(request, self.template, {"page": self})
-
 
 @dataclass
 class DataItem:
@@ -107,7 +129,6 @@ class DataItem:
             "additional_info": self.additional_info,
         }
 
-
 class AddressService:
     def __init__(self):
         self.session = requests.Session()
@@ -119,7 +140,6 @@ class AddressService:
             if not parts:
                 return "", "", "", ""
 
-            # Extract apartment number if present
             apt = ""
             if "APT" in parts:
                 apt_index = parts.index("APT")
@@ -127,21 +147,9 @@ class AddressService:
                     apt = parts[apt_index + 1]
                 parts = parts[:apt_index]
 
-            # Get house number
             house_number = parts[0]
-
-            # Remove ordinal suffixes (TH, ST, ND, RD) from street numbers
-            street_parts = []
-            for part in parts[1:]:
-                if part.rstrip("THSTNDRD").isdigit():
-                    street_parts.append(part.rstrip("THSTNDRD"))
-                else:
-                    street_parts.append(part)
-
-            street_name = " ".join(street_parts)
-            standardized = f"{house_number} {street_name}"
-
-            return house_number, street_name, apt, standardized
+            street_name = " ".join(parts[1:])
+            return house_number, street_name, apt, f"{house_number} {street_name}"
         except Exception as e:
             raise ValueError(f"Error standardizing address: {e}")
 
@@ -152,9 +160,10 @@ class AddressService:
                 "$limit": 1000,
                 "$order": order_field,
             }
-            print(f"Querying {url} with params: {query_params}")  # Debugging
+            logger.debug(f"Querying {url} with params: {query_params}")
             response = self.session.get(url, params=query_params, timeout=self.timeout)
             response.raise_for_status()
+
             return [
                 DataItem(
                     id=item.get(key_mappings["id"], ""),
@@ -167,28 +176,18 @@ class AddressService:
                 )
                 for item in response.json()
             ]
-        except requests.exceptions.HTTPError as e:
-            print(f"HTTPError for {url}: {e.response.text}")
-            return []
         except Exception as e:
-            print(f"Error fetching data from {url}: {e}")
+            logger.error(f"Error fetching data from {url}: {e}")
             return []
 
     def get_address_data(self, address: str, zip_code: str) -> Dict[str, List[DataItem]]:
-        house_number, street_name, apt, standardized = self.standardize_address(address)
-
+        house_number, street_name, _, _ = self.standardize_address(address)
         return {
             "311_complaints": self.fetch_data(
                 "https://data.cityofnewyork.us/resource/erm2-nwe9.json",
-                f"upper(incident_address) = '{house_number} {street_name}' AND incident_zip = '{zip_code}' AND created_date >= '2010-01-01'",
-                {
-                    "id": "unique_key",
-                    "date": "created_date",
-                    "type": "311 Complaint",
-                    "description": "descriptor",
-                    "resolution_description": "resolution_description",
-                },
-                "created_date DESC",
+                f"upper(incident_address) = '{house_number} {street_name}' AND incident_zip = '{zip_code}'",
+                {"id": "unique_key", "date": "created_date", "type": "311 Complaint", "description": "descriptor"},
+                "created_date DESC"
             ),
             "lead_violations": self.fetch_data(
                 "https://data.cityofnewyork.us/resource/v574-pyre.json",
