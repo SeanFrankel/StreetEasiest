@@ -53,13 +53,13 @@ class NYCAddressLookupPage(BasePage):
                 service = AddressService()
                 data = service.get_address_data(address, zip_code)
 
-                # Determine the count value
+                # Determine the count value; if count is "all", return all entries, else default to 5
                 if count == "all":
                     count = max(len(items) for items in data.values())
                 else:
                     count = int(count) if count.isdigit() else 5
 
-                # Filter by category if specified
+                # If a category is specified (for load-more operations), only return that category.
                 if category and category in data:
                     filtered_data = {category: data[category]}
                 else:
@@ -74,6 +74,7 @@ class NYCAddressLookupPage(BasePage):
                     for key, value in filtered_data.items()
                 }
 
+                # Gather unique location info if available (for mapping, etc.)
                 unique_locations = set()
                 for items in data.values():
                     for item in items:
@@ -97,6 +98,8 @@ class NYCAddressLookupPage(BasePage):
                 return JsonResponse({"success": False, "error": "Internal server error. Please try again later."}, status=500)
 
         return render(request, self.template, {"page": self})
+
+
 
 @dataclass
 class DataItem:
@@ -128,6 +131,7 @@ class DataItem:
             "status": self.status,
             "additional_info": self.additional_info,
         }
+
 
 class AddressService:
     def __init__(self):

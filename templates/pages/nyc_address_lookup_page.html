@@ -50,6 +50,10 @@
     </div>
 
 <script>
+// Global object to track the current number of entries displayed per category.
+const categoryCounts = {};
+
+// Main search form handler.
 document.getElementById("lookup-form").addEventListener("submit", async function (e) {
     e.preventDefault();
 
@@ -68,13 +72,16 @@ document.getElementById("lookup-form").addEventListener("submit", async function
     try {
         const requestUrl = `${window.location.pathname}?address=${encodeURIComponent(addressInput)}&zip_code=${encodeURIComponent(zipCodeInput)}`;
         const response = await fetch(requestUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
-
         const data = await response.json();
         if (data.success) {
             resultsDiv.innerHTML = `
                 <h2 class="text-2xl font-bold mb-6">Results</h2>
                 ${Object.entries(data.data)
-                    .map(([key, value]) => renderCategoryTable(key, value.entries, value.total))
+                    .map(([key, value]) => {
+                        // Set the initial count to the number of entries returned (should be 5 by default).
+                        categoryCounts[key] = value.entries.length;
+                        return renderCategoryTable(key, value.entries, value.total);
+                    })
                     .join("")}
             `;
         } else {
@@ -87,6 +94,7 @@ document.getElementById("lookup-form").addEventListener("submit", async function
     }
 });
 
+// Render a table for a given category, including a filter input and three buttons.
 function renderCategoryTable(category, entries, total) {
     const tableRows = entries.map(item => `
         <tr>
@@ -101,6 +109,10 @@ function renderCategoryTable(category, entries, total) {
     return `
         <div class="result-category mb-8" data-category="${category}">
             <h3 class="text-xl font-semibold mb-4">${category.replace(/_/g, " ")}</h3>
+            <!-- Filter input for this category -->
+            <input type="text" placeholder="Filter results..." 
+                oninput="filterTable(this, '${category}')" 
+                class="mb-4 p-2 border rounded w-full" />
             <table class="table-auto w-full border-collapse border border-gray-300">
                 <thead>
                     <tr class="bg-gray-200">
@@ -116,23 +128,46 @@ function renderCategoryTable(category, entries, total) {
                 </tbody>
             </table>
             <div class="mt-4 flex gap-4">
-                <button class="btn btn-secondary" onclick="loadMore('${category}', 15)">Show 15 More</button>
+                <button class="btn btn-secondary" onclick="show5More('${category}')">Show 5 More</button>
                 <button class="btn btn-secondary" onclick="loadMore('${category}', 'all')">Show All</button>
+                <button class="btn btn-secondary" onclick="showOnly5('${category}')">Only show 5 again</button>
             </div>
         </div>
     `;
 }
 
+// Client-side filtering function: hide table rows that do not match the filter text.
+function filterTable(input, category) {
+    const filterText = input.value.toLowerCase();
+    const table = document.querySelector(`.result-category[data-category="${category}"] table`);
+    if (!table) return;
+    const rows = table.querySelectorAll("tbody tr");
+    rows.forEach(row => {
+        const rowText = row.textContent.toLowerCase();
+        row.style.display = rowText.indexOf(filterText) > -1 ? "" : "none";
+    });
+}
+
+// Load more entries for a specific category using the server-side logic.
+// The parameter "count" may be a number (for showing more entries) or the string "all".
 async function loadMore(category, count) {
     const addressInput = document.getElementById("address").value.trim();
     const zipCodeInput = document.getElementById("zip-code").value.trim();
 
+    // Show a loading message in the relevant category section.
+    const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
+    if (categoryDiv) {
+        categoryDiv.innerHTML = '<p class="text-center py-4">Loading...</p>';
+    }
+
     try {
         const requestUrl = `${window.location.pathname}?address=${encodeURIComponent(addressInput)}&zip_code=${encodeURIComponent(zipCodeInput)}&category=${category}&count=${count}`;
         const response = await fetch(requestUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
-
         const data = await response.json();
         if (data.success && data.data[category]) {
+            // Update the global count based on the response.
+            const newCount = (count === 'all') ? data.data[category].total : parseInt(count);
+            categoryCounts[category] = newCount;
             const updatedTable = renderCategoryTable(category, data.data[category].entries, data.data[category].total);
             const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
             if (categoryDiv) {
@@ -142,6 +177,18 @@ async function loadMore(category, count) {
     } catch (error) {
         console.error("Error loading more entries:", error);
     }
+}
+
+// Helper function for the "Show 5 More" button: add 5 to the current count.
+function show5More(category) {
+    const current = categoryCounts[category] || 5;
+    const newCount = current + 5;
+    loadMore(category, newCount);
+}
+
+// Helper function for the "Only show 5 again" button: reset count to 5.
+function showOnly5(category) {
+    loadMore(category, 5);
 }
 </script>
 {% endblock %}

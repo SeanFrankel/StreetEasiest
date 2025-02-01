@@ -1,4 +1,3 @@
-
 {% load wagtailcore_tags wagtailsettings_tags %}
 {% wagtail_site as current_site %}
 
@@ -54,6 +53,26 @@
                         {% endif %}
                     </li>
                 {% endfor %}
+                <!-- NYC Address Lookup Tool Link -->
+                <li>
+                    <a 
+                        href="/nyc-lookup-tool/"
+                        class="
+                            flex 
+                            text-base 
+                            items-center 
+                            font-semibold 
+                            font-codepro
+                            underline
+                            underline-offset-8
+                            decoration-[1.5px]
+                            decoration-mackerel-200
+                            hover:decoration-mackerel-300
+                        "
+                    >
+                        NYC Address Lookup Tool
+                    </a>
+                </li>
                 <li class="flex items-center">
                     <button 
                         data-toggle-search-panel
@@ -121,13 +140,40 @@
                             hover:decoration-white
                             decoration-[1.5px]
                             " 
-                            href="" 
+                            href="{{ link.value.get_url }}" 
                         >
                              {{ link.value.get_title }}
                         </a>
                     {% endif %}
                 </li>
             {% endfor %}
+            <!-- NYC Address Lookup Tool Link for Mobile -->
+            <li class="
+                border-t-[1px]
+                border-dashed
+                border-mackerel-200
+                last-of-type:border-b-[1px]
+            ">
+                <a 
+                    href="/nyc-lookup-tool/"
+                    class="
+                        flex
+                        py-6
+                        text-lg
+                        items-center 
+                        font-semibold 
+                        font-codepro
+                        underline
+                        underline-offset-8
+                        text-white
+                        decoration-transparent
+                        hover:decoration-white
+                        decoration-[1.5px]
+                    "
+                >
+                    NYC Address Lookup Tool
+                </a>
+            </li>
         </ul>
         {% include "components/search.html" with variant="mobile-menu" %}
         {% include "components/theme-toggle.html" %}
@@ -156,4 +202,3 @@
         {% include "components/search.html" with variant="search-panel" %}
     </div>
 </header>
-
