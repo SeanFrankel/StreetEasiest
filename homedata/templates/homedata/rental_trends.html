@@ -1,0 +1,258 @@
+{% extends "base_page.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto py-8">
+  <h2 class="text-2xl font-bold mb-4">Historical Rental Trends</h2>
+
+  {% if page.intro %}
+    <p class="mb-4">{{ page.intro }}</p>
+  {% endif %}
+  
+  <!-- Area Selection Dropdown -->
+  <select id="areaSelect" class="mb-4 p-2 border rounded">
+    <option value="">-- Select an Area (default: first found) --</option>
+    <option value="All Downtown">All Downtown</option>
+    <option value="All Midtown">All Midtown</option>
+    <option value="All Upper East Side">All Upper East Side</option>
+    <option value="All Upper Manhattan">All Upper Manhattan</option>
+    <option value="All Upper West Side">All Upper West Side</option>
+    <option value="Astoria">Astoria</option>
+    <option value="Auburndale">Auburndale</option>
+    <option value="Bath Beach">Bath Beach</option>
+    <option value="Battery Park City">Battery Park City</option>
+    <option value="Bay Ridge">Bay Ridge</option>
+    <option value="Baychester">Baychester</option>
+    <option value="Bayside">Bayside</option>
+    <option value="Bedford Park">Bedford Park</option>
+    <option value="Bedford-Stuyvesant">Bedford-Stuyvesant</option>
+    <option value="Bellerose">Bellerose</option>
+    <option value="Belmont">Belmont</option>
+    <option value="Bensonhurst">Bensonhurst</option>
+    <option value="Bergen Beach">Bergen Beach</option>
+    <option value="Boerum Hill">Boerum Hill</option>
+    <option value="Borough Park">Borough Park</option>
+    <option value="Briarwood">Briarwood</option>
+    <option value="Brighton Beach">Brighton Beach</option>
+    <option value="Bronx">Bronx</option>
+    <option value="Bronxwood">Bronxwood</option>
+    <option value="Brooklyn">Brooklyn</option>
+    <option value="Brooklyn Heights">Brooklyn Heights</option>
+    <option value="Brookville">Brookville</option>
+    <option value="Brownsville">Brownsville</option>
+    <option value="Bushwick">Bushwick</option>
+    <option value="Cambria Heights">Cambria Heights</option>
+    <option value="Canarsie">Canarsie</option>
+    <option value="Carroll Gardens">Carroll Gardens</option>
+    <option value="Castle Hill">Castle Hill</option>
+    <option value="Central Harlem">Central Harlem</option>
+    <option value="Central Park South">Central Park South</option>
+    <option value="Central Queens">Central Queens</option>
+    <option value="Chelsea">Chelsea</option>
+    <option value="Chinatown">Chinatown</option>
+    <option value="City Island">City Island</option>
+    <option value="Civic Center">Civic Center</option>
+    <option value="Clearview">Clearview</option>
+    <option value="Clinton Hill">Clinton Hill</option>
+    <option value="Co-op City">Co-op City</option>
+    <option value="Cobble Hill">Cobble Hill</option>
+    <option value="College Point">College Point</option>
+    <option value="Columbia St Waterfront District">Columbia St Waterfront District</option>
+    <option value="Concourse">Concourse</option>
+    <option value="Coney Island">Coney Island</option>
+    <option value="Corona">Corona</option>
+    <option value="Country Club">Country Club</option>
+    <option value="Crotona Park East">Crotona Park East</option>
+    <option value="Crown Heights">Crown Heights</option>
+    <option value="DUMBO">DUMBO</option>
+    <option value="Ditmas Park">Ditmas Park</option>
+    <option value="Douglaston">Douglaston</option>
+    <option value="Downtown Brooklyn">Downtown Brooklyn</option>
+    <option value="Dyker Heights">Dyker Heights</option>
+    <option value="East Brooklyn">East Brooklyn</option>
+    <option value="East Elmhurst">East Elmhurst</option>
+    <option value="East Flatbush">East Flatbush</option>
+    <option value="East Harlem">East Harlem</option>
+    <option value="East New York">East New York</option>
+    <option value="East Tremont">East Tremont</option>
+    <option value="East Village">East Village</option>
+    <option value="Eastchester">Eastchester</option>
+    <option value="Edenwald">Edenwald</option>
+    <option value="Elmhurst">Elmhurst</option>
+    <option value="Financial District">Financial District</option>
+    <option value="Flatbush">Flatbush</option>
+    <option value="Flatiron">Flatiron</option>
+    <option value="Flatlands">Flatlands</option>
+    <option value="Floral Park">Floral Park</option>
+    <option value="Flushing">Flushing</option>
+    <option value="Fordham">Fordham</option>
+    <option value="Forest Hills">Forest Hills</option>
+    <option value="Fort Greene">Fort Greene</option>
+    <option value="Fresh Meadows">Fresh Meadows</option>
+    <option value="Gramercy Park">Gramercy Park</option>
+    <option value="Gravesend">Gravesend</option>
+    <option value="Greenpoint">Greenpoint</option>
+    <option value="Greenwich Village">Greenwich Village</option>
+    <option value="Gowanus">Gowanus</option>
+    <option value="Greenwood">Greenwood</option>
+    <option value="Hamilton Heights">Hamilton Heights</option>
+    <option value="Highbridge">Highbridge</option>
+    <option value="Hillcrest">Hillcrest</option>
+    <option value="Hollis">Hollis</option>
+    <option value="Howard Beach">Howard Beach</option>
+    <option value="Hunts Point">Hunts Point</option>
+    <option value="Inwood">Inwood</option>
+    <option value="Jackson Heights">Jackson Heights</option>
+    <option value="Jamaica">Jamaica</option>
+    <option value="Jamaica Estates">Jamaica Estates</option>
+    <option value="Jamaica Hills">Jamaica Hills</option>
+    <option value="Kingsbridge">Kingsbridge</option>
+    <option value="Kensington">Kensington</option>
+    <option value="Kew Gardens">Kew Gardens</option>
+    <option value="Kew Gardens Hills">Kew Gardens Hills</option>
+    <option value="Laconia">Laconia</option>
+    <option value="Laurelton">Laurelton</option>
+    <option value="Little Italy">Little Italy</option>
+    <option value="Little Neck">Little Neck</option>
+    <option value="Long Island City">Long Island City</option>
+    <option value="Longwood">Longwood</option>
+    <option value="Lower East Side">Lower East Side</option>
+    <option value="Manhattan">Manhattan</option>
+    <option value="Manhattan Beach">Manhattan Beach</option>
+    <option value="Marble Hill">Marble Hill</option>
+    <option value="Marine Park">Marine Park</option>
+    <option value="Morningside Heights">Morningside Heights</option>
+    <option value="Morris Heights">Morris Heights</option>
+    <option value="Morris Park">Morris Park</option>
+    <option value="Mott Haven">Mott Haven</option>
+    <option value="Prospect Heights">Prospect Heights</option>
+    <option value="Prospect Lefferts Gardens">Prospect Lefferts Gardens</option>
+    <option value="Prospect Park">Prospect Park</option>
+    <option value="Prospect Park South">Prospect Park South</option>
+    <option value="Rego Park">Rego Park</option>
+    <option value="Richmond Hill">Richmond Hill</option>
+    <option value="Rockaway All">Rockaway All</option>
+    <option value="Roosevelt Island">Roosevelt Island</option>
+    <option value="Riverdale">Riverdale</option>
+    <option value="Rosedale">Rosedale</option>
+    <option value="Schuylerville">Schuylerville</option>
+    <option value="Seagate">Seagate</option>
+    <option value="Sheepshead Bay">Sheepshead Bay</option>
+    <option value="Soho">Soho</option>
+    <option value="Soundview">Soundview</option>
+    <option value="South Brooklyn">South Brooklyn</option>
+    <option value="South Jamaica">South Jamaica</option>
+    <option value="South Ozone Park">South Ozone Park</option>
+    <option value="South Queens">South Queens</option>
+    <option value="South Richmond Hill">South Richmond Hill</option>
+    <option value="Springfield Gardens">Springfield Gardens</option>
+    <option value="St. Albans">St. Albans</option>
+    <option value="Staten Island">Staten Island</option>
+    <option value="Stuyvesant Town/PCV">Stuyvesant Town/PCV</option>
+    <option value="Sunnyside">Sunnyside</option>
+    <option value="Throgs Neck">Throgs Neck</option>
+    <option value="Tremont">Tremont</option>
+    <option value="Tribeca">Tribeca</option>
+    <option value="University Heights">University Heights</option>
+    <option value="Van Nest">Van Nest</option>
+    <option value="Wakefield">Wakefield</option>
+    <option value="Washington Heights">Washington Heights</option>
+    <option value="West Harlem">West Harlem</option>
+    <option value="West Village">West Village</option>
+    <option value="Westchester Village">Westchester Village</option>
+    <option value="Whitestone">Whitestone</option>
+    <option value="Williamsbridge">Williamsbridge</option>
+    <option value="Williamsburg">Williamsburg</option>
+    <option value="Windsor Terrace">Windsor Terrace</option>
+    <option value="Woodhaven">Woodhaven</option>
+    <option value="Woodlawn">Woodlawn</option>
+    <option value="Woodside">Woodside</option>
+    <option value="Woodstock">Woodstock</option>
+  </select>
+  
+  <!-- Chart Canvas -->
+  <canvas id="rentChart" width="800" height="400"></canvas>
+</div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function fetchAndRenderChart(area) {
+  // Build the endpoint URL; if an area is selected, pass it as a parameter.
+  let url = "/homedata/rental-data-json/";
+  if (area) {
+    url += "?area=" + encodeURIComponent(area);
+  }
+  
+  fetch(url)
+    .then(response => response.json())
+    .then(data => {
+      // If an area is specified, data should contain only that key.
+      let chartData;
+      if (area && data[area]) {
+        chartData = data[area].monthly;
+      } else {
+        // Otherwise, default to the first area in the returned data.
+        const keys = Object.keys(data);
+        if (keys.length > 0) {
+          chartData = data[keys[0]].monthly;
+        }
+      }
+      if (!chartData) {
+        alert("No data available for the selected area.");
+        return;
+      }
+      
+      // Extract labels and values (sorted in time order)
+      const labels = Object.keys(chartData).sort();
+      const values = labels.map(label => chartData[label]);
+      
+      // Destroy any existing chart instance
+      if (window.rentChartInstance) {
+        window.rentChartInstance.destroy();
+      }
+      
+      // Create the chart
+      const ctx = document.getElementById('rentChart').getContext('2d');
+      window.rentChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Median Asking Rent',
+            data: values,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            fill: false,
+          }]
+        },
+        options: {
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Month'
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Rent ($)'
+              }
+            }
+          }
+        }
+      });
+    });
+}
+
+// Initial chart load
+document.addEventListener("DOMContentLoaded", function() {
+  fetchAndRenderChart("");
+
+  // Update chart when a new area is selected
+  document.getElementById('areaSelect').addEventListener('change', function() {
+    fetchAndRenderChart(this.value);
+  });
+});
+</script>
+{% endblock %}
