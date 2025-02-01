@@ -2,193 +2,192 @@
 {% load wagtailcore_tags wagtailimages_tags static %}
 
 {% block content %}
-    <div class="site-padding site-container">
-        <!-- Header Section -->
-        <div class="flex flex-col md:flex-row md:items-center py-20">
-            <h1 class="font-serif4 [word-spacing:-6px] font-bold text-8xl lg:text-10xl
-            md:pr-16 lg:pr-20 {% if page.instructions %} md:border-r-[1px] md:basis-2/6 border-grey-200 {% endif %}">
-                {{ page.header }}
-            </h1>
-            {% if page.instructions %}
-                <div class="max-w-[636px] rich-text pt-5 md:w-2/3 md:pl-16 lg:pl-20">
-                    <p>{{ page.instructions|linebreaks }}</p>
-                </div>
-            {% endif %}
+  <div class="site-padding site-container">
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row md:items-center py-20">
+      <h1 class="font-serif4 [word-spacing:-6px] font-bold text-6xl lg:text-7xl md:pr-16 lg:pr-20 {% if page.instructions %} md:border-r-[1px] md:basis-2/6 border-grey-200 {% endif %}">
+        {{ page.header }}
+      </h1>
+      {% if page.instructions %}
+        <div class="max-w-[636px] rich-text pt-5 md:w-2/3 md:pl-16 lg:pl-20">
+          <p>{{ page.instructions|linebreaks }}</p>
         </div>
-
-        <!-- Search Form -->
-        <section class="lookup-form pb-20">
-            <form id="lookup-form" class="form flex flex-col sm:flex-row items-center gap-4">
-                <label for="address" class="sr-only">Enter Address:</label>
-                <input
-                    type="text"
-                    id="address"
-                    name="address"
-                    class="form-input w-full sm:w-auto flex-grow"
-                    placeholder="e.g., 123 Main St"
-                    required
-                    aria-label="Enter Address"
-                />
-                <label for="zip-code" class="sr-only">Enter Zip Code:</label>
-                <input
-                    type="text"
-                    id="zip-code"
-                    name="zip_code"
-                    class="form-input w-full sm:w-auto flex-grow"
-                    placeholder="e.g., 10001"
-                    required
-                    aria-label="Enter Zip Code"
-                />
-                <button type="submit" class="btn btn-primary">Search</button>
-            </form>
-        </section>
-
-        <!-- Results Section -->
-        <section id="results" class="lookup-results py-10" aria-live="polite" aria-busy="false">
-            <p>Results will appear here after searching.</p>
-        </section>
+      {% endif %}
     </div>
 
-<script>
-// Global object to track the current number of entries displayed per category.
-const categoryCounts = {};
+    <!-- Search Form -->
+    <section class="lookup-form pb-20">
+      <form id="lookup-form" class="form flex flex-col sm:flex-row items-center gap-4">
+        <label for="address" class="sr-only">Enter Address:</label>
+        <input
+          type="text"
+          id="address"
+          name="address"
+          class="form-input w-full sm:w-auto flex-grow rounded border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="e.g., 123 Main St"
+          required
+          aria-label="Enter Address"
+        />
+        <label for="zip-code" class="sr-only">Enter Zip Code:</label>
+        <input
+          type="text"
+          id="zip-code"
+          name="zip_code"
+          class="form-input w-full sm:w-auto flex-grow rounded border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="e.g., 10001"
+          required
+          aria-label="Enter Zip Code"
+        />
+        <button type="submit" class="btn btn-primary rounded py-2 px-4">Search</button>
+      </form>
+    </section>
 
-// Main search form handler.
-document.getElementById("lookup-form").addEventListener("submit", async function (e) {
-    e.preventDefault();
+    <!-- Results Section -->
+    <section id="results" class="lookup-results py-10" aria-live="polite" aria-busy="false">
+      <p>Results will appear here after searching.</p>
+    </section>
+  </div>
 
-    const addressInput = document.getElementById("address").value.trim();
-    const zipCodeInput = document.getElementById("zip-code").value.trim();
-    const resultsDiv = document.getElementById("results");
+  <script>
+    // Global object to track the current number of entries displayed per category.
+    const categoryCounts = {};
 
-    if (!addressInput || !zipCodeInput) {
+    // Main search form handler.
+    document.getElementById("lookup-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const addressInput = document.getElementById("address").value.trim();
+      const zipCodeInput = document.getElementById("zip-code").value.trim();
+      const resultsDiv = document.getElementById("results");
+
+      if (!addressInput || !zipCodeInput) {
         alert("Please enter both an address and a zip code.");
         return;
-    }
+      }
 
-    resultsDiv.innerHTML = "<p>Loading...</p>";
-    resultsDiv.setAttribute("aria-busy", "true");
+      resultsDiv.innerHTML = "<p>Loading...</p>";
+      resultsDiv.setAttribute("aria-busy", "true");
 
-    try {
+      try {
         const requestUrl = `${window.location.pathname}?address=${encodeURIComponent(addressInput)}&zip_code=${encodeURIComponent(zipCodeInput)}`;
         const response = await fetch(requestUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
         const data = await response.json();
         if (data.success) {
-            resultsDiv.innerHTML = `
-                <h2 class="text-2xl font-bold mb-6">Results</h2>
-                ${Object.entries(data.data)
-                    .map(([key, value]) => {
-                        // Set the initial count to the number of entries returned (should be 5 by default).
-                        categoryCounts[key] = value.entries.length;
-                        return renderCategoryTable(key, value.entries, value.total);
-                    })
-                    .join("")}
-            `;
+          resultsDiv.innerHTML = `
+            <h2 class="text-2xl font-bold mb-6">Results</h2>
+            ${Object.entries(data.data)
+              .map(([key, value]) => {
+                // Set the initial count to the number of entries returned (should be 5 by default).
+                categoryCounts[key] = value.entries.length;
+                return renderCategoryTable(key, value.entries, value.total);
+              })
+              .join("")}
+          `;
         } else {
-            resultsDiv.innerHTML = `<p class="text-red-600">Error: ${data.error}</p>`;
+          resultsDiv.innerHTML = `<p class="text-red-600">Error: ${data.error}</p>`;
         }
-    } catch (error) {
+      } catch (error) {
         resultsDiv.innerHTML = `<p class="text-red-600">An error occurred: ${error.message}</p>`;
-    } finally {
+      } finally {
         resultsDiv.setAttribute("aria-busy", "false");
-    }
-});
+      }
+    });
 
-// Render a table for a given category, including a filter input and three buttons.
-function renderCategoryTable(category, entries, total) {
-    const tableRows = entries.map(item => `
+    // Render a table for a given category, including a filter input and three buttons.
+    function renderCategoryTable(category, entries, total) {
+      const tableRows = entries.map(item => `
         <tr>
-            <td class="border px-4 py-2">${item.type}</td>
-            <td class="border px-4 py-2">${item.description || "No description"}</td>
-            <td class="border px-4 py-2">${item.date || "No date"}</td>
-            <td class="border px-4 py-2">${item.resolution_description || "No resolution"}</td>
-            <td class="border px-4 py-2">${item.status || "Unknown"}</td>
+          <td class="border px-4 py-2">${item.type}</td>
+          <td class="border px-4 py-2">${item.description || "No description"}</td>
+          <td class="border px-4 py-2">${item.date || "No date"}</td>
+          <td class="border px-4 py-2">${item.resolution_description || "No resolution"}</td>
+          <td class="border px-4 py-2">${item.status || "Unknown"}</td>
         </tr>
-    `).join("");
+      `).join("");
 
-    return `
+      return `
         <div class="result-category mb-8" data-category="${category}">
-            <h3 class="text-xl font-semibold mb-4">${category.replace(/_/g, " ")}</h3>
-            <!-- Filter input for this category -->
-            <input type="text" placeholder="Filter results..." 
-                oninput="filterTable(this, '${category}')" 
-                class="mb-4 p-2 border rounded w-full" />
-            <table class="table-auto w-full border-collapse border border-gray-300">
-                <thead>
-                    <tr class="bg-gray-200">
-                        <th class="border px-4 py-2">Type</th>
-                        <th class="border px-4 py-2">Description</th>
-                        <th class="border px-4 py-2">Date</th>
-                        <th class="border px-4 py-2">Resolution</th>
-                        <th class="border px-4 py-2">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${tableRows}
-                </tbody>
-            </table>
-            <div class="mt-4 flex gap-4">
-                <button class="btn btn-secondary" onclick="show5More('${category}')">Show 5 More</button>
-                <button class="btn btn-secondary" onclick="loadMore('${category}', 'all')">Show All</button>
-                <button class="btn btn-secondary" onclick="showOnly5('${category}')">Only show 5 again</button>
-            </div>
+          <h3 class="text-xl font-semibold mb-4">${category.replace(/_/g, " ")}</h3>
+          <!-- Filter input for this category -->
+          <input type="text" placeholder="Filter results..." 
+            oninput="filterTable(this, '${category}')" 
+            class="mb-4 p-2 border rounded w-full" />
+          <table class="table-auto w-full border-collapse border border-gray-300">
+            <thead>
+              <tr class="bg-gray-200">
+                <th class="border px-4 py-2">Type</th>
+                <th class="border px-4 py-2">Description</th>
+                <th class="border px-4 py-2">Date</th>
+                <th class="border px-4 py-2">Resolution</th>
+                <th class="border px-4 py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+          <div class="mt-4 flex gap-4">
+            <button class="btn btn-secondary rounded py-2 px-4" onclick="show5More('${category}')">Show 5 More</button>
+            <button class="btn btn-secondary rounded py-2 px-4" onclick="loadMore('${category}', 'all')">Show All</button>
+            <button class="btn btn-secondary rounded py-2 px-4" onclick="showOnly5('${category}')">Only show 5 again</button>
+          </div>
         </div>
-    `;
-}
+      `;
+    }
 
-// Client-side filtering function: hide table rows that do not match the filter text.
-function filterTable(input, category) {
-    const filterText = input.value.toLowerCase();
-    const table = document.querySelector(`.result-category[data-category="${category}"] table`);
-    if (!table) return;
-    const rows = table.querySelectorAll("tbody tr");
-    rows.forEach(row => {
+    // Client-side filtering function: hide table rows that do not match the filter text.
+    function filterTable(input, category) {
+      const filterText = input.value.toLowerCase();
+      const table = document.querySelector(`.result-category[data-category="${category}"] table`);
+      if (!table) return;
+      const rows = table.querySelectorAll("tbody tr");
+      rows.forEach(row => {
         const rowText = row.textContent.toLowerCase();
         row.style.display = rowText.indexOf(filterText) > -1 ? "" : "none";
-    });
-}
-
-// Load more entries for a specific category using the server-side logic.
-// The parameter "count" may be a number (for showing more entries) or the string "all".
-async function loadMore(category, count) {
-    const addressInput = document.getElementById("address").value.trim();
-    const zipCodeInput = document.getElementById("zip-code").value.trim();
-
-    // Show a loading message in the relevant category section.
-    const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
-    if (categoryDiv) {
-        categoryDiv.innerHTML = '<p class="text-center py-4">Loading...</p>';
+      });
     }
 
-    try {
+    // Load more entries for a specific category using the server-side logic.
+    // The parameter "count" may be a number (for showing more entries) or the string "all".
+    async function loadMore(category, count) {
+      const addressInput = document.getElementById("address").value.trim();
+      const zipCodeInput = document.getElementById("zip-code").value.trim();
+
+      // Show a loading message in the relevant category section.
+      const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
+      if (categoryDiv) {
+        categoryDiv.innerHTML = '<p class="text-center py-4">Loading...</p>';
+      }
+
+      try {
         const requestUrl = `${window.location.pathname}?address=${encodeURIComponent(addressInput)}&zip_code=${encodeURIComponent(zipCodeInput)}&category=${category}&count=${count}`;
         const response = await fetch(requestUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
         const data = await response.json();
         if (data.success && data.data[category]) {
-            // Update the global count based on the response.
-            const newCount = (count === 'all') ? data.data[category].total : parseInt(count);
-            categoryCounts[category] = newCount;
-            const updatedTable = renderCategoryTable(category, data.data[category].entries, data.data[category].total);
-            const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
-            if (categoryDiv) {
-                categoryDiv.outerHTML = updatedTable;
-            }
+          // Update the global count based on the response.
+          const newCount = (count === 'all') ? data.data[category].total : parseInt(count);
+          categoryCounts[category] = newCount;
+          const updatedTable = renderCategoryTable(category, data.data[category].entries, data.data[category].total);
+          const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
+          if (categoryDiv) {
+            categoryDiv.outerHTML = updatedTable;
+          }
         }
-    } catch (error) {
+      } catch (error) {
         console.error("Error loading more entries:", error);
+      }
     }
-}
 
-// Helper function for the "Show 5 More" button: add 5 to the current count.
-function show5More(category) {
-    const current = categoryCounts[category] || 5;
-    const newCount = current + 5;
-    loadMore(category, newCount);
-}
+    // Helper function for the "Show 5 More" button: add 5 to the current count.
+    function show5More(category) {
+      const current = categoryCounts[category] || 5;
+      const newCount = current + 5;
+      loadMore(category, newCount);
+    }
 
-// Helper function for the "Only show 5 again" button: reset count to 5.
-function showOnly5(category) {
-    loadMore(category, 5);
-}
-</script>
+    // Helper function for the "Only show 5 again" button: reset count to 5.
+    function showOnly5(category) {
+      loadMore(category, 5);
+    }
+  </script>
 {% endblock %}

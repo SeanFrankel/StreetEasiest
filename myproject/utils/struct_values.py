@@ -21,8 +21,8 @@ class LinkStructValue(blocks.StructValue):
 
         if page := self.get("page"):
             page = page.specific
-
-            return page.listing_title or page.title
+            # Safely get 'listing_title' if it exists, otherwise fall back to page.title.
+            return getattr(page, 'listing_title', None) or page.title
 
         if document := self.get("document"):
             return document.title
@@ -52,8 +52,7 @@ class CardStructValue(blocks.StructValue):
         if image := self.get("image"):
             return image
 
-        # If there is no image selected, get the listing image from
-        # the selected link.
+        # If there is no image selected, get the listing image from the selected link.
         if link := self.get("link"):
             return link[0].value["page"].specific.listing_image
         # Else page hero image if exists
