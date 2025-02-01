@@ -21,7 +21,7 @@ class LinkStructValue(blocks.StructValue):
 
         if page := self.get("page"):
             page = page.specific
-            # Safely get 'listing_title' if it exists, otherwise fall back to page.title.
+            # Safely try to get listing_title; fall back to title if it doesn't exist.
             return getattr(page, 'listing_title', None) or page.title
 
         if document := self.get("document"):
@@ -49,21 +49,56 @@ class LinkStructValue(blocks.StructValue):
 
 class CardStructValue(blocks.StructValue):
     def get_image(self):
-        if image := self.get("image"):
-            return image
+        """
+        Returns a list of images.
+        If an image field is provided, it will be returned (wrapped in a list if needed).
+        Otherwise, if a link is provided, it will try to retrieve the linked page’s listing_image.
+        If nothing is found, an empty list is returned.
+        """
+        images = []
+        image_field = self.get("image")
+        if image_field:
+            # If the image field contains multiple images, assume it's iterable.
+            if isinstance(image_field, list):
+                images.extend(image_field)
+            else:
+                images.append(image_field)
 
-        # If there is no image selected, get the listing image from the selected link.
-        if link := self.get("link"):
-            return link[0].value["page"].specific.listing_image
-        # Else page hero image if exists
-        return ""
+        # If no images were provided via the 'image' field, check the link.
+        if not images:
+            link = self.get("link")
+            if link:
+                # If link is a list, iterate over each link.
+                if isinstance(link, list):
+                    for l in link:
+                        page = l.value.get("page")
+                        if page:
+                            listing_image = getattr(page.specific, 'listing_image', None)
+                            if listing_image:
+                                if isinstance(listing_image, list):
+                                    images.extend(listing_image)
+                                else:
+                                    images.append(listing_image)
+                else:
+                    page = link.value.get("page")
+                    if page:
+                        listing_image = getattr(page.specific, 'listing_image', None)
+                        if listing_image:
+                            if isinstance(listing_image, list):
+                                images.extend(listing_image)
+                            else:
+                                images.append(listing_image)
+        return images
 
     def get_description(self):
         if description := self.get("description"):
             return description
 
         if link := self.get("link"):
-            link = link[0].value["page"].specific
-            return link.listing_summary or link.plain_introduction
+            # For description, we assume a single link (use the first one if multiple).
+            page = link[0].value.get("page") if isinstance(link, list) else link.value.get("page")
+            if page:
+                page = page.specific
+                return page.listing_summary or page.plain_introduction
 
         return ""

@@ -37,35 +37,191 @@
 </div>
 
 {% if page.image %}
-<div class="site-padding site-container pb-10 md:pb-20">
-    <div class="bg-mackerel-300 pr-10 overflow-hidden w-full max-h-[350px] md:max-h-[400px] lg:max-h-[640px]">
-        {% image page.image.0.value.image format-jpeg width-1000 as page_image_1x_jpg %}
-        {% image page.image.0.value.image format-jpeg width-2000 as page_image_2x_jpg %}
-        {% image page.image.0.value.image format-webp width-1000 as page_image_1x_webp %}
-        {% image page.image.0.value.image format-webp width-2000 as page_image_2x_webp %}
-        <picture>
-            <source srcset="{{ page_image_1x_webp.url }} 1x, {{ page_image_2x_webp.url }} 2x" type="image/webp" />
-            <source srcset="{{ page_image_1x_jpg.url }} 1x, {{ page_image_2x_jpg.url }} 2x" type="image/jpeg" />
-            <img
-                src="{{ page_image_1x_webp.url }}"
-                width="{{ page_image_1x_webp.width }}"
-                height="{{ page_image_1x_webp.height }}"
-                alt="{% firstof page.image.0.value.image_alt_text page_image_1x_webp.alt %}"
+  {% with image_count=page.image|length %}
+    {% if image_count == 1 %}
+      <div class="site-padding site-container pb-10 md:pb-20">
+        <div class="overflow-hidden">
+          {% with image_block=page.image.0 %}
+            {% image image_block.value.image format-jpeg width-1000 as image_1x_jpg %}
+            {% image image_block.value.image format-jpeg width-2000 as image_2x_jpg %}
+            {% image image_block.value.image format-webp width-1000 as image_1x_webp %}
+            {% image image_block.value.image format-webp width-2000 as image_2x_webp %}
+            <picture>
+              <source srcset="{{ image_1x_webp.url }} 1x, {{ image_2x_webp.url }} 2x" type="image/webp" />
+              <source srcset="{{ image_1x_jpg.url }} 1x, {{ image_2x_jpg.url }} 2x" type="image/jpeg" />
+              <img
+                src="{{ image_1x_webp.url }}"
+                width="{{ image_1x_webp.width }}"
+                height="{{ image_1x_webp.height }}"
+                alt="{% firstof image_block.value.image_alt_text image_1x_webp.alt %}"
                 class="aspect-video w-full object-cover"
-                {% if page_image_1x_webp.focal_point %}
-                style="{{ page_image_1x_webp.object_position_style }}"
+                {% if image_1x_webp.focal_point %}
+                  style="{{ image_1x_webp.object_position_style }}"
                 {% endif %}
-            />
-        </picture>
+              />
+            </picture>
+            {% if image_block.value.caption %}
+              <p class="text-sm leading-6 py-5">{{ image_block.value.caption }}</p>
+            {% endif %}
+          {% endwith %}
+        </div>
+      </div>
 
-        
+    {% elif image_count == 2 %}
+      <div class="site-padding site-container pb-10 md:pb-20">
+        <div class="grid grid-cols-2 gap-2">
+          {% for image_block in page.image %}
+            <div class="overflow-hidden">
+              {% image image_block.value.image format-jpeg width-500 as image_1x_jpg %}
+              {% image image_block.value.image format-jpeg width-1000 as image_2x_jpg %}
+              {% image image_block.value.image format-webp width-500 as image_1x_webp %}
+              {% image image_block.value.image format-webp width-1000 as image_2x_webp %}
+              <picture>
+                <source srcset="{{ image_1x_webp.url }} 1x, {{ image_2x_webp.url }} 2x" type="image/webp" />
+                <source srcset="{{ image_1x_jpg.url }} 1x, {{ image_2x_jpg.url }} 2x" type="image/jpeg" />
+                <img
+                  src="{{ image_1x_webp.url }}"
+                  width="{{ image_1x_webp.width }}"
+                  height="{{ image_1x_webp.height }}"
+                  alt="{% firstof image_block.value.image_alt_text image_1x_webp.alt %}"
+                  class="aspect-video w-full object-cover h-48"
+                  {% if image_1x_webp.focal_point %}
+                    style="{{ image_1x_webp.object_position_style }}"
+                  {% endif %}
+                />
+              </picture>
+              {% if image_block.value.caption %}
+                <p class="text-sm text-center mt-2">{{ image_block.value.caption }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
 
-    </div>
-    {% if value.caption %}
-        <p class="text-sm leading-6 py-5">{{ page.image.0.value.caption }}</p>
+    {% elif image_count == 3 %}
+      <div class="site-padding site-container pb-10 md:pb-20">
+        <div class="grid grid-cols-2 gap-2">
+          {# First image spans both columns on the top row #}
+          <div class="col-span-2 overflow-hidden">
+            {% with image_block=page.image.0 %}
+              {% image image_block.value.image format-jpeg width-1000 as image_1x_jpg %}
+              {% image image_block.value.image format-jpeg width-2000 as image_2x_jpg %}
+              {% image image_block.value.image format-webp width-1000 as image_1x_webp %}
+              {% image image_block.value.image format-webp width-2000 as image_2x_webp %}
+              <picture>
+                <source srcset="{{ image_1x_webp.url }} 1x, {{ image_2x_webp.url }} 2x" type="image/webp" />
+                <source srcset="{{ image_1x_jpg.url }} 1x, {{ image_2x_jpg.url }} 2x" type="image/jpeg" />
+                <img
+                  src="{{ image_1x_webp.url }}"
+                  width="{{ image_1x_webp.width }}"
+                  height="{{ image_1x_webp.height }}"
+                  alt="{% firstof image_block.value.image_alt_text image_1x_webp.alt %}"
+                  class="aspect-video w-full object-cover h-64"
+                  {% if image_1x_webp.focal_point %}
+                    style="{{ image_1x_webp.object_position_style }}"
+                  {% endif %}
+                />
+              </picture>
+              {% if image_block.value.caption %}
+                <p class="text-sm leading-6 py-2">{{ image_block.value.caption }}</p>
+              {% endif %}
+            {% endwith %}
+          </div>
+          {# The next two images appear side by side #}
+          {% for image_block in page.image|slice:"1:" %}
+            <div class="overflow-hidden">
+              {% image image_block.value.image format-jpeg width-500 as image_1x_jpg %}
+              {% image image_block.value.image format-jpeg width-1000 as image_2x_jpg %}
+              {% image image_block.value.image format-webp width-500 as image_1x_webp %}
+              {% image image_block.value.image format-webp width-1000 as image_2x_webp %}
+              <picture>
+                <source srcset="{{ image_1x_webp.url }} 1x, {{ image_2x_webp.url }} 2x" type="image/webp" />
+                <source srcset="{{ image_1x_jpg.url }} 1x, {{ image_2x_jpg.url }} 2x" type="image/jpeg" />
+                <img
+                  src="{{ image_1x_webp.url }}"
+                  width="{{ image_1x_webp.width }}"
+                  height="{{ image_1x_webp.height }}"
+                  alt="{% firstof image_block.value.image_alt_text image_1x_webp.alt %}"
+                  class="aspect-video w-full object-cover h-48"
+                  {% if image_1x_webp.focal_point %}
+                    style="{{ image_1x_webp.object_position_style }}"
+                  {% endif %}
+                />
+              </picture>
+              {% if image_block.value.caption %}
+                <p class="text-sm text-center mt-2">{{ image_block.value.caption }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    {% elif image_count == 4 %}
+      <div class="site-padding site-container pb-10 md:pb-20">
+        <div class="grid grid-cols-2 gap-2">
+          {% for image_block in page.image %}
+            <div class="overflow-hidden">
+              {% image image_block.value.image format-jpeg width-500 as image_1x_jpg %}
+              {% image image_block.value.image format-jpeg width-1000 as image_2x_jpg %}
+              {% image image_block.value.image format-webp width-500 as image_1x_webp %}
+              {% image image_block.value.image format-webp width-1000 as image_2x_webp %}
+              <picture>
+                <source srcset="{{ image_1x_webp.url }} 1x, {{ image_2x_webp.url }} 2x" type="image/webp" />
+                <source srcset="{{ image_1x_jpg.url }} 1x, {{ image_2x_jpg.url }} 2x" type="image/jpeg" />
+                <img
+                  src="{{ image_1x_webp.url }}"
+                  width="{{ image_1x_webp.width }}"
+                  height="{{ image_1x_webp.height }}"
+                  alt="{% firstof image_block.value.image_alt_text image_1x_webp.alt %}"
+                  class="aspect-video w-full object-cover h-48"
+                  {% if image_1x_webp.focal_point %}
+                    style="{{ image_1x_webp.object_position_style }}"
+                  {% endif %}
+                />
+              </picture>
+              {% if image_block.value.caption %}
+                <p class="text-sm text-center mt-2">{{ image_block.value.caption }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    {% else %}
+      {# Fallback layout if more than 4 images: use a standard grid #}
+      <div class="site-padding site-container pb-10 md:pb-20">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {% for image_block in page.image %}
+            <div class="overflow-hidden">
+              {% image image_block.value.image format-jpeg width-500 as image_1x_jpg %}
+              {% image image_block.value.image format-jpeg width-1000 as image_2x_jpg %}
+              {% image image_block.value.image format-webp width-500 as image_1x_webp %}
+              {% image image_block.value.image format-webp width-1000 as image_2x_webp %}
+              <picture>
+                <source srcset="{{ image_1x_webp.url }} 1x, {{ image_2x_webp.url }} 2x" type="image/webp" />
+                <source srcset="{{ image_1x_jpg.url }} 1x, {{ image_2x_jpg.url }} 2x" type="image/jpeg" />
+                <img
+                  src="{{ image_1x_webp.url }}"
+                  width="{{ image_1x_webp.width }}"
+                  height="{{ image_1x_webp.height }}"
+                  alt="{% firstof image_block.value.image_alt_text image_1x_webp.alt %}"
+                  class="aspect-video w-full object-cover h-48"
+                  {% if image_1x_webp.focal_point %}
+                    style="{{ image_1x_webp.object_position_style }}"
+                  {% endif %}
+                />
+              </picture>
+              {% if image_block.value.caption %}
+                <p class="text-sm text-center mt-2">{{ image_block.value.caption }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
     {% endif %}
-</div>
+  {% endwith %}
 {% endif %}
+
 
 {% include_block page.body %}
 

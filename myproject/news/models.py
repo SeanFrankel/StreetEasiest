@@ -39,7 +39,7 @@ class ArticlePage(BasePage):
     image = StreamField(
         [("image", ImageBlock())],
         blank=True,
-        max_num=1,
+        max_num=4,
     )
     body = StreamField(StoryBlock())
     featured_section_title = models.TextField(blank=True)
