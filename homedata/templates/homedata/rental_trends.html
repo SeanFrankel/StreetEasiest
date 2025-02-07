@@ -23,29 +23,49 @@
     </select>
   </div>
 
-  <!-- New: Data Type selection (Median Asking Rent or Rental Inventory) -->
-  <div class="mb-4">
-    <label for="dataTypeSelect" class="block font-semibold mb-1">
-      Select Data Type:
-    </label>
-    <select id="dataTypeSelect" class="p-2 border rounded">
-      <option value="median" selected>Median Asking Rent</option>
-      <option value="inventory">Rental Inventory</option>
-    </select>
+  <!-- Data Type selection as checkboxes -->
+  <div class="mb-4" id="dataTypeContainer">
+    <label class="block font-semibold mb-1">Select Data Types:</label>
+    <div>
+      <input type="checkbox" id="dt_median" value="median" checked>
+      <label for="dt_median" class="ml-2">Median Asking Rent</label>
+    </div>
+    <div>
+      <input type="checkbox" id="dt_inventory" value="inventory">
+      <label for="dt_inventory" class="ml-2">Rental Inventory</label>
+    </div>
   </div>
 
-  <!-- New: Bedroom Type selection -->
-  <div class="mb-4">
-    <label for="bedroomSelect" class="block font-semibold mb-1">
-      Select Bedroom Type:
-    </label>
-    <select id="bedroomSelect" class="p-2 border rounded">
-      <option value="All" selected>All</option>
-      <option value="Studio">Studio</option>
-      <option value="OneBd">One Bedroom</option>
-      <option value="TwoBd">Two Bedroom</option>
-      <option value="ThreePlusBd">Three+ Bedrooms</option>
-    </select>
+  <!-- Bedroom Type selection as checkboxes -->
+  <div class="mb-4" id="bedroomContainer">
+    <label class="block font-semibold mb-1">Select Bedroom Types:</label>
+    <!-- New: Option for All Bedrooms -->
+    <div>
+      <input type="checkbox" id="bed_All" value="All" checked>
+      <label for="bed_All" class="ml-2">All Bedrooms</label>
+    </div>
+    <div>
+      <input type="checkbox" id="bed_Studio" value="Studio">
+      <label for="bed_Studio" class="ml-2">Studio</label>
+    </div>
+    <div>
+      <input type="checkbox" id="bed_OneBd" value="OneBd">
+      <label for="bed_OneBd" class="ml-2">One Bedroom</label>
+    </div>
+    <div>
+      <input type="checkbox" id="bed_TwoBd" value="TwoBd">
+      <label for="bed_TwoBd" class="ml-2">Two Bedroom</label>
+    </div>
+    <div>
+      <input type="checkbox" id="bed_ThreePlusBd" value="ThreePlusBd">
+      <label for="bed_ThreePlusBd" class="ml-2">Three+ Bedrooms</label>
+    </div>
+  </div>
+
+  <!-- Toggle for plotting Rental Inventory on secondary y-axis -->
+  <div class="mb-4" id="secondaryAxisToggleContainer">
+    <input type="checkbox" id="toggleInventorySecondary">
+    <label for="toggleInventorySecondary" class="ml-2">Plot Rental Inventory on Secondary Y Axis</label>
   </div>
 
   <!-- Neighborhood Selection using Checkboxes with a Search Filter -->
@@ -57,6 +77,11 @@
     <input type="text" id="checkboxFilter" class="p-2 border rounded mb-2 w-full" placeholder="Search neighborhoods...">
     <!-- Scrollable container for the checkboxes -->
     <div id="checkboxContainer" class="border p-2 rounded" style="max-height: 300px; overflow-y: auto;">
+      <!-- All Neighborhood Checkboxes (as before) -->
+      <div>
+        <input type="checkbox" id="nb_Manhattan" value="Manhattan" checked>
+        <label for="nb_Manhattan" class="ml-2">Manhattan</label>
+      </div>
       <div>
         <input type="checkbox" id="nb_All_Downtown" value="All Downtown">
         <label for="nb_All_Downtown" class="ml-2">All Downtown</label>
@@ -490,10 +515,6 @@
         <label for="nb_Lower_East_Side" class="ml-2">Lower East Side</label>
       </div>
       <div>
-        <input type="checkbox" id="nb_Manhattan" value="Manhattan">
-        <label for="nb_Manhattan" class="ml-2">Manhattan</label>
-      </div>
-      <div>
         <input type="checkbox" id="nb_Manhattan_Beach" value="Manhattan Beach">
         <label for="nb_Manhattan_Beach" class="ml-2">Manhattan Beach</label>
       </div>
@@ -861,141 +882,181 @@
 <!-- Include Chart.js from CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// -- FILTER FUNCTIONALITY --
-// Filter the checkbox list based on the text input.
-document.getElementById('checkboxFilter').addEventListener('input', function() {
-  const filterValue = this.value.toLowerCase();
-  const container = document.getElementById('checkboxContainer');
-  const checkboxDivs = container.getElementsByTagName('div');
-  for (let i = 0; i < checkboxDivs.length; i++) {
-    const labelText = checkboxDivs[i].querySelector('label').textContent.toLowerCase();
-    checkboxDivs[i].style.display = (labelText.indexOf(filterValue) > -1) ? '' : 'none';
-  }
-});
-
-// -- CHART RENDERING FUNCTIONALITY --
-// This function fetches the rental data JSON using the selected data type and bedroom type,
-// then builds a Chart.js line chart with one line per selected neighborhood.
-function fetchAndRenderChart() {
-  // Get selected neighborhoods from the checked checkboxes.
-  const checkboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']:checked");
-  let selectedAreas = Array.from(checkboxes).map(cb => cb.value);
+  // -- FILTER FUNCTIONALITY --
+  document.getElementById('checkboxFilter').addEventListener('input', function() {
+    const filterValue = this.value.toLowerCase();
+    const container = document.getElementById('checkboxContainer');
+    const checkboxDivs = container.getElementsByTagName('div');
+    for (let i = 0; i < checkboxDivs.length; i++) {
+      const labelText = checkboxDivs[i].querySelector('label').textContent.toLowerCase();
+      checkboxDivs[i].style.display = (labelText.indexOf(filterValue) > -1) ? '' : 'none';
+    }
+  });
   
-  // Get the maximum number of neighborhoods to compare.
-  const maxSelect = document.getElementById('maxSelect');
-  const maxAreas = parseInt(maxSelect.value) || 1;
+  // -- CHART RENDERING FUNCTIONALITY --
+  // This function gathers the selected options, makes AJAX requests for each (dataType, bedroomType) combination,
+  // and creates one dataset per selected neighborhood for each combination.
+  // Datasets for which dataType === "inventory" will use the secondary y-axis if the toggle is active.
+  function fetchAndRenderChart() {
+    // Get selected neighborhoods:
+    let neighborhoodCheckboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']:checked");
+    let selectedNeighborhoods = Array.from(neighborhoodCheckboxes).map(cb => cb.value);
   
-  // Limit the selection if more than allowed.
-  if (selectedAreas.length > maxAreas) {
-    alert("You can only compare up to " + maxAreas + " neighborhoods. Only the first " + maxAreas + " will be used.");
-    selectedAreas = selectedAreas.slice(0, maxAreas);
-    // Update the checkboxes visually.
-    document.querySelectorAll("#checkboxContainer input[type='checkbox']").forEach(cb => {
-      cb.checked = selectedAreas.includes(cb.value);
-    });
-  }
-  
-  // If no neighborhood is selected, default to the first available neighborhood (from the returned data).
-  // Build the URL with the new query parameters.
-  const dataType = document.getElementById('dataTypeSelect').value;
-  const bedroomType = document.getElementById('bedroomSelect').value;
-  
-  const url = `/homedata/rental-data-json/?data=${dataType}&bedrooms=${bedroomType}`;
-  
-  fetch(url)
-    .then(response => response.json())
-    .then(data => {
-      // If no neighborhood was selected, default to the first key in the returned data.
-      if (selectedAreas.length === 0) {
-        selectedAreas = [Object.keys(data)[0]];
-      }
-      
-      // Get the labels (months) from the first selected neighborhood.
-      const labels = Object.keys(data[selectedAreas[0]].monthly).sort();
-      
-      // Define a fixed set of colors (one per dataset).
-      const colors = [
-        'rgba(75, 192, 192, 1)',
-        'rgba(255, 99, 132, 1)',
-        'rgba(54, 162, 235, 1)',
-        'rgba(255, 206, 86, 1)',
-        'rgba(153, 102, 255, 1)'
-      ];
-      
-      // Build datasets – one for each selected neighborhood.
-      const datasets = selectedAreas.map((area, index) => {
-        const monthlyData = data[area] ? data[area].monthly : {};
-        const values = labels.map(label => (monthlyData[label] !== undefined ? monthlyData[label] : null));
-        return {
-          label: area,
-          data: values,
-          borderColor: colors[index % colors.length],
-          backgroundColor: colors[index % colors.length],
-          fill: false,
-          tension: 0.1
-        };
+    // Enforce maximum number of neighborhoods:
+    const maxSelect = document.getElementById('maxSelect');
+    const maxAreas = parseInt(maxSelect.value) || 1;
+    if (selectedNeighborhoods.length > maxAreas) {
+      alert("You can only compare up to " + maxAreas + " neighborhoods. Only the first " + maxAreas + " will be used.");
+      selectedNeighborhoods = selectedNeighborhoods.slice(0, maxAreas);
+      document.querySelectorAll("#checkboxContainer input[type='checkbox']").forEach(cb => {
+        cb.checked = selectedNeighborhoods.includes(cb.value);
       });
-      
-      // Destroy any existing chart instance.
+    }
+    
+    // Get selected Data Types:
+    let dataTypeCheckboxes = document.querySelectorAll("#dataTypeContainer input[type='checkbox']:checked");
+    let selectedDataTypes = Array.from(dataTypeCheckboxes).map(cb => cb.value);
+    
+    // Get selected Bedroom Types:
+    let bedroomCheckboxes = document.querySelectorAll("#bedroomContainer input[type='checkbox']:checked");
+    let selectedBedroomTypes = Array.from(bedroomCheckboxes).map(cb => cb.value);
+    
+    // If nothing is selected in Data Types or Bedroom Types, clear the chart and do nothing.
+    if (selectedDataTypes.length === 0 || selectedBedroomTypes.length === 0) {
       if (window.rentChartInstance) {
         window.rentChartInstance.destroy();
       }
-      
-      // Create a new Chart.js line chart.
-      const ctx = document.getElementById('rentChart').getContext('2d');
-      window.rentChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: datasets
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: {
-            mode: 'index',
-            intersect: false,
-          },
-          plugins: {
-            title: {
-              display: true,
-              text: 'Historical Rental Trends'
-            },
-            tooltip: {
-              mode: 'index',
-              intersect: false,
-            }
-          },
-          scales: {
-            x: {
-              title: {
-                display: true,
-                text: 'Month'
-              }
-            },
-            y: {
-              title: {
-                display: true,
-                text: dataType === 'inventory' ? 'Inventory Count' : 'Rent ($)'
-              }
+      return;
+    }
+    
+    // Get toggle state for secondary y-axis for inventory:
+    const toggleInventorySecondary = document.getElementById('toggleInventorySecondary').checked;
+    
+    // Prepare AJAX requests for each (dataType, bedroomType) combination.
+    let requests = [];
+    selectedDataTypes.forEach(dt => {
+      selectedBedroomTypes.forEach(bed => {
+        let url = `/homedata/rental-data-json/?data=${dt}&bedrooms=${bed}`;
+        requests.push(
+          fetch(url)
+            .then(response => response.json())
+            .then(jsonData => ({ dataType: dt, bedroom: bed, jsonData: jsonData }))
+        );
+      });
+    });
+    
+    Promise.all(requests)
+      .then(results => {
+        // Determine chart labels (months) by scanning results for data from one of the selected neighborhoods.
+        let labels = [];
+        for (let res of results) {
+          for (let nb of selectedNeighborhoods) {
+            if (res.jsonData[nb] && res.jsonData[nb].monthly) {
+              labels = Object.keys(res.jsonData[nb].monthly).sort();
+              break;
             }
           }
+          if (labels.length) break;
         }
+        if (!labels.length) { labels = []; }
+        
+        // Build datasets: one dataset for each combination (dataType, bedroom) per selected neighborhood.
+        let datasets = [];
+        results.forEach(result => {
+          selectedNeighborhoods.forEach(nb => {
+            if (result.jsonData[nb] && result.jsonData[nb].monthly) {
+              let monthlyData = result.jsonData[nb].monthly;
+              let dataValues = labels.map(label =>
+                monthlyData[label] !== undefined ? monthlyData[label] : null
+              );
+              let datasetLabel = `${nb} (${result.dataType}, ${result.bedroom})`;
+              let ds = {
+                label: datasetLabel,
+                data: dataValues,
+                fill: false,
+                tension: 0.1,
+                // Assign to secondary axis if dataType is "inventory" and toggle is on.
+                yAxisID: (result.dataType === "inventory" && toggleInventorySecondary) ? "y1" : "y"
+              };
+              datasets.push(ds);
+            }
+          });
+        });
+        
+        // Assign colors from a fixed palette.
+        const colors = [
+          'rgba(75, 192, 192, 1)',
+          'rgba(255, 99, 132, 1)',
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 206, 86, 1)',
+          'rgba(153, 102, 255, 1)',
+          'rgba(255, 159, 64, 1)',
+          'rgba(199, 199, 199, 1)'
+        ];
+        datasets.forEach((ds, idx) => {
+          ds.borderColor = colors[idx % colors.length];
+          ds.backgroundColor = colors[idx % colors.length];
+        });
+        
+        // Destroy any existing chart instance.
+        if (window.rentChartInstance) {
+          window.rentChartInstance.destroy();
+        }
+        
+        // Build scales configuration conditionally.
+        const scalesConfig = {
+          x: { title: { display: true, text: 'Month' } },
+          y: { 
+            type: 'linear',
+            display: true,
+            position: 'left',
+            title: { display: true, text: 'Primary Value' }
+          }
+        };
+        if (toggleInventorySecondary) {
+          scalesConfig.y1 = {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'Secondary Value' }
+          };
+        }
+        
+        // Create a new Chart.js line chart.
+        const ctx = document.getElementById('rentChart').getContext('2d');
+        window.rentChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              title: { display: true, text: 'Historical Rental Trends' },
+              tooltip: { mode: 'index', intersect: false }
+            },
+            scales: scalesConfig
+          }
+        });
+      })
+      .catch(error => {
+        console.error("Error fetching data:", error);
+        alert("An error occurred while fetching the rental data.");
       });
-    })
-    .catch(error => {
-      console.error("Error fetching rental data:", error);
-      alert("An error occurred while fetching the rental data.");
-    });
-}
-
-// On initial load and whenever any selection changes, update the chart.
-document.addEventListener("DOMContentLoaded", function() {
-  fetchAndRenderChart();
-  document.getElementById('checkboxContainer').addEventListener('change', fetchAndRenderChart);
-  document.getElementById('maxSelect').addEventListener('change', fetchAndRenderChart);
-  document.getElementById('dataTypeSelect').addEventListener('change', fetchAndRenderChart);
-  document.getElementById('bedroomSelect').addEventListener('change', fetchAndRenderChart);
-});
-</script>
+  }
+  
+  // Attach event listeners on DOMContentLoaded.
+  document.addEventListener("DOMContentLoaded", function() {
+    fetchAndRenderChart();
+    document.getElementById('checkboxContainer').addEventListener('change', fetchAndRenderChart);
+    document.getElementById('maxSelect').addEventListener('change', fetchAndRenderChart);
+    document.getElementById('dataTypeContainer').addEventListener('change', fetchAndRenderChart);
+    document.getElementById('bedroomContainer').addEventListener('change', fetchAndRenderChart);
+    document.getElementById('toggleInventorySecondary').addEventListener('change', fetchAndRenderChart);
+  });
+  </script>
 {% endblock %}
