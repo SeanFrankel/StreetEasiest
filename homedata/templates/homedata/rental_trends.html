@@ -23,6 +23,31 @@
     </select>
   </div>
 
+  <!-- New: Data Type selection (Median Asking Rent or Rental Inventory) -->
+  <div class="mb-4">
+    <label for="dataTypeSelect" class="block font-semibold mb-1">
+      Select Data Type:
+    </label>
+    <select id="dataTypeSelect" class="p-2 border rounded">
+      <option value="median" selected>Median Asking Rent</option>
+      <option value="inventory">Rental Inventory</option>
+    </select>
+  </div>
+
+  <!-- New: Bedroom Type selection -->
+  <div class="mb-4">
+    <label for="bedroomSelect" class="block font-semibold mb-1">
+      Select Bedroom Type:
+    </label>
+    <select id="bedroomSelect" class="p-2 border rounded">
+      <option value="All" selected>All</option>
+      <option value="Studio">Studio</option>
+      <option value="OneBd">One Bedroom</option>
+      <option value="TwoBd">Two Bedroom</option>
+      <option value="ThreePlusBd">Three+ Bedrooms</option>
+    </select>
+  </div>
+
   <!-- Neighborhood Selection using Checkboxes with a Search Filter -->
   <div class="mb-4">
     <label for="checkboxFilter" class="block font-semibold mb-1">
@@ -32,7 +57,6 @@
     <input type="text" id="checkboxFilter" class="p-2 border rounded mb-2 w-full" placeholder="Search neighborhoods...">
     <!-- Scrollable container for the checkboxes -->
     <div id="checkboxContainer" class="border p-2 rounded" style="max-height: 300px; overflow-y: auto;">
-      <!-- All neighborhoods as checkboxes -->
       <div>
         <input type="checkbox" id="nb_All_Downtown" value="All Downtown">
         <label for="nb_All_Downtown" class="ml-2">All Downtown</label>
@@ -838,7 +862,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // -- FILTER FUNCTIONALITY --
-// When the user types in the search box, show only those checkboxes whose labels contain the search text.
+// Filter the checkbox list based on the text input.
 document.getElementById('checkboxFilter').addEventListener('input', function() {
   const filterValue = this.value.toLowerCase();
   const container = document.getElementById('checkboxContainer');
@@ -850,8 +874,8 @@ document.getElementById('checkboxFilter').addEventListener('input', function() {
 });
 
 // -- CHART RENDERING FUNCTIONALITY --
-// This function fetches the full rental data JSON and builds a Chart.js line chart
-// with one line per selected neighborhood (up to the maximum chosen).
+// This function fetches the rental data JSON using the selected data type and bedroom type,
+// then builds a Chart.js line chart with one line per selected neighborhood.
 function fetchAndRenderChart() {
   // Get selected neighborhoods from the checked checkboxes.
   const checkboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']:checked");
@@ -871,12 +895,17 @@ function fetchAndRenderChart() {
     });
   }
   
-  // Fetch the rental data JSON (expected structure:
-  // { "Neighborhood": { "monthly": { "YYYY-MM": value, ... } }, ... } )
-  fetch("/homedata/rental-data-json/")
+  // If no neighborhood is selected, default to the first available neighborhood (from the returned data).
+  // Build the URL with the new query parameters.
+  const dataType = document.getElementById('dataTypeSelect').value;
+  const bedroomType = document.getElementById('bedroomSelect').value;
+  
+  const url = `/homedata/rental-data-json/?data=${dataType}&bedrooms=${bedroomType}`;
+  
+  fetch(url)
     .then(response => response.json())
     .then(data => {
-      // If no neighborhood is selected, default to the first key in the data.
+      // If no neighborhood was selected, default to the first key in the returned data.
       if (selectedAreas.length === 0) {
         selectedAreas = [Object.keys(data)[0]];
       }
@@ -947,7 +976,7 @@ function fetchAndRenderChart() {
             y: {
               title: {
                 display: true,
-                text: 'Rent ($)'
+                text: dataType === 'inventory' ? 'Inventory Count' : 'Rent ($)'
               }
             }
           }
@@ -960,11 +989,13 @@ function fetchAndRenderChart() {
     });
 }
 
-// On initial load and whenever selections change, update the chart.
+// On initial load and whenever any selection changes, update the chart.
 document.addEventListener("DOMContentLoaded", function() {
   fetchAndRenderChart();
   document.getElementById('checkboxContainer').addEventListener('change', fetchAndRenderChart);
   document.getElementById('maxSelect').addEventListener('change', fetchAndRenderChart);
+  document.getElementById('dataTypeSelect').addEventListener('change', fetchAndRenderChart);
+  document.getElementById('bedroomSelect').addEventListener('change', fetchAndRenderChart);
 });
 </script>
 {% endblock %}
