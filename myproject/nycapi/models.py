@@ -265,10 +265,16 @@ class AddressService:
         from the input address. This method normalizes street type synonyms (e.g. converts
         "AVENUE" to "AVE") so that both "246 10th Avenue" and "246 10th Ave" match the same record.
         
+        Additionally, it combines the raw data's STATUS2 and STATUS3 columns to determine the
+        tax abatement value:
+          - If both are blank, returns "N/A".
+          - If one is blank, returns the non-blank value.
+          - If both have values, returns "STATUS2 and STATUS3" (e.g. "A and B").
+        
         Returns a dict with:
          - has_rent_stabilized: "Yes" if a matching row is found, otherwise "No"
          - official_definition: the STATUS1 column (or "N/A" if not found)
-         - tax_abatement: the STATUS2 column (or "N/A" if not found)
+         - tax_abatement: the combined value of STATUS2 and STATUS3.
         """
         from django.conf import settings
         import csv
@@ -313,7 +319,7 @@ class AddressService:
         # Also include the standardized address from our function.
         _, _, _, std_address = self.standardize_address(address)
         input_variants.add(std_address.upper().strip())
-        # Now, normalize each variant.
+        # Normalize all variants.
         normalized_input_variants = {normalize_street(v) for v in input_variants}
 
         logger.debug(f"Input variants after normalization: {normalized_input_variants}")
@@ -328,7 +334,6 @@ class AddressService:
                 street = row.get("STREET1", "").strip()
                 suffix = row.get("STSUFX1", "").strip()
                 csv_address = " ".join(filter(None, [building_num, street, suffix])).upper().strip()
-                # Normalize the CSV address.
                 normalized_csv_address = normalize_street(csv_address)
                 csv_zip = row.get("ZIP", "").strip()
                 logger.debug(f"Checking CSV row address: '{normalized_csv_address}' with zip: '{csv_zip}'")
@@ -337,10 +342,22 @@ class AddressService:
                     break
 
         if found_row:
+            # Retrieve STATUS2 and STATUS3 values and combine them.
+            status2 = found_row.get("STATUS2", "").strip()
+            status3 = found_row.get("STATUS3", "").strip()
+            if not status2 and not status3:
+                combined_tax = "N/A"
+            elif status2 and status3:
+                combined_tax = f"{status2} and {status3}"
+            elif status2:
+                combined_tax = status2
+            else:
+                combined_tax = status3
+
             return {
                 "has_rent_stabilized": "Yes",
                 "official_definition": found_row.get("STATUS1", "N/A"),
-                "tax_abatement": found_row.get("STATUS2", "N/A"),
+                "tax_abatement": combined_tax,
             }
         else:
             return {
@@ -348,6 +365,7 @@ class AddressService:
                 "official_definition": "N/A",
                 "tax_abatement": "N/A",
             }
+
 
 
     def fetch_data(self, url: str, where_clause: str, key_mappings: Dict[str, str], order_field: str) -> List[DataItem]:
