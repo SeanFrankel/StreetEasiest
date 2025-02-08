@@ -32,6 +32,7 @@ if "CSRF_TRUSTED_ORIGINS" in os.environ:
 # Application definition
 
 INSTALLED_APPS = [
+    "rent_stabilized",
     "homedata",
     "myproject.nycapi",
     "myproject.forms",
