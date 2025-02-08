@@ -6,8 +6,35 @@ import requests
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+def expand_building_ranges(df):
+    """
+    Look for rows where the BLDGNO1 column contains a range (e.g. "303 TO 309")
+    and expand that row into multiple rows—one for each building number in the range.
+    """
+    new_rows = []
+    for idx, row in df.iterrows():
+        bldg_val = str(row.get("BLDGNO1", "")).strip()
+        # Check if " TO " is present (you can adjust the delimiter if needed)
+        if " TO " in bldg_val:
+            parts = bldg_val.split("TO")
+            try:
+                start = int(parts[0].strip())
+                end = int(parts[1].strip())
+            except ValueError:
+                # If conversion fails, just append the original row.
+                new_rows.append(row)
+                continue
+            # Generate a new row for each building number in the range.
+            for num in range(start, end + 1):
+                new_row = row.copy()
+                new_row["BLDGNO1"] = str(num)
+                new_rows.append(new_row)
+        else:
+            new_rows.append(row)
+    return pd.DataFrame(new_rows)
+
 class Command(BaseCommand):
-    help = "Download PDFs for each borough and extract tables to individual CSV files in static/data."
+    help = "Download PDFs for each borough and extract tables to individual CSV files in static/data (expanding building ranges)."
 
     def handle(self, *args, **options):
         # Define the target folder relative to your project's BASE_DIR.
@@ -61,13 +88,17 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING(f"No tables found in {pdf_filename}"))
                     continue
                 combined_df = pd.concat(dfs, ignore_index=True)
+                
+                # Expand rows where BLDGNO1 contains a range (e.g., "303 TO 309").
+                expanded_df = expand_building_ranges(combined_df)
+                
                 csv_filename = f"{borough}.csv"
                 csv_path = os.path.join(data_dir, csv_filename)
                 # Remove any existing CSV file before writing.
                 if os.path.exists(csv_path):
                     os.remove(csv_path)
                     self.stdout.write(self.style.SUCCESS(f"Removed existing file: {csv_path}"))
-                combined_df.to_csv(csv_path, index=False)
+                expanded_df.to_csv(csv_path, index=False)
                 self.stdout.write(self.style.SUCCESS(f"Extracted CSV for {borough} at {csv_path}"))
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Error extracting tables from {borough} PDF: {e}"))
