@@ -1,19 +1,24 @@
-from wagtail.models import Page
-from wagtail.admin.panels import FieldPanel
-from django.http import JsonResponse
-from django.shortcuts import render
-from django.db import models
+import os
+import csv
+import logging
+from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional, Dict, List, Any, Tuple, Set
-from datetime import datetime
+
 import requests
-import logging
-from myproject.utils.models import BasePage
+from django.db import models
+from django.http import JsonResponse
+from django.shortcuts import render
+from wagtail.admin.panels import FieldPanel
+from wagtail.models import Page
+
+from myproject.utils.models import BasePage  # Adjust if your BasePage location is different
 
 logger = logging.getLogger(__name__)
 
 
 class NYCAddressLookupPage(BasePage):
+    # Use your existing template file name
     template = "pages/nyc_address_lookup_page.html"
 
     header = models.CharField(
@@ -26,8 +31,8 @@ class NYCAddressLookupPage(BasePage):
         blank=True,
         default=(
             "Enter an address and zip code to retrieve NYC OpenData information, "
-            "including 311 complaints, lead violations, bedbug reports, "
-            "housing violations, and NYCHA data."
+            "including 311 complaints, lead violations, bedbug reports, housing violations, "
+            "and NYCHA data. A rent stabilized lookup is also provided."
         ),
     )
 
@@ -40,13 +45,13 @@ class NYCAddressLookupPage(BasePage):
     subpage_types = []
 
     def serve(self, request):
+        # If AJAX request, return JSON response.
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             address = request.GET.get("address", "").strip()
             zip_code = request.GET.get("zip_code", "").strip()
             count = request.GET.get("count", "").strip()
             category = request.GET.get("category", "").strip()
 
-            # Debug: Log and print the searched address and zip code.
             logger.debug(f"Search requested: Address='{address}', Zip Code='{zip_code}'")
             print(f"[DEBUG] Search requested: Address='{address}', Zip Code='{zip_code}'")
 
@@ -69,20 +74,19 @@ class NYCAddressLookupPage(BasePage):
                 # If a category is specified (for load-more operations), only return that category.
                 filtered_data = {category: data[category]} if category and category in data else data
 
-                # Serialize the data.
                 serialized_data = {
                     key: {
-                        "entries": [item.to_dict() for item in value[:count]],
+                        "entries": [item.to_dict() if hasattr(item, "to_dict") else item for item in value[:count]],
                         "total": len(value)
                     }
                     for key, value in filtered_data.items()
                 }
 
-                # Gather unique location info if available.
+                # (Optional) Gather unique location info from your data if needed.
                 unique_locations = set()
                 for items in data.values():
                     for item in items:
-                        location = item.additional_info.get("location")
+                        location = item.additional_info.get("location") if hasattr(item, "additional_info") else None
                         if location:
                             if isinstance(location, dict):
                                 lat = location.get("latitude", "N/A")
@@ -105,6 +109,7 @@ class NYCAddressLookupPage(BasePage):
                     status=500
                 )
 
+        # Otherwise, render the page normally.
         return render(request, self.template, {"page": self})
 
 
@@ -161,10 +166,6 @@ class AddressService:
         self.timeout = 30
 
     def generate_address_variants(self, address: str) -> Set[str]:
-        """
-        Given an address string (e.g. "67 W 45th St"), generate a set of possible
-        normalized variants to improve matching.
-        """
         tokens = address.strip().upper().split()
         variants = set()
         if not tokens:
@@ -220,24 +221,16 @@ class AddressService:
         return variants
 
     def standardize_address(self, full_address: str) -> Tuple[str, str, str, str]:
-        """
-        Standardizes an address by converting directional abbreviations,
-        stripping ordinal suffixes, and normalizing street types.
-        
-        Returns a tuple: (house_number, street_name, apt, full_standard)
-        """
         try:
             parts = full_address.strip().upper().split()
             if not parts:
                 return "", "", "", ""
-
             apt = ""
             if "APT" in parts:
                 apt_index = parts.index("APT")
                 if apt_index + 1 < len(parts):
                     apt = parts[apt_index + 1]
                 parts = parts[:apt_index]
-
             direction_map = {"N": "NORTH", "S": "SOUTH", "E": "EAST", "W": "WEST"}
             if parts[0] in direction_map:
                 parts[0] = direction_map[parts[0]]
@@ -250,24 +243,112 @@ class AddressService:
 
             if len(parts) > 1:
                 parts[1] = strip_ordinal(parts[1])
-
             if parts[-1] == "STREET":
                 parts[-1] = "ST"
-
             parts[-1] = parts[-1].rstrip(".")
-
             house_number = parts[0]
             street_name = " ".join(parts[1:])
             full_standard = f"{house_number} {street_name}".title()
-
             logger.debug(f"Standardized address: house_number='{house_number}', street_name='{street_name}', apt='{apt}', full_standard='{full_standard}'")
             print(f"[DEBUG] Standardized address: house_number='{house_number}', street_name='{street_name}', apt='{apt}', full_standard='{full_standard}'")
             return house_number, street_name, apt, full_standard
-
         except Exception as e:
             logger.error(f"Error standardizing address: {e}")
             print(f"[ERROR] Error standardizing address: {e}")
             raise ValueError(f"Error standardizing address: {e}")
+
+    def get_rent_stabilized_data(self, address: str, zip_code: str) -> dict:
+        """
+        Searches the final combined CSV file (all_boroughs.csv) in myproject/static/data
+        for a row where the zip code matches and the CSV‐constructed address (using BLDGNO1,
+        STREET1, and STSUFX1) matches one of the standardized address variants generated
+        from the input address. This method normalizes street type synonyms (e.g. converts
+        "AVENUE" to "AVE") so that both "246 10th Avenue" and "246 10th Ave" match the same record.
+        
+        Returns a dict with:
+         - has_rent_stabilized: "Yes" if a matching row is found, otherwise "No"
+         - official_definition: the STATUS1 column (or "N/A" if not found)
+         - tax_abatement: the STATUS2 column (or "N/A" if not found)
+        """
+        from django.conf import settings
+        import csv
+
+        def normalize_street(text: str) -> str:
+            """
+            Normalize common street type variations.
+            For example, replace "AVENUE" with "AVE", "BOULEVARD" with "BLVD", etc.
+            """
+            mapping = {
+                "AVENUE": "AVE",
+                "BOULEVARD": "BLVD",
+                "STREET": "ST",
+                "ROAD": "RD",
+                # Add more mappings as needed.
+            }
+            text = text.upper()
+            for full, abbr in mapping.items():
+                text = text.replace(full, abbr)
+            return text.strip()
+
+        # Path to the final combined CSV file.
+        combined_csv_path = os.path.join(settings.BASE_DIR, "static", "data", "all_boroughs.csv")
+        if not os.path.exists(combined_csv_path):
+            return {
+                "has_rent_stabilized": "No",
+                "official_definition": "N/A",
+                "tax_abatement": "N/A",
+            }
+
+        # Generate a set of address variants from the input.
+        tokens = address.strip().upper().split()
+        input_variants = set()
+        if tokens:
+            # Full address variant
+            full_variant = " ".join(tokens)
+            input_variants.add(full_variant)
+            # If there are more than two tokens, also add a variant without the last token (street type)
+            if len(tokens) > 2:
+                variant_no_type = " ".join(tokens[:-1])
+                input_variants.add(variant_no_type)
+        # Also include the standardized address from our function.
+        _, _, _, std_address = self.standardize_address(address)
+        input_variants.add(std_address.upper().strip())
+        # Now, normalize each variant.
+        normalized_input_variants = {normalize_street(v) for v in input_variants}
+
+        logger.debug(f"Input variants after normalization: {normalized_input_variants}")
+
+        found_row = None
+
+        with open(combined_csv_path, newline="", encoding="utf-8") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # Build the CSV address using BLDGNO1, STREET1, and STSUFX1.
+                building_num = row.get("BLDGNO1", "").strip()
+                street = row.get("STREET1", "").strip()
+                suffix = row.get("STSUFX1", "").strip()
+                csv_address = " ".join(filter(None, [building_num, street, suffix])).upper().strip()
+                # Normalize the CSV address.
+                normalized_csv_address = normalize_street(csv_address)
+                csv_zip = row.get("ZIP", "").strip()
+                logger.debug(f"Checking CSV row address: '{normalized_csv_address}' with zip: '{csv_zip}'")
+                if csv_zip == zip_code and normalized_csv_address in normalized_input_variants:
+                    found_row = row
+                    break
+
+        if found_row:
+            return {
+                "has_rent_stabilized": "Yes",
+                "official_definition": found_row.get("STATUS1", "N/A"),
+                "tax_abatement": found_row.get("STATUS2", "N/A"),
+            }
+        else:
+            return {
+                "has_rent_stabilized": "No",
+                "official_definition": "N/A",
+                "tax_abatement": "N/A",
+            }
+
 
     def fetch_data(self, url: str, where_clause: str, key_mappings: Dict[str, str], order_field: str) -> List[DataItem]:
         try:
@@ -305,40 +386,22 @@ class AddressService:
             print(f"[ERROR] Error fetching data from {url}: {e}")
             return []
 
-    def get_address_data(self, address: str, zip_code: str) -> Dict[str, List[DataItem]]:
-        # Generate address variants.
+    def get_address_data(self, address: str, zip_code: str) -> Dict[str, List[Any]]:
+        # First, compute the join strings needed for the WHERE clauses.
         variants = self.generate_address_variants(address)
-        logger.debug(f"Address variants: {variants}")
-        print(f"[DEBUG] Address variants: {variants}")
+        variants_str = ", ".join("'" + v + "'" for v in variants)
 
-        # For APIs with a combined address field, build an IN clause.
-        variants_in_clause = ", ".join(f"'{v}'" for v in variants)
-        # For APIs splitting house number and street name.
+        # For fields that need just the house number and street name parts.
         house_numbers = {v.split()[0] for v in variants if v.split()}
+        house_numbers_str = ", ".join("'" + hn + "'" for hn in house_numbers)
+
         street_names = {" ".join(v.split()[1:]) for v in variants if len(v.split()) > 1}
+        street_names_str = ", ".join("'" + sn + "'" for sn in street_names)
 
-        house_numbers_clause = ", ".join(f"'{hn}'" for hn in house_numbers)
-        street_names_clause = ", ".join(f"'{sn}'" for sn in street_names)
-
-        # Build where clauses.
-        where_311 = f"upper(incident_address) IN ({variants_in_clause}) AND incident_zip = '{zip_code}'"
-        where_hv = f"upper(housenumber) IN ({house_numbers_clause}) AND upper(streetname) IN ({street_names_clause}) AND zip = '{zip_code}'"
-        where_lv = f"upper(lowhousenumber) IN ({house_numbers_clause}) AND upper(streetname) IN ({street_names_clause}) AND zip = '{zip_code}'"
-        where_bedbug = f"upper(house_number) IN ({house_numbers_clause}) AND upper(street_name) IN ({street_names_clause}) AND postcode = '{zip_code}'"
-
-        logger.debug(f"311 where clause: {where_311}")
-        logger.debug(f"Housing violations where clause: {where_hv}")
-        logger.debug(f"Lead violations where clause: {where_lv}")
-        logger.debug(f"Bedbug reports where clause: {where_bedbug}")
-        print(f"[DEBUG] 311 where clause: {where_311}")
-        print(f"[DEBUG] Housing violations where clause: {where_hv}")
-        print(f"[DEBUG] Lead violations where clause: {where_lv}")
-        print(f"[DEBUG] Bedbug reports where clause: {where_bedbug}")
-
-        return {
+        data = {
             "311_complaints": self.fetch_data(
                 "https://data.cityofnewyork.us/resource/erm2-nwe9.json",
-                where_311,
+                f"upper(incident_address) IN ({variants_str}) AND incident_zip = '{zip_code}'",
                 {
                     "id": "unique_key",
                     "date": "created_date",
@@ -350,7 +413,7 @@ class AddressService:
             ),
             "housing_violations": self.fetch_data(
                 "https://data.cityofnewyork.us/resource/wvxf-dwi5.json",
-                where_hv,
+                f"upper(housenumber) IN ({house_numbers_str}) AND upper(streetname) IN ({street_names_str}) AND zip = '{zip_code}'",
                 {
                     "id": "violationid",
                     "date": "inspectiondate",
@@ -362,7 +425,7 @@ class AddressService:
             ),
             "lead_violations": self.fetch_data(
                 "https://data.cityofnewyork.us/resource/v574-pyre.json",
-                where_lv,
+                f"upper(lowhousenumber) IN ({house_numbers_str}) AND upper(streetname) IN ({street_names_str}) AND zip = '{zip_code}'",
                 {
                     "id": "violationid",
                     "date": "inspectiondate",
@@ -373,7 +436,7 @@ class AddressService:
             ),
             "bedbug_reports": self.fetch_data(
                 "https://data.cityofnewyork.us/resource/wz6d-d3jb.json",
-                where_bedbug,
+                f"upper(house_number) IN ({house_numbers_str}) AND upper(street_name) IN ({street_names_str}) AND postcode = '{zip_code}'",
                 {
                     "id": "building_id",
                     "date": "filing_date",
@@ -383,3 +446,7 @@ class AddressService:
                 "filing_date DESC"
             ),
         }
+        # Add rent stabilized lookup data from the combined CSV file.
+        rent_stabilized_result = self.get_rent_stabilized_data(address, zip_code)
+        data["rent_stabilized"] = [rent_stabilized_result]
+        return data

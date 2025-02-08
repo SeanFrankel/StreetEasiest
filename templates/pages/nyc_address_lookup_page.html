@@ -38,7 +38,6 @@
           required
           aria-label="Enter Zip Code"
         />
-        {# Use our button component for the search button – renders a proper submit button #}
         {% include "components/button.html" with title="Search" is_submit=True extra_class="lookup-submit" %}
       </form>
     </section>
@@ -51,16 +50,14 @@
 
   <script>
     // Helper function to create a dynamic button with your styling.
-    // (This mimics the classes used in your components/button.html.)
     function btnTemplate(title, onclickAction) {
-      // Note: Adjust the classes below if needed to exactly match your home page buttons.
       return `<button type="button" onclick="${onclickAction}" class="btn btn-secondary md:px-10 text-white bg-mackerel-300 dark:text-mackerel-400 px-5 py-3 md:py-[15px] justify-center items-center text-sm md:text-base font-codepro uppercase inline-flex rounded-[3px]">${title}</button>`;
     }
 
     // Global object to track the current number of entries displayed per category.
     const categoryCounts = {};
 
-    // This function builds the dynamic buttons HTML for a given category.
+    // This function builds dynamic buttons HTML for a given category.
     function getDynamicButtonsHTML(category) {
       const btnShowMore = btnTemplate("Show 5 More", `show5More('${category}')`);
       const btnShowAll = btnTemplate("Show All", `loadMore('${category}', 'all')`);
@@ -77,15 +74,52 @@
       let headerRow = "";
       let tableRows = "";
 
+      // New special handling for rent stabilized lookup.
+      if (category === "rent_stabilized") {
+        headerRow = `<tr class="bg-gray-200">
+                      <th class="border px-4 py-2">Question</th>
+                      <th class="border px-4 py-2">Answer</th>
+                    </tr>`;
+        const entry = entries[0] || {};
+        tableRows = `
+          <tr>
+            <td class="border px-4 py-2">Does your building have rent stabilized units in it?</td>
+            <td class="border px-4 py-2">${entry.has_rent_stabilized || "N/A"}</td>
+          </tr>
+          <tr>
+            <td class="border px-4 py-2">If yes, what is the building officially defined as?</td>
+            <td class="border px-4 py-2">${entry.official_definition || "N/A"}</td>
+          </tr>
+          <tr>
+            <td class="border px-4 py-2">If yes, what tax abatement does it have?</td>
+            <td class="border px-4 py-2">${entry.tax_abatement || "N/A"}</td>
+          </tr>
+        `;
+        return `
+          <div class="result-category mb-8" data-category="${category}">
+            <h3 class="text-xl font-semibold mb-4">Rent Stabilized Lookup</h3>
+            <table class="table-auto w-full border-collapse border border-gray-300">
+              <thead>
+                ${headerRow}
+              </thead>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      // Existing handling for housing violations.
       if (category === "housing_violations") {
         headerRow = `<tr class="bg-gray-200">
-                <th class="border px-4 py-2">Type</th>
-                <th class="border px-4 py-2">Description</th>
-                <th class="border px-4 py-2">Date</th>
-                <th class="border px-4 py-2">Current Status</th>
-                <th class="border px-4 py-2">Issue still outstanding</th>
-                <th class="border px-4 py-2">Is the Violation Rent-Impariring?</th>
-              </tr>`;
+                      <th class="border px-4 py-2">Type</th>
+                      <th class="border px-4 py-2">Description</th>
+                      <th class="border px-4 py-2">Date</th>
+                      <th class="border px-4 py-2">Current Status</th>
+                      <th class="border px-4 py-2">Issue still outstanding</th>
+                      <th class="border px-4 py-2">Is the Violation Rent-Impariring?</th>
+                    </tr>`;
         tableRows = entries.map(item => {
           return `<tr>
             <td class="border px-4 py-2">${item.type}</td>
@@ -97,14 +131,15 @@
           </tr>`;
         }).join("");
       } else {
+        // Default handling for other categories (311 complaints, lead violations, etc.)
         const displayStatus = (category === "311_complaints");
         headerRow = `<tr class="bg-gray-200">
-                <th class="border px-4 py-2">Type</th>
-                <th class="border px-4 py-2">Description</th>
-                <th class="border px-4 py-2">Date</th>
-                <th class="border px-4 py-2">Resolution</th>
-                ${displayStatus ? `<th class="border px-4 py-2">Status</th>` : ""}
-              </tr>`;
+                        <th class="border px-4 py-2">Type</th>
+                        <th class="border px-4 py-2">Description</th>
+                        <th class="border px-4 py-2">Date</th>
+                        <th class="border px-4 py-2">Resolution</th>
+                        ${displayStatus ? `<th class="border px-4 py-2">Status</th>` : ""}
+                      </tr>`;
         tableRows = entries.map(item => {
           return `<tr>
             <td class="border px-4 py-2">${item.type}</td>
@@ -151,12 +186,10 @@
     async function loadMore(category, count) {
       const addressInput = document.getElementById("address").value.trim();
       const zipCodeInput = document.getElementById("zip-code").value.trim();
-
       const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
       if (categoryDiv) {
         categoryDiv.innerHTML = '<p class="text-center py-4">Loading...</p>';
       }
-
       try {
         const requestUrl = `${window.location.pathname}?address=${encodeURIComponent(addressInput)}&zip_code=${encodeURIComponent(zipCodeInput)}&category=${category}&count=${count}`;
         const response = await fetch(requestUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
@@ -186,7 +219,6 @@
 
     document.getElementById("lookup-form").addEventListener("submit", async function (e) {
       e.preventDefault();
-
       const addressInput = document.getElementById("address").value.trim();
       const zipCodeInput = document.getElementById("zip-code").value.trim();
       const resultsDiv = document.getElementById("results");

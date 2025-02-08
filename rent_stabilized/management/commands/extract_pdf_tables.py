@@ -1,57 +1,74 @@
 import os
 import pandas as pd
-from tabula import read_pdf
-from django.core.management.base import BaseCommand
+import tabula
+import requests
+
 from django.conf import settings
-# If needed, uncomment and adjust the following line to start the JVM:
-# import jpype
-# jpype.startJVM("C:/Program Files/Java/jdk1.8.0_391/jre/bin/server/jvm.dll")
+from django.core.management.base import BaseCommand
 
 class Command(BaseCommand):
-    help = "Extract tables from all saved PDFs in myproject/static/data and save them as CSV files."
-
-    def extract_tables_from_pdf(self, pdf_path, output_csv_path):
-        """
-        Extract tables from the given PDF using Tabula, then concatenate all
-        found tables into a single DataFrame and save as a CSV file.
-        """
-        lattice = False
-        guess = True
-
-        try:
-            # Read all tables from the PDF (you might need to adjust parameters)
-            dfs = read_pdf(pdf_path, pages='all', multiple_tables=True, guess=guess, lattice=lattice)
-            if not dfs:
-                self.stdout.write(self.style.WARNING(f"No tables found in {pdf_path}."))
-                return
-            # Concatenate all tables into one DataFrame
-            df = pd.concat(dfs, ignore_index=True)
-            df.to_csv(output_csv_path, index=False)
-            self.stdout.write(self.style.SUCCESS(f"Extracted tables saved to {output_csv_path}"))
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error processing {pdf_path}: {e}"))
+    help = "Download PDFs for each borough and extract tables to individual CSV files in static/data."
 
     def handle(self, *args, **options):
-        # Define the folder where PDFs are stored.
-        # This assumes that your project's BASE_DIR (the directory where manage.py lives)
-        # contains a folder 'static/data'
+        # Define the target folder relative to your project's BASE_DIR.
         data_dir = os.path.join(settings.BASE_DIR, 'static', 'data')
-
         if not os.path.exists(data_dir):
-            self.stdout.write(self.style.ERROR(f"Data directory does not exist: {data_dir}"))
-            return
+            os.makedirs(data_dir)
+            self.stdout.write(self.style.SUCCESS(f"Created directory: {data_dir}"))
+        else:
+            self.stdout.write(f"Using existing directory: {data_dir}")
 
-        # Find all PDF files in the data directory.
-        pdf_files = [f for f in os.listdir(data_dir) if f.lower().endswith('.pdf')]
-        if not pdf_files:
-            self.stdout.write(self.style.WARNING("No PDF files found in the data directory."))
-            return
+        # Dictionary mapping borough names to their PDF URLs.
+        pdf_urls = {
+            'Manhattan': 'https://rentguidelinesboard.cityofnewyork.us/wp-content/uploads/2024/11/2023-DHCR-Bldg-File-Manhattan.pdf',
+            'Brooklyn': 'https://rentguidelinesboard.cityofnewyork.us/wp-content/uploads/2024/11/2023-DHCR-Bldg-File-Brooklyn.pdf',
+            'Bronx': 'https://rentguidelinesboard.cityofnewyork.us/wp-content/uploads/2024/11/2023-DHCR-Bldg-File-Bronx.pdf',
+            'Queens': 'https://rentguidelinesboard.cityofnewyork.us/wp-content/uploads/2024/11/2023-DHCR-Bldg-File-Queens.pdf',
+            'Staten_Island': 'https://rentguidelinesboard.cityofnewyork.us/wp-content/uploads/2024/11/2023-DHCR-Bldg-File-Staten-Island.pdf'
+        }
 
-        # Process each PDF file.
-        for pdf_file in pdf_files:
-            pdf_path = os.path.join(data_dir, pdf_file)
-            # Define the CSV output file name (e.g., Manhattan.pdf -> Manhattan.csv)
-            csv_file_name = os.path.splitext(pdf_file)[0] + '.csv'
-            csv_path = os.path.join(data_dir, csv_file_name)
-            self.stdout.write(f"Processing {pdf_file}...")
-            self.extract_tables_from_pdf(pdf_path, csv_path)
+        # Loop over each borough.
+        for borough, url in pdf_urls.items():
+            self.stdout.write(f"Processing {borough} PDF from {url}")
+            pdf_filename = f"{borough}.pdf"
+            pdf_path = os.path.join(data_dir, pdf_filename)
+
+            # Remove any existing PDF file before downloading.
+            if os.path.exists(pdf_path):
+                try:
+                    os.remove(pdf_path)
+                    self.stdout.write(self.style.SUCCESS(f"Removed existing file: {pdf_path}"))
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"Error removing existing PDF file {pdf_path}: {e}"))
+                    continue
+
+            # Download the PDF.
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                with open(pdf_path, 'wb') as f:
+                    f.write(response.content)
+                self.stdout.write(self.style.SUCCESS(f"Downloaded {borough} PDF to {pdf_path}"))
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Error downloading {borough}: {e}"))
+                continue
+
+            # Extract tables using Tabula.
+            try:
+                # Adjust parameters as needed. Here we assume pages='all' and multiple_tables=True.
+                dfs = tabula.read_pdf(pdf_path, pages='all', multiple_tables=True)
+                if not dfs:
+                    self.stdout.write(self.style.WARNING(f"No tables found in {pdf_filename}"))
+                    continue
+                combined_df = pd.concat(dfs, ignore_index=True)
+                csv_filename = f"{borough}.csv"
+                csv_path = os.path.join(data_dir, csv_filename)
+                # Remove any existing CSV file before writing.
+                if os.path.exists(csv_path):
+                    os.remove(csv_path)
+                    self.stdout.write(self.style.SUCCESS(f"Removed existing file: {csv_path}"))
+                combined_df.to_csv(csv_path, index=False)
+                self.stdout.write(self.style.SUCCESS(f"Extracted CSV for {borough} at {csv_path}"))
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Error extracting tables from {borough} PDF: {e}"))
+                continue
