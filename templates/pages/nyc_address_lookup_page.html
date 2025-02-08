@@ -38,7 +38,8 @@
           required
           aria-label="Enter Zip Code"
         />
-        <button type="submit" class="btn btn-primary rounded py-2 px-4">Search</button>
+        {# Use our button component for the search button – renders a proper submit button #}
+        {% include "components/button.html" with title="Search" is_submit=True extra_class="lookup-submit" %}
       </form>
     </section>
 
@@ -49,15 +50,34 @@
   </div>
 
   <script>
+    // Helper function to create a dynamic button with your styling.
+    // (This mimics the classes used in your components/button.html.)
+    function btnTemplate(title, onclickAction) {
+      // Note: Adjust the classes below if needed to exactly match your home page buttons.
+      return `<button type="button" onclick="${onclickAction}" class="btn btn-secondary md:px-10 text-white bg-mackerel-300 dark:text-mackerel-400 px-5 py-3 md:py-[15px] justify-center items-center text-sm md:text-base font-codepro uppercase inline-flex rounded-[3px]">${title}</button>`;
+    }
+
     // Global object to track the current number of entries displayed per category.
     const categoryCounts = {};
 
+    // This function builds the dynamic buttons HTML for a given category.
+    function getDynamicButtonsHTML(category) {
+      const btnShowMore = btnTemplate("Show 5 More", `show5More('${category}')`);
+      const btnShowAll = btnTemplate("Show All", `loadMore('${category}', 'all')`);
+      const btnShowOnly5 = btnTemplate("Only show 5 again", `showOnly5('${category}')`);
+      return `<div class="mt-4 flex gap-4">
+                ${btnShowMore}
+                ${btnShowAll}
+                ${btnShowOnly5}
+              </div>`;
+    }
+
+    // Render the results table for one category.
     function renderCategoryTable(category, entries, total) {
       let headerRow = "";
       let tableRows = "";
 
       if (category === "housing_violations") {
-        // Custom header for housing violations.
         headerRow = `<tr class="bg-gray-200">
                 <th class="border px-4 py-2">Type</th>
                 <th class="border px-4 py-2">Description</th>
@@ -77,7 +97,6 @@
           </tr>`;
         }).join("");
       } else {
-        // Default header for other categories.
         const displayStatus = (category === "311_complaints");
         headerRow = `<tr class="bg-gray-200">
                 <th class="border px-4 py-2">Type</th>
@@ -97,6 +116,8 @@
         }).join("");
       }
 
+      const buttonsHTML = getDynamicButtonsHTML(category);
+
       return `
         <div class="result-category mb-8" data-category="${category}">
           <h3 class="text-xl font-semibold mb-4">${category.replace(/_/g, " ")}</h3>
@@ -111,11 +132,7 @@
               ${tableRows}
             </tbody>
           </table>
-          <div class="mt-4 flex gap-4">
-            <button class="btn btn-secondary rounded py-2 px-4" onclick="show5More('${category}')">Show 5 More</button>
-            <button class="btn btn-secondary rounded py-2 px-4" onclick="loadMore('${category}', 'all')">Show All</button>
-            <button class="btn btn-secondary rounded py-2 px-4" onclick="showOnly5('${category}')">Only show 5 again</button>
-          </div>
+          ${buttonsHTML}
         </div>
       `;
     }
@@ -145,8 +162,7 @@
         const response = await fetch(requestUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
         const data = await response.json();
         if (data.success && data.data[category]) {
-          const newCount = (count === 'all') ? data.data[category].total : parseInt(count);
-          categoryCounts[category] = newCount;
+          categoryCounts[category] = data.data[category].entries.length;
           const updatedTable = renderCategoryTable(category, data.data[category].entries, data.data[category].total);
           const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
           if (categoryDiv) {
