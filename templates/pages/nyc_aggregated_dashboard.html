@@ -1,0 +1,38 @@
+{% extends "base_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags static %}
+
+{% block content %}
+<div class="site-padding site-container">
+  <h1>{{ page.header }}</h1>
+  <p>{{ page.instructions }}</p>
+  <form id="dashboard-form">
+    <input type="text" id="address" name="address" placeholder="e.g., 123 Main St" required />
+    <input type="text" id="zip-code" name="zip_code" placeholder="e.g., 10001" required />
+    <button type="submit">Get Dashboard Data</button>
+  </form>
+  <div id="dashboard-results">
+    <!-- Aggregated data will be rendered here -->
+  </div>
+</div>
+
+<script>
+document.getElementById("dashboard-form").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  const address = document.getElementById("address").value.trim();
+  const zipCode = document.getElementById("zip-code").value.trim();
+  const resultsDiv = document.getElementById("dashboard-results");
+  resultsDiv.innerHTML = "Loading...";
+  try {
+    const res = await fetch(`{{ page.url }}?address=${encodeURIComponent(address)}&zip_code=${encodeURIComponent(zipCode)}`, { headers: {"X-Requested-With": "XMLHttpRequest"} });
+    const data = await res.json();
+    if (data.success) {
+      resultsDiv.innerHTML = `<pre>${JSON.stringify(data.data, null, 2)}</pre>`;
+    } else {
+      resultsDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+    }
+  } catch (error) {
+    resultsDiv.innerHTML = `<p>Error fetching data: ${error.message}</p>`;
+  }
+});
+</script>
+{% endblock %}

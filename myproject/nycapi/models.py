@@ -171,10 +171,79 @@ class AddressService:
         self.session = requests.Session()
         self.timeout = 30
 
-    # Use only the standardized address variant.
     def generate_address_variants(self, address: str) -> Set[str]:
-        _, _, _, std_address = self.standardize_address(address)
-        return {std_address.upper().strip()}
+        """
+        Generate a set of address variants based on tokenizing the input.
+        This approach assumes:
+          - The first token is the house number.
+          - The second token may be a directional (e.g. N, NORTH, etc.),
+            and if so, both the abbreviation and full word are included.
+          - The next token is taken as the street number (possibly with an ordinal suffix).
+            If an ordinal is present (e.g. '3rd'), include both the original and the
+            version with the suffix stripped.
+          - The final token (if it is a common street type like STREET) is expanded
+            to include alternatives.
+          - The remaining tokens (if any) are treated as the “middle” portion of the street name.
+        """
+        tokens = address.strip().upper().split()
+        variants = set()
+        if not tokens:
+            return variants
+
+        # First token: house number.
+        house_number = tokens[0]
+
+        # Initialize directional possibilities.
+        direction_variants = []
+        rest_tokens = tokens[1:]
+        if rest_tokens and rest_tokens[0] in {"W", "WEST", "E", "EAST", "N", "NORTH", "S", "SOUTH"}:
+            abbr = rest_tokens[0]
+            full = {"W": "WEST", "E": "EAST", "N": "NORTH", "S": "SOUTH"}.get(abbr, abbr)
+            direction_variants = [abbr, full]
+            rest_tokens = rest_tokens[1:]
+        else:
+            direction_variants = [""]
+
+        # Next token: street number (which might have an ordinal suffix).
+        street_number_variants = [""]
+        if rest_tokens:
+            street_number = rest_tokens[0]
+            suffixes = ("ST", "ND", "RD", "TH")
+            # Check if the token ends with any of the suffixes.
+            if any(street_number.endswith(suf) for suf in suffixes):
+                # Remove the suffix by stripping all letters at the end (assuming two-letter suffix)
+                stripped = street_number[:-2]
+                street_number_variants = [street_number, stripped]
+            else:
+                street_number_variants = [street_number]
+            rest_tokens = rest_tokens[1:]
+        else:
+            street_number_variants = [""]
+
+        # Assume the final token might be a street type.
+        street_type_variants = [""]
+        if rest_tokens:
+            # If the last token is a common street type, add alternatives.
+            possible_type = rest_tokens[-1]
+            if possible_type in {"ST", "STREET"}:
+                street_type_variants = ["ST", "STREET"]
+                rest_tokens = rest_tokens[:-1]
+            else:
+                street_type_variants = [possible_type]
+        else:
+            street_type_variants = [""]
+
+        middle = " ".join(rest_tokens).strip()
+
+        # Combine the parts in all possible ways.
+        for d in direction_variants:
+            for sn in street_number_variants:
+                for st in street_type_variants:
+                    # Build the variant from: house_number, directional (if any), street number, middle (if any), street type.
+                    variant = " ".join(filter(None, [house_number, d, sn, middle, st])).strip()
+                    if variant:
+                        variants.add(variant)
+        return variants
 
     def standardize_address(self, full_address: str) -> Tuple[str, str, str, str]:
         try:
