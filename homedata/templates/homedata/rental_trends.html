@@ -1,18 +1,23 @@
 {% extends "base_page.html" %}
 {% load static %}
+{% load wagtailcore_tags wagtailimages_tags static %}
 
 {% block content %}
 <div class="site-padding site-container py-8">
+
+  <!-- PAGE TITLE -->
   <h1 class="font-serif4 font-bold text-4xl lg:text-7xl mb-4">Historical Rental Trends</h1>
 
+  <!-- OPTIONAL INTRO TEXT -->
   {% if page.intro %}
     <p class="mb-4">{{ page.intro }}</p>
   {% endif %}
 
-  <!-- Two Column Layout for Filter Controls -->
-  <div class="flex flex-col md:flex-row gap-8 mb-8">
-    <!-- Left Column: Controls -->
-    <div class="md:w-1/2">
+  <!-- MAIN LAYOUT: LEFT SIDEBAR & RIGHT CHART DISPLAY -->
+  <div class="flex flex-row gap-8 mb-8 items-stretch">
+  
+    <!-- LEFT SIDEBAR (20%) with Chart Controls -->
+    <div class="w-full md:w-1/5 bg-gray-100 p-4 rounded shadow">
       <!-- Data Type Selection -->
       <div class="mb-4" id="dataTypeContainer">
         <label class="block font-semibold mb-1">Select Data Types:</label>
@@ -51,836 +56,860 @@
         </div>
       </div>
 
+      <!-- Neighborhood Selection -->
+      <div class="mb-4" id="neighborhoodContainer">
+        <label for="checkboxFilter" class="block font-semibold mb-1">Select Neighborhood(s):</label>
+        <!-- Search/Filter Input -->
+        <input
+          type="text"
+          id="checkboxFilter"
+          class="p-2 border rounded mb-2 w-full"
+          placeholder="Search neighborhoods..."
+        >
+        <!-- Neighborhood Checkboxes (scrollable) -->
+        <div
+          id="checkboxContainer"
+          class="border p-2 rounded"
+          style="max-height: 300px; overflow-y: auto;"
+        >
+          <!-- Default Checked: Manhattan -->
+          <div>
+            <input type="checkbox" id="nb_Manhattan" value="Manhattan" checked class="form-checkbox">
+            <label for="nb_Manhattan" class="ml-2">Manhattan</label>
+          </div>
+          <!-- FULL LIST OF NEIGHBORHOODS BELOW -->
+          <div>
+            <input type="checkbox" id="nb_All_Downtown" value="All Downtown" class="form-checkbox">
+            <label for="nb_All_Downtown" class="ml-2">All Downtown</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_All_Midtown" value="All Midtown" class="form-checkbox">
+            <label for="nb_All_Midtown" class="ml-2">All Midtown</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_All_Upper_East_Side" value="All Upper East Side" class="form-checkbox">
+            <label for="nb_All_Upper_East_Side" class="ml-2">All Upper East Side</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_All_Upper_Manhattan" value="All Upper Manhattan" class="form-checkbox">
+            <label for="nb_All_Upper_Manhattan" class="ml-2">All Upper Manhattan</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_All_Upper_West_Side" value="All Upper West Side" class="form-checkbox">
+            <label for="nb_All_Upper_West_Side" class="ml-2">All Upper West Side</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Astoria" value="Astoria" class="form-checkbox">
+            <label for="nb_Astoria" class="ml-2">Astoria</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Auburndale" value="Auburndale" class="form-checkbox">
+            <label for="nb_Auburndale" class="ml-2">Auburndale</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bath_Beach" value="Bath Beach" class="form-checkbox">
+            <label for="nb_Bath_Beach" class="ml-2">Bath Beach</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Battery_Park_City" value="Battery Park City" class="form-checkbox">
+            <label for="nb_Battery_Park_City" class="ml-2">Battery Park City</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bay_Ridge" value="Bay Ridge" class="form-checkbox">
+            <label for="nb_Bay_Ridge" class="ml-2">Bay Ridge</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Baychester" value="Baychester" class="form-checkbox">
+            <label for="nb_Baychester" class="ml-2">Baychester</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bayside" value="Bayside" class="form-checkbox">
+            <label for="nb_Bayside" class="ml-2">Bayside</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bedford_Park" value="Bedford Park" class="form-checkbox">
+            <label for="nb_Bedford_Park" class="ml-2">Bedford Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bedford_Stuyvesant" value="Bedford-Stuyvesant" class="form-checkbox">
+            <label for="nb_Bedford_Stuyvesant" class="ml-2">Bedford-Stuyvesant</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bellerose" value="Bellerose" class="form-checkbox">
+            <label for="nb_Bellerose" class="ml-2">Bellerose</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Belmont" value="Belmont" class="form-checkbox">
+            <label for="nb_Belmont" class="ml-2">Belmont</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bensonhurst" value="Bensonhurst" class="form-checkbox">
+            <label for="nb_Bensonhurst" class="ml-2">Bensonhurst</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bergen_Beach" value="Bergen Beach" class="form-checkbox">
+            <label for="nb_Bergen_Beach" class="ml-2">Bergen Beach</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Boerum_Hill" value="Boerum Hill" class="form-checkbox">
+            <label for="nb_Boerum_Hill" class="ml-2">Boerum Hill</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Borough_Park" value="Borough Park" class="form-checkbox">
+            <label for="nb_Borough_Park" class="ml-2">Borough Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Briarwood" value="Briarwood" class="form-checkbox">
+            <label for="nb_Briarwood" class="ml-2">Briarwood</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Brighton_Beach" value="Brighton Beach" class="form-checkbox">
+            <label for="nb_Brighton_Beach" class="ml-2">Brighton Beach</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bronx" value="Bronx" class="form-checkbox">
+            <label for="nb_Bronx" class="ml-2">Bronx</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bronxwood" value="Bronxwood" class="form-checkbox">
+            <label for="nb_Bronxwood" class="ml-2">Bronxwood</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Brooklyn" value="Brooklyn" class="form-checkbox">
+            <label for="nb_Brooklyn" class="ml-2">Brooklyn</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Brooklyn_Heights" value="Brooklyn Heights" class="form-checkbox">
+            <label for="nb_Brooklyn_Heights" class="ml-2">Brooklyn Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Brookville" value="Brookville" class="form-checkbox">
+            <label for="nb_Brookville" class="ml-2">Brookville</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Brownsville" value="Brownsville" class="form-checkbox">
+            <label for="nb_Brownsville" class="ml-2">Brownsville</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Bushwick" value="Bushwick" class="form-checkbox">
+            <label for="nb_Bushwick" class="ml-2">Bushwick</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Cambria_Heights" value="Cambria Heights" class="form-checkbox">
+            <label for="nb_Cambria_Heights" class="ml-2">Cambria Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Canarsie" value="Canarsie" class="form-checkbox">
+            <label for="nb_Canarsie" class="ml-2">Canarsie</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Carroll_Gardens" value="Carroll Gardens" class="form-checkbox">
+            <label for="nb_Carroll_Gardens" class="ml-2">Carroll Gardens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Castle_Hill" value="Castle Hill" class="form-checkbox">
+            <label for="nb_Castle_Hill" class="ml-2">Castle Hill</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Central_Harlem" value="Central Harlem" class="form-checkbox">
+            <label for="nb_Central_Harlem" class="ml-2">Central Harlem</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Central_Park_South" value="Central Park South" class="form-checkbox">
+            <label for="nb_Central_Park_South" class="ml-2">Central Park South</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Central_Queens" value="Central Queens" class="form-checkbox">
+            <label for="nb_Central_Queens" class="ml-2">Central Queens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Chelsea" value="Chelsea" class="form-checkbox">
+            <label for="nb_Chelsea" class="ml-2">Chelsea</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Chinatown" value="Chinatown" class="form-checkbox">
+            <label for="nb_Chinatown" class="ml-2">Chinatown</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_City_Island" value="City Island" class="form-checkbox">
+            <label for="nb_City_Island" class="ml-2">City Island</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Civic_Center" value="Civic Center" class="form-checkbox">
+            <label for="nb_Civic_Center" class="ml-2">Civic Center</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Clearview" value="Clearview" class="form-checkbox">
+            <label for="nb_Clearview" class="ml-2">Clearview</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Clinton_Hill" value="Clinton Hill" class="form-checkbox">
+            <label for="nb_Clinton_Hill" class="ml-2">Clinton Hill</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Coop_City" value="Co-op City" class="form-checkbox">
+            <label for="nb_Coop_City" class="ml-2">Co-op City</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Cobble_Hill" value="Cobble Hill" class="form-checkbox">
+            <label for="nb_Cobble_Hill" class="ml-2">Cobble Hill</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_College_Point" value="College Point" class="form-checkbox">
+            <label for="nb_College_Point" class="ml-2">College Point</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Columbia_St_Waterfront_District" value="Columbia St Waterfront District" class="form-checkbox">
+            <label for="nb_Columbia_St_Waterfront_District" class="ml-2">Columbia St Waterfront District</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Concourse" value="Concourse" class="form-checkbox">
+            <label for="nb_Concourse" class="ml-2">Concourse</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Coney_Island" value="Coney Island" class="form-checkbox">
+            <label for="nb_Coney_Island" class="ml-2">Coney Island</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Corona" value="Corona" class="form-checkbox">
+            <label for="nb_Corona" class="ml-2">Corona</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Country_Club" value="Country Club" class="form-checkbox">
+            <label for="nb_Country_Club" class="ml-2">Country Club</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Crotona_Park_East" value="Crotona Park East" class="form-checkbox">
+            <label for="nb_Crotona_Park_East" class="ml-2">Crotona Park East</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Crown_Heights" value="Crown Heights" class="form-checkbox">
+            <label for="nb_Crown_Heights" class="ml-2">Crown Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_DUMBO" value="DUMBO" class="form-checkbox">
+            <label for="nb_DUMBO" class="ml-2">DUMBO</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Ditmas_Park" value="Ditmas Park" class="form-checkbox">
+            <label for="nb_Ditmas_Park" class="ml-2">Ditmas Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Douglaston" value="Douglaston" class="form-checkbox">
+            <label for="nb_Douglaston" class="ml-2">Douglaston</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Downtown_Brooklyn" value="Downtown Brooklyn" class="form-checkbox">
+            <label for="nb_Downtown_Brooklyn" class="ml-2">Downtown Brooklyn</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Dyker_Heights" value="Dyker Heights" class="form-checkbox">
+            <label for="nb_Dyker_Heights" class="ml-2">Dyker Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_East_Brooklyn" value="East Brooklyn" class="form-checkbox">
+            <label for="nb_East_Brooklyn" class="ml-2">East Brooklyn</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_East_Elmhurst" value="East Elmhurst" class="form-checkbox">
+            <label for="nb_East_Elmhurst" class="ml-2">East Elmhurst</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_East_Flatbush" value="East Flatbush" class="form-checkbox">
+            <label for="nb_East_Flatbush" class="ml-2">East Flatbush</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_East_Harlem" value="East Harlem" class="form-checkbox">
+            <label for="nb_East_Harlem" class="ml-2">East Harlem</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_East_New_York" value="East New York" class="form-checkbox">
+            <label for="nb_East_New_York" class="ml-2">East New York</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_East_Tremont" value="East Tremont" class="form-checkbox">
+            <label for="nb_East_Tremont" class="ml-2">East Tremont</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_East_Village" value="East Village" class="form-checkbox">
+            <label for="nb_East_Village" class="ml-2">East Village</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Eastchester" value="Eastchester" class="form-checkbox">
+            <label for="nb_Eastchester" class="ml-2">Eastchester</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Edenwald" value="Edenwald" class="form-checkbox">
+            <label for="nb_Edenwald" class="ml-2">Edenwald</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Elmhurst" value="Elmhurst" class="form-checkbox">
+            <label for="nb_Elmhurst" class="ml-2">Elmhurst</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Financial_District" value="Financial District" class="form-checkbox">
+            <label for="nb_Financial_District" class="ml-2">Financial District</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Flatbush" value="Flatbush" class="form-checkbox">
+            <label for="nb_Flatbush" class="ml-2">Flatbush</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Flatiron" value="Flatiron" class="form-checkbox">
+            <label for="nb_Flatiron" class="ml-2">Flatiron</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Flatlands" value="Flatlands" class="form-checkbox">
+            <label for="nb_Flatlands" class="ml-2">Flatlands</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Floral_Park" value="Floral Park" class="form-checkbox">
+            <label for="nb_Floral_Park" class="ml-2">Floral Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Flushing" value="Flushing" class="form-checkbox">
+            <label for="nb_Flushing" class="ml-2">Flushing</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Fordham" value="Fordham" class="form-checkbox">
+            <label for="nb_Fordham" class="ml-2">Fordham</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Forest_Hills" value="Forest Hills" class="form-checkbox">
+            <label for="nb_Forest_Hills" class="ml-2">Forest Hills</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Fort_Greene" value="Fort Greene" class="form-checkbox">
+            <label for="nb_Fort_Greene" class="ml-2">Fort Greene</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Fresh_Meadows" value="Fresh Meadows" class="form-checkbox">
+            <label for="nb_Fresh_Meadows" class="ml-2">Fresh Meadows</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Gerritsen_Beach" value="Gerritsen Beach" class="form-checkbox">
+            <label for="nb_Gerritsen_Beach" class="ml-2">Gerritsen Beach</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Glen_Oaks" value="Glen Oaks" class="form-checkbox">
+            <label for="nb_Glen_Oaks" class="ml-2">Glen Oaks</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Glendale" value="Glendale" class="form-checkbox">
+            <label for="nb_Glendale" class="ml-2">Glendale</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Gowanus" value="Gowanus" class="form-checkbox">
+            <label for="nb_Gowanus" class="ml-2">Gowanus</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Gramercy_Park" value="Gramercy Park" class="form-checkbox">
+            <label for="nb_Gramercy_Park" class="ml-2">Gramercy Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Gravesend" value="Gravesend" class="form-checkbox">
+            <label for="nb_Gravesend" class="ml-2">Gravesend</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Greenpoint" value="Greenpoint" class="form-checkbox">
+            <label for="nb_Greenpoint" class="ml-2">Greenpoint</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Greenwich_Village" value="Greenwich Village" class="form-checkbox">
+            <label for="nb_Greenwich_Village" class="ml-2">Greenwich Village</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Greenwood" value="Greenwood" class="form-checkbox">
+            <label for="nb_Greenwood" class="ml-2">Greenwood</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Hamilton_Heights" value="Hamilton Heights" class="form-checkbox">
+            <label for="nb_Hamilton_Heights" class="ml-2">Hamilton Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Highbridge" value="Highbridge" class="form-checkbox">
+            <label for="nb_Highbridge" class="ml-2">Highbridge</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Hillcrest" value="Hillcrest" class="form-checkbox">
+            <label for="nb_Hillcrest" class="ml-2">Hillcrest</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Hollis" value="Hollis" class="form-checkbox">
+            <label for="nb_Hollis" class="ml-2">Hollis</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Howard_Beach" value="Howard Beach" class="form-checkbox">
+            <label for="nb_Howard_Beach" class="ml-2">Howard Beach</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Hunts_Point" value="Hunts Point" class="form-checkbox">
+            <label for="nb_Hunts_Point" class="ml-2">Hunts Point</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Inwood" value="Inwood" class="form-checkbox">
+            <label for="nb_Inwood" class="ml-2">Inwood</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Jackson_Heights" value="Jackson Heights" class="form-checkbox">
+            <label for="nb_Jackson_Heights" class="ml-2">Jackson Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Jamaica" value="Jamaica" class="form-checkbox">
+            <label for="nb_Jamaica" class="ml-2">Jamaica</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Jamaica_Estates" value="Jamaica Estates" class="form-checkbox">
+            <label for="nb_Jamaica_Estates" class="ml-2">Jamaica Estates</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Jamaica_Hills" value="Jamaica Hills" class="form-checkbox">
+            <label for="nb_Jamaica_Hills" class="ml-2">Jamaica Hills</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Kingsbridge" value="Kingsbridge" class="form-checkbox">
+            <label for="nb_Kingsbridge" class="ml-2">Kingsbridge</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Kensington" value="Kensington" class="form-checkbox">
+            <label for="nb_Kensington" class="ml-2">Kensington</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Kew_Gardens" value="Kew Gardens" class="form-checkbox">
+            <label for="nb_Kew_Gardens" class="ml-2">Kew Gardens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Kew_Gardens_Hills" value="Kew Gardens Hills" class="form-checkbox">
+            <label for="nb_Kew_Gardens_Hills" class="ml-2">Kew Gardens Hills</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Laconia" value="Laconia" class="form-checkbox">
+            <label for="nb_Laconia" class="ml-2">Laconia</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Laurelton" value="Laurelton" class="form-checkbox">
+            <label for="nb_Laurelton" class="ml-2">Laurelton</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Little_Italy" value="Little Italy" class="form-checkbox">
+            <label for="nb_Little_Italy" class="ml-2">Little Italy</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Little_Neck" value="Little Neck" class="form-checkbox">
+            <label for="nb_Little_Neck" class="ml-2">Little Neck</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Long_Island_City" value="Long Island City" class="form-checkbox">
+            <label for="nb_Long_Island_City" class="ml-2">Long Island City</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Longwood" value="Longwood" class="form-checkbox">
+            <label for="nb_Longwood" class="ml-2">Longwood</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Lower_East_Side" value="Lower East Side" class="form-checkbox">
+            <label for="nb_Lower_East_Side" class="ml-2">Lower East Side</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Manhattan_Beach" value="Manhattan Beach" class="form-checkbox">
+            <label for="nb_Manhattan_Beach" class="ml-2">Manhattan Beach</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Marble_Hill" value="Marble Hill" class="form-checkbox">
+            <label for="nb_Marble_Hill" class="ml-2">Marble Hill</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Marine_Park" value="Marine Park" class="form-checkbox">
+            <label for="nb_Marine_Park" class="ml-2">Marine Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Maspeth" value="Maspeth" class="form-checkbox">
+            <label for="nb_Maspeth" class="ml-2">Maspeth</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Melrose" value="Melrose" class="form-checkbox">
+            <label for="nb_Melrose" class="ml-2">Melrose</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Middle_Village" value="Middle Village" class="form-checkbox">
+            <label for="nb_Middle_Village" class="ml-2">Middle Village</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Midtown" value="Midtown" class="form-checkbox">
+            <label for="nb_Midtown" class="ml-2">Midtown</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Midtown_East" value="Midtown East" class="form-checkbox">
+            <label for="nb_Midtown_East" class="ml-2">Midtown East</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Midtown_South" value="Midtown South" class="form-checkbox">
+            <label for="nb_Midtown_South" class="ml-2">Midtown South</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Midtown_West" value="Midtown West" class="form-checkbox">
+            <label for="nb_Midtown_West" class="ml-2">Midtown West</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Midwood" value="Midwood" class="form-checkbox">
+            <label for="nb_Midwood" class="ml-2">Midwood</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Mill_Basin" value="Mill Basin" class="form-checkbox">
+            <label for="nb_Mill_Basin" class="ml-2">Mill Basin</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Morningside_Heights" value="Morningside Heights" class="form-checkbox">
+            <label for="nb_Morningside_Heights" class="ml-2">Morningside Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Morris_Heights" value="Morris Heights" class="form-checkbox">
+            <label for="nb_Morris_Heights" class="ml-2">Morris Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Morris_Park" value="Morris Park" class="form-checkbox">
+            <label for="nb_Morris_Park" class="ml-2">Morris Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Morrisania" value="Morrisania" class="form-checkbox">
+            <label for="nb_Morrisania" class="ml-2">Morrisania</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Mott_Haven" value="Mott Haven" class="form-checkbox">
+            <label for="nb_Mott_Haven" class="ml-2">Mott Haven</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_NYC" value="NYC" class="form-checkbox">
+            <label for="nb_NYC" class="ml-2">NYC</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_New_Hyde_Park" value="New Hyde Park" class="form-checkbox">
+            <label for="nb_New_Hyde_Park" class="ml-2">New Hyde Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Nolita" value="Nolita" class="form-checkbox">
+            <label for="nb_Nolita" class="ml-2">Nolita</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_North_Brooklyn" value="North Brooklyn" class="form-checkbox">
+            <label for="nb_North_Brooklyn" class="ml-2">North Brooklyn</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_North_Corona" value="North Corona" class="form-checkbox">
+            <label for="nb_North_Corona" class="ml-2">North Corona</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Northeast_Queens" value="Northeast Queens" class="form-checkbox">
+            <label for="nb_Northeast_Queens" class="ml-2">Northeast Queens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Northwest_Brooklyn" value="Northwest Brooklyn" class="form-checkbox">
+            <label for="nb_Northwest_Brooklyn" class="ml-2">Northwest Brooklyn</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Northwest_Queens" value="Northwest Queens" class="form-checkbox">
+            <label for="nb_Northwest_Queens" class="ml-2">Northwest Queens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Norwood" value="Norwood" class="form-checkbox">
+            <label for="nb_Norwood" class="ml-2">Norwood</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Oakland_Gardens" value="Oakland Gardens" class="form-checkbox">
+            <label for="nb_Oakland_Gardens" class="ml-2">Oakland Gardens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Ocean_Parkway" value="Ocean Parkway" class="form-checkbox">
+            <label for="nb_Ocean_Parkway" class="ml-2">Ocean Parkway</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Old_Mill_Basin" value="Old Mill Basin" class="form-checkbox">
+            <label for="nb_Old_Mill_Basin" class="ml-2">Old Mill Basin</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Ozone_Park" value="Ozone Park" class="form-checkbox">
+            <label for="nb_Ozone_Park" class="ml-2">Ozone Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Park_Slope" value="Park Slope" class="form-checkbox">
+            <label for="nb_Park_Slope" class="ml-2">Park Slope</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Parkchester" value="Parkchester" class="form-checkbox">
+            <label for="nb_Parkchester" class="ml-2">Parkchester</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Pelham_Bay" value="Pelham Bay" class="form-checkbox">
+            <label for="nb_Pelham_Bay" class="ml-2">Pelham Bay</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Pelham_Gardens" value="Pelham Gardens" class="form-checkbox">
+            <label for="nb_Pelham_Gardens" class="ml-2">Pelham Gardens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Pelham_Parkway" value="Pelham Parkway" class="form-checkbox">
+            <label for="nb_Pelham_Parkway" class="ml-2">Pelham Parkway</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Pomonok" value="Pomonok" class="form-checkbox">
+            <label for="nb_Pomonok" class="ml-2">Pomonok</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Port_Morris" value="Port Morris" class="form-checkbox">
+            <label for="nb_Port_Morris" class="ml-2">Port Morris</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Prospect_Heights" value="Prospect Heights" class="form-checkbox">
+            <label for="nb_Prospect_Heights" class="ml-2">Prospect Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Prospect_Lefferts_Gardens" value="Prospect Lefferts Gardens" class="form-checkbox">
+            <label for="nb_Prospect_Lefferts_Gardens" class="ml-2">Prospect Lefferts Gardens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Prospect_Park" value="Prospect Park" class="form-checkbox">
+            <label for="nb_Prospect_Park" class="ml-2">Prospect Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Prospect_Park_South" value="Prospect Park South" class="form-checkbox">
+            <label for="nb_Prospect_Park_South" class="ml-2">Prospect Park South</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Queens" value="Queens" class="form-checkbox">
+            <label for="nb_Queens" class="ml-2">Queens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Queens_Village" value="Queens Village" class="form-checkbox">
+            <label for="nb_Queens_Village" class="ml-2">Queens Village</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Red_Hook" value="Red Hook" class="form-checkbox">
+            <label for="nb_Red_Hook" class="ml-2">Red Hook</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Rego_Park" value="Rego Park" class="form-checkbox">
+            <label for="nb_Rego_Park" class="ml-2">Rego Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Richmond_Hill" value="Richmond Hill" class="form-checkbox">
+            <label for="nb_Richmond_Hill" class="ml-2">Richmond Hill</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Ridgewood" value="Ridgewood" class="form-checkbox">
+            <label for="nb_Ridgewood" class="ml-2">Ridgewood</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Riverdale" value="Riverdale" class="form-checkbox">
+            <label for="nb_Riverdale" class="ml-2">Riverdale</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Rockaway_All" value="Rockaway All" class="form-checkbox">
+            <label for="nb_Rockaway_All" class="ml-2">Rockaway All</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Roosevelt_Island" value="Roosevelt Island" class="form-checkbox">
+            <label for="nb_Roosevelt_Island" class="ml-2">Roosevelt Island</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Rosedale" value="Rosedale" class="form-checkbox">
+            <label for="nb_Rosedale" class="ml-2">Rosedale</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Schuylerville" value="Schuylerville" class="form-checkbox">
+            <label for="nb_Schuylerville" class="ml-2">Schuylerville</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Seagate" value="Seagate" class="form-checkbox">
+            <label for="nb_Seagate" class="ml-2">Seagate</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Sheepshead_Bay" value="Sheepshead Bay" class="form-checkbox">
+            <label for="nb_Sheepshead_Bay" class="ml-2">Sheepshead Bay</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Soho" value="Soho" class="form-checkbox">
+            <label for="nb_Soho" class="ml-2">Soho</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Soundview" value="Soundview" class="form-checkbox">
+            <label for="nb_Soundview" class="ml-2">Soundview</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_South_Brooklyn" value="South Brooklyn" class="form-checkbox">
+            <label for="nb_South_Brooklyn" class="ml-2">South Brooklyn</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_South_Jamaica" value="South Jamaica" class="form-checkbox">
+            <label for="nb_South_Jamaica" class="ml-2">South Jamaica</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_South_Ozone_Park" value="South Ozone Park" class="form-checkbox">
+            <label for="nb_South_Ozone_Park" class="ml-2">South Ozone Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_South_Queens" value="South Queens" class="form-checkbox">
+            <label for="nb_South_Queens" class="ml-2">South Queens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_South_Richmond_Hill" value="South Richmond Hill" class="form-checkbox">
+            <label for="nb_South_Richmond_Hill" class="ml-2">South Richmond Hill</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Springfield_Gardens" value="Springfield Gardens" class="form-checkbox">
+            <label for="nb_Springfield_Gardens" class="ml-2">Springfield Gardens</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_St_Albans" value="St. Albans" class="form-checkbox">
+            <label for="nb_St_Albans" class="ml-2">St. Albans</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Staten_Island" value="Staten Island" class="form-checkbox">
+            <label for="nb_Staten_Island" class="ml-2">Staten Island</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Stuyvesant_Town_PCV" value="Stuyvesant Town/PCV" class="form-checkbox">
+            <label for="nb_Stuyvesant_Town_PCV" class="ml-2">Stuyvesant Town/PCV</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Sunnyside" value="Sunnyside" class="form-checkbox">
+            <label for="nb_Sunnyside" class="ml-2">Sunnyside</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Sunset_Park" value="Sunset Park" class="form-checkbox">
+            <label for="nb_Sunset_Park" class="ml-2">Sunset Park</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_The_Rockaways" value="The Rockaways" class="form-checkbox">
+            <label for="nb_The_Rockaways" class="ml-2">The Rockaways</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Throgs_Neck" value="Throgs Neck" class="form-checkbox">
+            <label for="nb_Throgs_Neck" class="ml-2">Throgs Neck</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Tremont" value="Tremont" class="form-checkbox">
+            <label for="nb_Tremont" class="ml-2">Tremont</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Tribeca" value="Tribeca" class="form-checkbox">
+            <label for="nb_Tribeca" class="ml-2">Tribeca</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_University_Heights" value="University Heights" class="form-checkbox">
+            <label for="nb_University_Heights" class="ml-2">University Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Upper_East_Side" value="Upper East Side" class="form-checkbox">
+            <label for="nb_Upper_East_Side" class="ml-2">Upper East Side</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Upper_West_Side" value="Upper West Side" class="form-checkbox">
+            <label for="nb_Upper_West_Side" class="ml-2">Upper West Side</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Utopia" value="Utopia" class="form-checkbox">
+            <label for="nb_Utopia" class="ml-2">Utopia</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Van_Nest" value="Van Nest" class="form-checkbox">
+            <label for="nb_Van_Nest" class="ml-2">Van Nest</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Wakefield" value="Wakefield" class="form-checkbox">
+            <label for="nb_Wakefield" class="ml-2">Wakefield</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Washington_Heights" value="Washington Heights" class="form-checkbox">
+            <label for="nb_Washington_Heights" class="ml-2">Washington Heights</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_West_Harlem" value="West Harlem" class="form-checkbox">
+            <label for="nb_West_Harlem" class="ml-2">West Harlem</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_West_Village" value="West Village" class="form-checkbox">
+            <label for="nb_West_Village" class="ml-2">West Village</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Westchester_Village" value="Westchester Village" class="form-checkbox">
+            <label for="nb_Westchester_Village" class="ml-2">Westchester Village</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Whitestone" value="Whitestone" class="form-checkbox">
+            <label for="nb_Whitestone" class="ml-2">Whitestone</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Williamsbridge" value="Williamsbridge" class="form-checkbox">
+            <label for="nb_Williamsbridge" class="ml-2">Williamsbridge</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Williamsburg" value="Williamsburg" class="form-checkbox">
+            <label for="nb_Williamsburg" class="ml-2">Williamsburg</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Windsor_Terrace" value="Windsor Terrace" class="form-checkbox">
+            <label for="nb_Windsor_Terrace" class="ml-2">Windsor Terrace</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Woodhaven" value="Woodhaven" class="form-checkbox">
+            <label for="nb_Woodhaven" class="ml-2">Woodhaven</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Woodlawn" value="Woodlawn" class="form-checkbox">
+            <label for="nb_Woodlawn" class="ml-2">Woodlawn</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Woodside" value="Woodside" class="form-checkbox">
+            <label for="nb_Woodside" class="ml-2">Woodside</label>
+          </div>
+          <div>
+            <input type="checkbox" id="nb_Woodstock" value="Woodstock" class="form-checkbox">
+            <label for="nb_Woodstock" class="ml-2">Woodstock</label>
+          </div>
+        </div>
+      </div>
+
       <!-- Secondary Axis Toggle -->
       <div class="mb-4" id="secondaryAxisToggleContainer">
         <input type="checkbox" id="toggleInventorySecondary" class="form-checkbox">
         <label for="toggleInventorySecondary" class="ml-2">Plot Rental Inventory on Secondary Y Axis</label>
       </div>
 
-      <!-- Deselect All / Reset Defaults Button using the button component -->
+      <!-- Deselect All / Reset Defaults Button (uses components/button.html) -->
       <div class="mb-4">
         {% include "components/button.html" with title="Deselect All" url="#" extra_class="reset-filters" id="resetFilters" %}
       </div>
     </div>
 
-    <!-- Right Column: Neighborhood Selection -->
-    <div class="md:w-1/2">
-      <label for="checkboxFilter" class="block font-semibold mb-1">Select Neighborhood(s):</label>
-      <!-- Search/Filter Input -->
-      <input type="text" id="checkboxFilter" class="p-2 border rounded mb-2 w-full" placeholder="Search neighborhoods...">
-      <!-- Neighborhood Checkboxes (scrollable) -->
-      <div id="checkboxContainer" class="border p-2 rounded" style="max-height: 300px; overflow-y: auto;">
-        <!-- Default Checked: Manhattan -->
-        <div>
-          <input type="checkbox" id="nb_Manhattan" value="Manhattan" checked class="form-checkbox">
-          <label for="nb_Manhattan" class="ml-2">Manhattan</label>
-        </div>
-        <!-- Full list of neighborhoods: -->
-        <div>
-          <input type="checkbox" id="nb_All_Downtown" value="All Downtown" class="form-checkbox">
-          <label for="nb_All_Downtown" class="ml-2">All Downtown</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_All_Midtown" value="All Midtown" class="form-checkbox">
-          <label for="nb_All_Midtown" class="ml-2">All Midtown</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_All_Upper_East_Side" value="All Upper East Side" class="form-checkbox">
-          <label for="nb_All_Upper_East_Side" class="ml-2">All Upper East Side</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_All_Upper_Manhattan" value="All Upper Manhattan" class="form-checkbox">
-          <label for="nb_All_Upper_Manhattan" class="ml-2">All Upper Manhattan</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_All_Upper_West_Side" value="All Upper West Side" class="form-checkbox">
-          <label for="nb_All_Upper_West_Side" class="ml-2">All Upper West Side</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Astoria" value="Astoria" class="form-checkbox">
-          <label for="nb_Astoria" class="ml-2">Astoria</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Auburndale" value="Auburndale" class="form-checkbox">
-          <label for="nb_Auburndale" class="ml-2">Auburndale</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bath_Beach" value="Bath Beach" class="form-checkbox">
-          <label for="nb_Bath_Beach" class="ml-2">Bath Beach</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Battery_Park_City" value="Battery Park City" class="form-checkbox">
-          <label for="nb_Battery_Park_City" class="ml-2">Battery Park City</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bay_Ridge" value="Bay Ridge" class="form-checkbox">
-          <label for="nb_Bay_Ridge" class="ml-2">Bay Ridge</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Baychester" value="Baychester" class="form-checkbox">
-          <label for="nb_Baychester" class="ml-2">Baychester</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bayside" value="Bayside" class="form-checkbox">
-          <label for="nb_Bayside" class="ml-2">Bayside</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bedford_Park" value="Bedford Park" class="form-checkbox">
-          <label for="nb_Bedford_Park" class="ml-2">Bedford Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bedford_Stuyvesant" value="Bedford-Stuyvesant" class="form-checkbox">
-          <label for="nb_Bedford_Stuyvesant" class="ml-2">Bedford-Stuyvesant</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bellerose" value="Bellerose" class="form-checkbox">
-          <label for="nb_Bellerose" class="ml-2">Bellerose</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Belmont" value="Belmont" class="form-checkbox">
-          <label for="nb_Belmont" class="ml-2">Belmont</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bensonhurst" value="Bensonhurst" class="form-checkbox">
-          <label for="nb_Bensonhurst" class="ml-2">Bensonhurst</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bergen_Beach" value="Bergen Beach" class="form-checkbox">
-          <label for="nb_Bergen_Beach" class="ml-2">Bergen Beach</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Boerum_Hill" value="Boerum Hill" class="form-checkbox">
-          <label for="nb_Boerum_Hill" class="ml-2">Boerum Hill</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Borough_Park" value="Borough Park" class="form-checkbox">
-          <label for="nb_Borough_Park" class="ml-2">Borough Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Briarwood" value="Briarwood" class="form-checkbox">
-          <label for="nb_Briarwood" class="ml-2">Briarwood</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Brighton_Beach" value="Brighton Beach" class="form-checkbox">
-          <label for="nb_Brighton_Beach" class="ml-2">Brighton Beach</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bronx" value="Bronx" class="form-checkbox">
-          <label for="nb_Bronx" class="ml-2">Bronx</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bronxwood" value="Bronxwood" class="form-checkbox">
-          <label for="nb_Bronxwood" class="ml-2">Bronxwood</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Brooklyn" value="Brooklyn" class="form-checkbox">
-          <label for="nb_Brooklyn" class="ml-2">Brooklyn</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Brooklyn_Heights" value="Brooklyn Heights" class="form-checkbox">
-          <label for="nb_Brooklyn_Heights" class="ml-2">Brooklyn Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Brookville" value="Brookville" class="form-checkbox">
-          <label for="nb_Brookville" class="ml-2">Brookville</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Brownsville" value="Brownsville" class="form-checkbox">
-          <label for="nb_Brownsville" class="ml-2">Brownsville</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Bushwick" value="Bushwick" class="form-checkbox">
-          <label for="nb_Bushwick" class="ml-2">Bushwick</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Cambria_Heights" value="Cambria Heights" class="form-checkbox">
-          <label for="nb_Cambria_Heights" class="ml-2">Cambria Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Canarsie" value="Canarsie" class="form-checkbox">
-          <label for="nb_Canarsie" class="ml-2">Canarsie</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Carroll_Gardens" value="Carroll Gardens" class="form-checkbox">
-          <label for="nb_Carroll_Gardens" class="ml-2">Carroll Gardens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Castle_Hill" value="Castle Hill" class="form-checkbox">
-          <label for="nb_Castle_Hill" class="ml-2">Castle Hill</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Central_Harlem" value="Central Harlem" class="form-checkbox">
-          <label for="nb_Central_Harlem" class="ml-2">Central Harlem</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Central_Park_South" value="Central Park South" class="form-checkbox">
-          <label for="nb_Central_Park_South" class="ml-2">Central Park South</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Central_Queens" value="Central Queens" class="form-checkbox">
-          <label for="nb_Central_Queens" class="ml-2">Central Queens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Chelsea" value="Chelsea" class="form-checkbox">
-          <label for="nb_Chelsea" class="ml-2">Chelsea</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Chinatown" value="Chinatown" class="form-checkbox">
-          <label for="nb_Chinatown" class="ml-2">Chinatown</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_City_Island" value="City Island" class="form-checkbox">
-          <label for="nb_City_Island" class="ml-2">City Island</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Civic_Center" value="Civic Center" class="form-checkbox">
-          <label for="nb_Civic_Center" class="ml-2">Civic Center</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Clearview" value="Clearview" class="form-checkbox">
-          <label for="nb_Clearview" class="ml-2">Clearview</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Clinton_Hill" value="Clinton Hill" class="form-checkbox">
-          <label for="nb_Clinton_Hill" class="ml-2">Clinton Hill</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Coop_City" value="Co-op City" class="form-checkbox">
-          <label for="nb_Coop_City" class="ml-2">Co-op City</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Cobble_Hill" value="Cobble Hill" class="form-checkbox">
-          <label for="nb_Cobble_Hill" class="ml-2">Cobble Hill</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_College_Point" value="College Point" class="form-checkbox">
-          <label for="nb_College_Point" class="ml-2">College Point</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Columbia_St_Waterfront_District" value="Columbia St Waterfront District" class="form-checkbox">
-          <label for="nb_Columbia_St_Waterfront_District" class="ml-2">Columbia St Waterfront District</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Concourse" value="Concourse" class="form-checkbox">
-          <label for="nb_Concourse" class="ml-2">Concourse</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Coney_Island" value="Coney Island" class="form-checkbox">
-          <label for="nb_Coney_Island" class="ml-2">Coney Island</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Corona" value="Corona" class="form-checkbox">
-          <label for="nb_Corona" class="ml-2">Corona</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Country_Club" value="Country Club" class="form-checkbox">
-          <label for="nb_Country_Club" class="ml-2">Country Club</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Crotona_Park_East" value="Crotona Park East" class="form-checkbox">
-          <label for="nb_Crotona_Park_East" class="ml-2">Crotona Park East</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Crown_Heights" value="Crown Heights" class="form-checkbox">
-          <label for="nb_Crown_Heights" class="ml-2">Crown Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_DUMBO" value="DUMBO" class="form-checkbox">
-          <label for="nb_DUMBO" class="ml-2">DUMBO</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Ditmas_Park" value="Ditmas Park" class="form-checkbox">
-          <label for="nb_Ditmas_Park" class="ml-2">Ditmas Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Douglaston" value="Douglaston" class="form-checkbox">
-          <label for="nb_Douglaston" class="ml-2">Douglaston</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Downtown_Brooklyn" value="Downtown Brooklyn" class="form-checkbox">
-          <label for="nb_Downtown_Brooklyn" class="ml-2">Downtown Brooklyn</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Dyker_Heights" value="Dyker Heights" class="form-checkbox">
-          <label for="nb_Dyker_Heights" class="ml-2">Dyker Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_East_Brooklyn" value="East Brooklyn" class="form-checkbox">
-          <label for="nb_East_Brooklyn" class="ml-2">East Brooklyn</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_East_Elmhurst" value="East Elmhurst" class="form-checkbox">
-          <label for="nb_East_Elmhurst" class="ml-2">East Elmhurst</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_East_Flatbush" value="East Flatbush" class="form-checkbox">
-          <label for="nb_East_Flatbush" class="ml-2">East Flatbush</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_East_Harlem" value="East Harlem" class="form-checkbox">
-          <label for="nb_East_Harlem" class="ml-2">East Harlem</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_East_New_York" value="East New York" class="form-checkbox">
-          <label for="nb_East_New_York" class="ml-2">East New York</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_East_Tremont" value="East Tremont" class="form-checkbox">
-          <label for="nb_East_Tremont" class="ml-2">East Tremont</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_East_Village" value="East Village" class="form-checkbox">
-          <label for="nb_East_Village" class="ml-2">East Village</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Eastchester" value="Eastchester" class="form-checkbox">
-          <label for="nb_Eastchester" class="ml-2">Eastchester</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Edenwald" value="Edenwald" class="form-checkbox">
-          <label for="nb_Edenwald" class="ml-2">Edenwald</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Elmhurst" value="Elmhurst" class="form-checkbox">
-          <label for="nb_Elmhurst" class="ml-2">Elmhurst</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Financial_District" value="Financial District" class="form-checkbox">
-          <label for="nb_Financial_District" class="ml-2">Financial District</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Flatbush" value="Flatbush" class="form-checkbox">
-          <label for="nb_Flatbush" class="ml-2">Flatbush</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Flatiron" value="Flatiron" class="form-checkbox">
-          <label for="nb_Flatiron" class="ml-2">Flatiron</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Flatlands" value="Flatlands" class="form-checkbox">
-          <label for="nb_Flatlands" class="ml-2">Flatlands</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Floral_Park" value="Floral Park" class="form-checkbox">
-          <label for="nb_Floral_Park" class="ml-2">Floral Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Flushing" value="Flushing" class="form-checkbox">
-          <label for="nb_Flushing" class="ml-2">Flushing</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Fordham" value="Fordham" class="form-checkbox">
-          <label for="nb_Fordham" class="ml-2">Fordham</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Forest_Hills" value="Forest Hills" class="form-checkbox">
-          <label for="nb_Forest_Hills" class="ml-2">Forest Hills</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Fort_Greene" value="Fort Greene" class="form-checkbox">
-          <label for="nb_Fort_Greene" class="ml-2">Fort Greene</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Fresh_Meadows" value="Fresh Meadows" class="form-checkbox">
-          <label for="nb_Fresh_Meadows" class="ml-2">Fresh Meadows</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Gerritsen_Beach" value="Gerritsen Beach" class="form-checkbox">
-          <label for="nb_Gerritsen_Beach" class="ml-2">Gerritsen Beach</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Glen_Oaks" value="Glen Oaks" class="form-checkbox">
-          <label for="nb_Glen_Oaks" class="ml-2">Glen Oaks</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Glendale" value="Glendale" class="form-checkbox">
-          <label for="nb_Glendale" class="ml-2">Glendale</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Gowanus" value="Gowanus" class="form-checkbox">
-          <label for="nb_Gowanus" class="ml-2">Gowanus</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Gramercy_Park" value="Gramercy Park" class="form-checkbox">
-          <label for="nb_Gramercy_Park" class="ml-2">Gramercy Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Gravesend" value="Gravesend" class="form-checkbox">
-          <label for="nb_Gravesend" class="ml-2">Gravesend</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Greenpoint" value="Greenpoint" class="form-checkbox">
-          <label for="nb_Greenpoint" class="ml-2">Greenpoint</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Greenwich_Village" value="Greenwich Village" class="form-checkbox">
-          <label for="nb_Greenwich_Village" class="ml-2">Greenwich Village</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Greenwood" value="Greenwood" class="form-checkbox">
-          <label for="nb_Greenwood" class="ml-2">Greenwood</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Hamilton_Heights" value="Hamilton Heights" class="form-checkbox">
-          <label for="nb_Hamilton_Heights" class="ml-2">Hamilton Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Highbridge" value="Highbridge" class="form-checkbox">
-          <label for="nb_Highbridge" class="ml-2">Highbridge</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Hillcrest" value="Hillcrest" class="form-checkbox">
-          <label for="nb_Hillcrest" class="ml-2">Hillcrest</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Hollis" value="Hollis" class="form-checkbox">
-          <label for="nb_Hollis" class="ml-2">Hollis</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Howard_Beach" value="Howard Beach" class="form-checkbox">
-          <label for="nb_Howard_Beach" class="ml-2">Howard Beach</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Hunts_Point" value="Hunts Point" class="form-checkbox">
-          <label for="nb_Hunts_Point" class="ml-2">Hunts Point</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Inwood" value="Inwood" class="form-checkbox">
-          <label for="nb_Inwood" class="ml-2">Inwood</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Jackson_Heights" value="Jackson Heights" class="form-checkbox">
-          <label for="nb_Jackson_Heights" class="ml-2">Jackson Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Jamaica" value="Jamaica" class="form-checkbox">
-          <label for="nb_Jamaica" class="ml-2">Jamaica</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Jamaica_Estates" value="Jamaica Estates" class="form-checkbox">
-          <label for="nb_Jamaica_Estates" class="ml-2">Jamaica Estates</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Jamaica_Hills" value="Jamaica Hills" class="form-checkbox">
-          <label for="nb_Jamaica_Hills" class="ml-2">Jamaica Hills</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Kingsbridge" value="Kingsbridge" class="form-checkbox">
-          <label for="nb_Kingsbridge" class="ml-2">Kingsbridge</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Kensington" value="Kensington" class="form-checkbox">
-          <label for="nb_Kensington" class="ml-2">Kensington</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Kew_Gardens" value="Kew Gardens" class="form-checkbox">
-          <label for="nb_Kew_Gardens" class="ml-2">Kew Gardens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Kew_Gardens_Hills" value="Kew Gardens Hills" class="form-checkbox">
-          <label for="nb_Kew_Gardens_Hills" class="ml-2">Kew Gardens Hills</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Laconia" value="Laconia" class="form-checkbox">
-          <label for="nb_Laconia" class="ml-2">Laconia</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Laurelton" value="Laurelton" class="form-checkbox">
-          <label for="nb_Laurelton" class="ml-2">Laurelton</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Little_Italy" value="Little Italy" class="form-checkbox">
-          <label for="nb_Little_Italy" class="ml-2">Little Italy</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Little_Neck" value="Little Neck" class="form-checkbox">
-          <label for="nb_Little_Neck" class="ml-2">Little Neck</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Long_Island_City" value="Long Island City" class="form-checkbox">
-          <label for="nb_Long_Island_City" class="ml-2">Long Island City</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Longwood" value="Longwood" class="form-checkbox">
-          <label for="nb_Longwood" class="ml-2">Longwood</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Lower_East_Side" value="Lower East Side" class="form-checkbox">
-          <label for="nb_Lower_East_Side" class="ml-2">Lower East Side</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Manhattan_Beach" value="Manhattan Beach" class="form-checkbox">
-          <label for="nb_Manhattan_Beach" class="ml-2">Manhattan Beach</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Marble_Hill" value="Marble Hill" class="form-checkbox">
-          <label for="nb_Marble_Hill" class="ml-2">Marble Hill</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Marine_Park" value="Marine Park" class="form-checkbox">
-          <label for="nb_Marine_Park" class="ml-2">Marine Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Maspeth" value="Maspeth" class="form-checkbox">
-          <label for="nb_Maspeth" class="ml-2">Maspeth</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Melrose" value="Melrose" class="form-checkbox">
-          <label for="nb_Melrose" class="ml-2">Melrose</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Middle_Village" value="Middle Village" class="form-checkbox">
-          <label for="nb_Middle_Village" class="ml-2">Middle Village</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Midtown" value="Midtown" class="form-checkbox">
-          <label for="nb_Midtown" class="ml-2">Midtown</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Midtown_East" value="Midtown East" class="form-checkbox">
-          <label for="nb_Midtown_East" class="ml-2">Midtown East</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Midtown_South" value="Midtown South" class="form-checkbox">
-          <label for="nb_Midtown_South" class="ml-2">Midtown South</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Midtown_West" value="Midtown West" class="form-checkbox">
-          <label for="nb_Midtown_West" class="ml-2">Midtown West</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Midwood" value="Midwood" class="form-checkbox">
-          <label for="nb_Midwood" class="ml-2">Midwood</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Mill_Basin" value="Mill Basin" class="form-checkbox">
-          <label for="nb_Mill_Basin" class="ml-2">Mill Basin</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Morningside_Heights" value="Morningside Heights" class="form-checkbox">
-          <label for="nb_Morningside_Heights" class="ml-2">Morningside Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Morris_Heights" value="Morris Heights" class="form-checkbox">
-          <label for="nb_Morris_Heights" class="ml-2">Morris Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Morris_Park" value="Morris Park" class="form-checkbox">
-          <label for="nb_Morris_Park" class="ml-2">Morris Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Morrisania" value="Morrisania" class="form-checkbox">
-          <label for="nb_Morrisania" class="ml-2">Morrisania</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Mott_Haven" value="Mott Haven" class="form-checkbox">
-          <label for="nb_Mott_Haven" class="ml-2">Mott Haven</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_NYC" value="NYC" class="form-checkbox">
-          <label for="nb_NYC" class="ml-2">NYC</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_New_Hyde_Park" value="New Hyde Park" class="form-checkbox">
-          <label for="nb_New_Hyde_Park" class="ml-2">New Hyde Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Nolita" value="Nolita" class="form-checkbox">
-          <label for="nb_Nolita" class="ml-2">Nolita</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_North_Brooklyn" value="North Brooklyn" class="form-checkbox">
-          <label for="nb_North_Brooklyn" class="ml-2">North Brooklyn</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_North_Corona" value="North Corona" class="form-checkbox">
-          <label for="nb_North_Corona" class="ml-2">North Corona</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Northeast_Queens" value="Northeast Queens" class="form-checkbox">
-          <label for="nb_Northeast_Queens" class="ml-2">Northeast Queens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Northwest_Brooklyn" value="Northwest Brooklyn" class="form-checkbox">
-          <label for="nb_Northwest_Brooklyn" class="ml-2">Northwest Brooklyn</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Northwest_Queens" value="Northwest Queens" class="form-checkbox">
-          <label for="nb_Northwest_Queens" class="ml-2">Northwest Queens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Norwood" value="Norwood" class="form-checkbox">
-          <label for="nb_Norwood" class="ml-2">Norwood</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Oakland_Gardens" value="Oakland Gardens" class="form-checkbox">
-          <label for="nb_Oakland_Gardens" class="ml-2">Oakland Gardens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Ocean_Parkway" value="Ocean Parkway" class="form-checkbox">
-          <label for="nb_Ocean_Parkway" class="ml-2">Ocean Parkway</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Old_Mill_Basin" value="Old Mill Basin" class="form-checkbox">
-          <label for="nb_Old_Mill_Basin" class="ml-2">Old Mill Basin</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Ozone_Park" value="Ozone Park" class="form-checkbox">
-          <label for="nb_Ozone_Park" class="ml-2">Ozone Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Park_Slope" value="Park Slope" class="form-checkbox">
-          <label for="nb_Park_Slope" class="ml-2">Park Slope</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Parkchester" value="Parkchester" class="form-checkbox">
-          <label for="nb_Parkchester" class="ml-2">Parkchester</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Pelham_Bay" value="Pelham Bay" class="form-checkbox">
-          <label for="nb_Pelham_Bay" class="ml-2">Pelham Bay</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Pelham_Gardens" value="Pelham Gardens" class="form-checkbox">
-          <label for="nb_Pelham_Gardens" class="ml-2">Pelham Gardens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Pelham_Parkway" value="Pelham Parkway" class="form-checkbox">
-          <label for="nb_Pelham_Parkway" class="ml-2">Pelham Parkway</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Pomonok" value="Pomonok" class="form-checkbox">
-          <label for="nb_Pomonok" class="ml-2">Pomonok</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Port_Morris" value="Port Morris" class="form-checkbox">
-          <label for="nb_Port_Morris" class="ml-2">Port Morris</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Prospect_Heights" value="Prospect Heights" class="form-checkbox">
-          <label for="nb_Prospect_Heights" class="ml-2">Prospect Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Prospect_Lefferts_Gardens" value="Prospect Lefferts Gardens" class="form-checkbox">
-          <label for="nb_Prospect_Lefferts_Gardens" class="ml-2">Prospect Lefferts Gardens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Prospect_Park" value="Prospect Park" class="form-checkbox">
-          <label for="nb_Prospect_Park" class="ml-2">Prospect Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Prospect_Park_South" value="Prospect Park South" class="form-checkbox">
-          <label for="nb_Prospect_Park_South" class="ml-2">Prospect Park South</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Queens" value="Queens" class="form-checkbox">
-          <label for="nb_Queens" class="ml-2">Queens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Queens_Village" value="Queens Village" class="form-checkbox">
-          <label for="nb_Queens_Village" class="ml-2">Queens Village</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Red_Hook" value="Red Hook" class="form-checkbox">
-          <label for="nb_Red_Hook" class="ml-2">Red Hook</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Rego_Park" value="Rego Park" class="form-checkbox">
-          <label for="nb_Rego_Park" class="ml-2">Rego Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Richmond_Hill" value="Richmond Hill" class="form-checkbox">
-          <label for="nb_Richmond_Hill" class="ml-2">Richmond Hill</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Ridgewood" value="Ridgewood" class="form-checkbox">
-          <label for="nb_Ridgewood" class="ml-2">Ridgewood</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Riverdale" value="Riverdale" class="form-checkbox">
-          <label for="nb_Riverdale" class="ml-2">Riverdale</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Rockaway_All" value="Rockaway All" class="form-checkbox">
-          <label for="nb_Rockaway_All" class="ml-2">Rockaway All</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Roosevelt_Island" value="Roosevelt Island" class="form-checkbox">
-          <label for="nb_Roosevelt_Island" class="ml-2">Roosevelt Island</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Rosedale" value="Rosedale" class="form-checkbox">
-          <label for="nb_Rosedale" class="ml-2">Rosedale</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Schuylerville" value="Schuylerville" class="form-checkbox">
-          <label for="nb_Schuylerville" class="ml-2">Schuylerville</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Seagate" value="Seagate" class="form-checkbox">
-          <label for="nb_Seagate" class="ml-2">Seagate</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Sheepshead_Bay" value="Sheepshead Bay" class="form-checkbox">
-          <label for="nb_Sheepshead_Bay" class="ml-2">Sheepshead Bay</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Soho" value="Soho" class="form-checkbox">
-          <label for="nb_Soho" class="ml-2">Soho</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Soundview" value="Soundview" class="form-checkbox">
-          <label for="nb_Soundview" class="ml-2">Soundview</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_South_Brooklyn" value="South Brooklyn" class="form-checkbox">
-          <label for="nb_South_Brooklyn" class="ml-2">South Brooklyn</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_South_Jamaica" value="South Jamaica" class="form-checkbox">
-          <label for="nb_South_Jamaica" class="ml-2">South Jamaica</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_South_Ozone_Park" value="South Ozone Park" class="form-checkbox">
-          <label for="nb_South_Ozone_Park" class="ml-2">South Ozone Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_South_Queens" value="South Queens" class="form-checkbox">
-          <label for="nb_South_Queens" class="ml-2">South Queens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_South_Richmond_Hill" value="South Richmond Hill" class="form-checkbox">
-          <label for="nb_South_Richmond_Hill" class="ml-2">South Richmond Hill</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Springfield_Gardens" value="Springfield Gardens" class="form-checkbox">
-          <label for="nb_Springfield_Gardens" class="ml-2">Springfield Gardens</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_St_Albans" value="St. Albans" class="form-checkbox">
-          <label for="nb_St_Albans" class="ml-2">St. Albans</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Staten_Island" value="Staten Island" class="form-checkbox">
-          <label for="nb_Staten_Island" class="ml-2">Staten Island</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Stuyvesant_Town_PCV" value="Stuyvesant Town/PCV" class="form-checkbox">
-          <label for="nb_Stuyvesant_Town_PCV" class="ml-2">Stuyvesant Town/PCV</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Sunnyside" value="Sunnyside" class="form-checkbox">
-          <label for="nb_Sunnyside" class="ml-2">Sunnyside</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Sunset_Park" value="Sunset Park" class="form-checkbox">
-          <label for="nb_Sunset_Park" class="ml-2">Sunset Park</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_The_Rockaways" value="The Rockaways" class="form-checkbox">
-          <label for="nb_The_Rockaways" class="ml-2">The Rockaways</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Throgs_Neck" value="Throgs Neck" class="form-checkbox">
-          <label for="nb_Throgs_Neck" class="ml-2">Throgs Neck</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Tremont" value="Tremont" class="form-checkbox">
-          <label for="nb_Tremont" class="ml-2">Tremont</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Tribeca" value="Tribeca" class="form-checkbox">
-          <label for="nb_Tribeca" class="ml-2">Tribeca</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_University_Heights" value="University Heights" class="form-checkbox">
-          <label for="nb_University_Heights" class="ml-2">University Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Upper_East_Side" value="Upper East Side" class="form-checkbox">
-          <label for="nb_Upper_East_Side" class="ml-2">Upper East Side</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Upper_West_Side" value="Upper West Side" class="form-checkbox">
-          <label for="nb_Upper_West_Side" class="ml-2">Upper West Side</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Utopia" value="Utopia" class="form-checkbox">
-          <label for="nb_Utopia" class="ml-2">Utopia</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Van_Nest" value="Van Nest" class="form-checkbox">
-          <label for="nb_Van_Nest" class="ml-2">Van Nest</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Wakefield" value="Wakefield" class="form-checkbox">
-          <label for="nb_Wakefield" class="ml-2">Wakefield</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Washington_Heights" value="Washington Heights" class="form-checkbox">
-          <label for="nb_Washington_Heights" class="ml-2">Washington Heights</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_West_Harlem" value="West Harlem" class="form-checkbox">
-          <label for="nb_West_Harlem" class="ml-2">West Harlem</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_West_Village" value="West Village" class="form-checkbox">
-          <label for="nb_West_Village" class="ml-2">West Village</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Westchester_Village" value="Westchester Village" class="form-checkbox">
-          <label for="nb_Westchester_Village" class="ml-2">Westchester Village</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Whitestone" value="Whitestone" class="form-checkbox">
-          <label for="nb_Whitestone" class="ml-2">Whitestone</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Williamsbridge" value="Williamsbridge" class="form-checkbox">
-          <label for="nb_Williamsbridge" class="ml-2">Williamsbridge</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Williamsburg" value="Williamsburg" class="form-checkbox">
-          <label for="nb_Williamsburg" class="ml-2">Williamsburg</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Windsor_Terrace" value="Windsor Terrace" class="form-checkbox">
-          <label for="nb_Windsor_Terrace" class="ml-2">Windsor Terrace</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Woodhaven" value="Woodhaven" class="form-checkbox">
-          <label for="nb_Woodhaven" class="ml-2">Woodhaven</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Woodlawn" value="Woodlawn" class="form-checkbox">
-          <label for="nb_Woodlawn" class="ml-2">Woodlawn</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Woodside" value="Woodside" class="form-checkbox">
-          <label for="nb_Woodside" class="ml-2">Woodside</label>
-        </div>
-        <div>
-          <input type="checkbox" id="nb_Woodstock" value="Woodstock" class="form-checkbox">
-          <label for="nb_Woodstock" class="ml-2">Woodstock</label>
+    <!-- RIGHT COLUMN (80%) : CHART CANVAS CONTAINER -->
+    <div class="w-full md:w-4/5">
+      <div class="relative mx-auto h-full" style="max-width: 900px;">
+        <canvas id="rentChart" class="h-full"></canvas>
+        <div
+          id="loadingIndicator"
+          class="absolute inset-0 flex justify-center items-center bg-white bg-opacity-75 hidden"
+        >
+          <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Chart Canvas Container (below the controls) -->
-  <div class="relative mx-auto" style="height: 450px; max-width: 900px;">
-    <canvas id="rentChart"></canvas>
-    <div id="loadingIndicator" class="absolute inset-0 flex justify-center items-center bg-white bg-opacity-75 hidden">
-      <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+  </div> <!-- End of main row -->
+
+  <!-- DATA FAQs SECTION -->
+  <div class="faq-section bg-gray-50 p-4 rounded mt-8">
+    <h2 class="text-2xl font-bold mb-4">Data FAQs</h2>
+    <div class="richtext-content">
+      {{ page.faq_section|richtext }}
     </div>
   </div>
-</div>
+
+</div> <!-- .site-padding container -->
 
 <!-- Include Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // -- FILTER FUNCTIONALITY --
+  // FILTER FUNCTIONALITY (Neighborhood Search)
   document.getElementById('checkboxFilter').addEventListener('input', function() {
     const filterValue = this.value.toLowerCase();
     const container = document.getElementById('checkboxContainer');
@@ -891,68 +920,70 @@
     }
   });
 
-  // -- RESET / DESELECT ALL FUNCTION --
-  function resetFilters() {
-    // Reset Data Types: dt_median checked, dt_inventory unchecked.
+  // RESET / DESELECT ALL FUNCTION
+  function resetFilters(e) {
+    e.preventDefault();
+    // Reset Data Types
     document.getElementById('dt_median').checked = true;
     document.getElementById('dt_inventory').checked = false;
 
-    // Reset Bedroom Types: bed_All checked, others unchecked.
+    // Reset Bedroom Types
     document.getElementById('bed_All').checked = true;
     document.getElementById('bed_Studio').checked = false;
     document.getElementById('bed_OneBd').checked = false;
     document.getElementById('bed_TwoBd').checked = false;
     document.getElementById('bed_ThreePlusBd').checked = false;
 
-    // Reset Neighborhoods: Only nb_Manhattan checked.
+    // Reset Neighborhoods (only Manhattan checked)
     const neighborhoodCheckboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']");
     neighborhoodCheckboxes.forEach(cb => {
       cb.checked = (cb.id === "nb_Manhattan");
     });
 
-    // Reset secondary axis toggle.
+    // Reset secondary axis toggle
     document.getElementById('toggleInventorySecondary').checked = false;
 
-    // Clear search filter.
+    // Clear search filter input
     document.getElementById('checkboxFilter').value = "";
 
-    // Re-render the chart.
+    // Re-render the chart
     fetchAndRenderChart();
   }
 
-  // Attach resetFilters to the "Deselect All" button.
   document.addEventListener("DOMContentLoaded", function() {
     document.getElementById('resetFilters').addEventListener('click', resetFilters);
   });
 
-  // -- CHART RENDERING FUNCTIONALITY --
+  // CHART RENDERING FUNCTIONALITY
   function fetchAndRenderChart() {
     const loadingIndicator = document.getElementById('loadingIndicator');
     loadingIndicator.classList.remove('hidden');
 
-    // Get selected Data Types:
+    // Selected Data Types
     let dataTypeCheckboxes = document.querySelectorAll("#dataTypeContainer input[type='checkbox']:checked");
     let selectedDataTypes = Array.from(dataTypeCheckboxes).map(cb => cb.value);
 
-    // Get selected Bedroom Types:
+    // Selected Bedroom Types
     let bedroomCheckboxes = document.querySelectorAll("#bedroomContainer input[type='checkbox']:checked");
     let selectedBedroomTypes = Array.from(bedroomCheckboxes).map(cb => cb.value);
 
-    // Get selected Neighborhoods:
+    // Selected Neighborhoods
     let neighborhoodCheckboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']:checked");
     let selectedNeighborhoods = Array.from(neighborhoodCheckboxes).map(cb => cb.value);
 
-    // If no Data Type or Bedroom Type is selected, clear chart and do nothing.
+    // If nothing is selected for Data Type or Bedrooms, clear chart and stop
     if (selectedDataTypes.length === 0 || selectedBedroomTypes.length === 0) {
-      if (window.rentChartInstance) { window.rentChartInstance.destroy(); }
+      if (window.rentChartInstance) {
+        window.rentChartInstance.destroy();
+      }
       loadingIndicator.classList.add('hidden');
       return;
     }
 
-    // Get toggle state for secondary y-axis:
+    // Secondary Axis toggle
     const toggleInventorySecondary = document.getElementById('toggleInventorySecondary').checked;
 
-    // Prepare AJAX requests for each (dataType, bedroomType) combination.
+    // Prepare fetch requests for each (dataType, bedroomType) combination
     let requests = [];
     selectedDataTypes.forEach(dt => {
       selectedBedroomTypes.forEach(bed => {
@@ -967,7 +998,7 @@
 
     Promise.all(requests)
       .then(results => {
-        // Determine chart labels (months)
+        // Determine chart labels from any valid neighborhood's monthly data
         let labels = [];
         for (let res of results) {
           for (let nb of selectedNeighborhoods) {
@@ -978,17 +1009,19 @@
           }
           if (labels.length) break;
         }
-        if (!labels.length) { labels = []; }
+        if (!labels.length) {
+          labels = [];
+        }
 
-        // Build datasets:
+        // Build datasets
         let datasets = [];
         results.forEach(result => {
           selectedNeighborhoods.forEach(nb => {
             if (result.jsonData[nb] && result.jsonData[nb].monthly) {
               let monthlyData = result.jsonData[nb].monthly;
-              let dataValues = labels.map(label =>
+              let dataValues = labels.map(label => (
                 monthlyData[label] !== undefined ? monthlyData[label] : null
-              );
+              ));
               let datasetLabel = `${nb} (${result.dataType}, ${result.bedroom})`;
               let ds = {
                 label: datasetLabel,
@@ -1002,38 +1035,42 @@
           });
         });
 
-        // Expanded color palette:
+        // Expanded color palette
         const colors = [
-          'rgba(75, 192, 192, 1)',    // teal
-          'rgba(255, 99, 132, 1)',    // red/pink
-          'rgba(54, 162, 235, 1)',    // blue
-          'rgba(255, 206, 86, 1)',    // yellow
-          'rgba(153, 102, 255, 1)',   // purple
-          'rgba(255, 159, 64, 1)',    // orange
-          'rgba(199, 199, 199, 1)',   // gray
-          'rgba(0, 128, 128, 1)',     // dark teal
-          'rgba(255, 0, 255, 1)',     // magenta
-          'rgba(128, 0, 128, 1)',     // dark purple
-          'rgba(0, 255, 255, 1)',     // cyan
-          'rgba(128, 128, 0, 1)',     // olive
-          'rgba(255, 140, 0, 1)',     // dark orange
-          'rgba(70, 130, 180, 1)',    // steel blue
-          'rgba(139, 69, 19, 1)',     // brown
-          'rgba(75, 0, 130, 1)',      // indigo
-          'rgba(220, 20, 60, 1)'      // crimson
+          'rgba(75, 192, 192, 1)',
+          'rgba(255, 99, 132, 1)',
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 206, 86, 1)',
+          'rgba(153, 102, 255, 1)',
+          'rgba(255, 159, 64, 1)',
+          'rgba(199, 199, 199, 1)',
+          'rgba(0, 128, 128, 1)',
+          'rgba(255, 0, 255, 1)',
+          'rgba(128, 0, 128, 1)',
+          'rgba(0, 255, 255, 1)',
+          'rgba(128, 128, 0, 1)',
+          'rgba(255, 140, 0, 1)',
+          'rgba(70, 130, 180, 1)',
+          'rgba(139, 69, 19, 1)',
+          'rgba(75, 0, 130, 1)',
+          'rgba(220, 20, 60, 1)'
         ];
         datasets.forEach((ds, idx) => {
           ds.borderColor = colors[idx % colors.length];
           ds.backgroundColor = colors[idx % colors.length];
         });
 
-        // Destroy any existing chart instance.
-        if (window.rentChartInstance) { window.rentChartInstance.destroy(); }
+        // Destroy any existing chart
+        if (window.rentChartInstance) {
+          window.rentChartInstance.destroy();
+        }
 
-        // Build scales configuration:
+        // Build scales
         const scalesConfig = {
-          x: { title: { display: true, text: 'Month' } },
-          y: { 
+          x: {
+            title: { display: true, text: 'Month' }
+          },
+          y: {
             type: 'linear',
             display: true,
             position: 'left',
@@ -1050,7 +1087,7 @@
           };
         }
 
-        // Create the chart.
+        // Create the chart
         const ctx = document.getElementById('rentChart').getContext('2d');
         window.rentChartInstance = new Chart(ctx, {
           type: 'line',
@@ -1079,7 +1116,6 @@
       });
   }
 
-  // Attach event listeners.
   document.addEventListener("DOMContentLoaded", function() {
     fetchAndRenderChart();
     document.getElementById('checkboxContainer').addEventListener('change', fetchAndRenderChart);
