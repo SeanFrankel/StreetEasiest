@@ -14,10 +14,11 @@
   {% endif %}
 
   <!-- MAIN LAYOUT: LEFT SIDEBAR & RIGHT CHART DISPLAY -->
-  <div class="flex flex-row gap-8 mb-8 items-stretch">
-  
-    <!-- LEFT SIDEBAR (20%) with Chart Controls -->
-    <div class="w-full md:w-1/5 bg-gray-100 p-4 rounded shadow">
+  <!-- The flex container has a minimum height so that the chart extends to match the sidebar -->
+  <div class="flex flex-row gap-8 mb-8 min-h-[600px]">
+
+    <!-- LEFT SIDEBAR (Fixed width: 256px) with Chart Controls -->
+    <div class="w-64 bg-gray-100 p-4 rounded shadow">
       <!-- Data Type Selection -->
       <div class="mb-4" id="dataTypeContainer">
         <label class="block font-semibold mb-1">Select Data Types:</label>
@@ -869,6 +870,11 @@
         </div>
       </div>
 
+      <!-- Chart Controls Title -->
+      <div class="mb-2">
+        <label class="block font-semibold">Chart Controls</label>
+      </div>
+
       <!-- Secondary Axis Toggle -->
       <div class="mb-4" id="secondaryAxisToggleContainer">
         <input type="checkbox" id="toggleInventorySecondary" class="form-checkbox">
@@ -881,8 +887,8 @@
       </div>
     </div>
 
-    <!-- RIGHT COLUMN (80%) : CHART CANVAS CONTAINER -->
-    <div class="w-full md:w-4/5">
+    <!-- RIGHT COLUMN (Remaining width) : CHART CANVAS CONTAINER -->
+    <div class="flex-1">
       <div class="relative mx-auto h-full" style="max-width: 900px;">
         <canvas id="rentChart" class="h-full"></canvas>
         <div
