@@ -2,6 +2,10 @@
 {% load wagtailcore_tags wagtailimages_tags static %}
 
 {% block content %}
+  {% block breadcrumbs %}
+    {% include "navigation/breadcrumbs.html" %}
+  {% endblock %}
+
   <div class="site-padding site-container">
     <!-- Header Section -->
     <div class="flex flex-col md:flex-row md:items-center py-20">
@@ -10,7 +14,7 @@
       </h1>
       {% if page.instructions %}
         <div class="max-w-[636px] rich-text pt-5 md:w-2/3 md:pl-16 lg:pl-20">
-          <p>{{ page.instructions|linebreaks }}</p>
+          {{ page.instructions|richtext }}
         </div>
       {% endif %}
     </div>
@@ -48,6 +52,8 @@
     </section>
   </div>
 
+  {% include_block page.body %}
+
   <script>
     // Helper function to create a dynamic button with your styling.
     function btnTemplate(title, onclickAction) {
@@ -74,7 +80,6 @@
       let headerRow = "";
       let tableRows = "";
 
-      // New special handling for rent stabilized lookup.
       if (category === "rent_stabilized") {
         headerRow = `<tr class="bg-gray-200">
                       <th class="border px-4 py-2">Question</th>
@@ -110,7 +115,6 @@
         `;
       }
 
-      // Existing handling for housing violations.
       if (category === "housing_violations") {
         headerRow = `<tr class="bg-gray-200">
                       <th class="border px-4 py-2">Type</th>
@@ -131,7 +135,6 @@
           </tr>`;
         }).join("");
       } else {
-        // Default handling for other categories (311 complaints, lead violations, etc.)
         const displayStatus = (category === "311_complaints");
         headerRow = `<tr class="bg-gray-200">
                         <th class="border px-4 py-2">Type</th>

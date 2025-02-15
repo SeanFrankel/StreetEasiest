@@ -1,61 +1,66 @@
 {% extends "base_page.html" %}
-{% load static %}
-{% load wagtailcore_tags wagtailimages_tags static %}
+{% load static wagtailcore_tags wagtailimages_tags %}
 
 {% block content %}
-<div class="site-padding site-container py-8">
+  {% block breadcrumbs %}
+    {% include "navigation/breadcrumbs.html" %}
+  {% endblock %}
 
-  <!-- PAGE TITLE -->
-  <h1 class="font-serif4 font-bold text-4xl lg:text-7xl mb-4">Historical Rental Trends</h1>
+  <div class="site-padding site-container py-8">
 
-  <!-- OPTIONAL INTRO TEXT -->
-  {% if page.intro %}
-    <p class="mb-4">{{ page.intro }}</p>
-  {% endif %}
+    <!-- PAGE TITLE -->
+    <h1 class="font-serif4 font-bold text-4xl lg:text-7xl mb-4">Historical Rental Trends</h1>
 
-  <!-- MAIN LAYOUT: LEFT SIDEBAR & RIGHT CHART DISPLAY -->
-  <!-- The flex container has a minimum height so that the chart extends to match the sidebar -->
-  <div class="flex flex-row gap-8 mb-8 min-h-[600px]">
-
-    <!-- LEFT SIDEBAR (Fixed width: 256px) with Chart Controls -->
-    <div class="w-64 bg-gray-100 p-4 rounded shadow">
-      <!-- Data Type Selection -->
-      <div class="mb-4" id="dataTypeContainer">
-        <label class="block font-semibold mb-1">Select Data Types:</label>
-        <div>
-          <input type="checkbox" id="dt_median" value="median" checked class="form-checkbox">
-          <label for="dt_median" class="ml-2">Median Asking Rent</label>
-        </div>
-        <div>
-          <input type="checkbox" id="dt_inventory" value="inventory" class="form-checkbox">
-          <label for="dt_inventory" class="ml-2">Rental Inventory</label>
-        </div>
+    <!-- OPTIONAL INTRO TEXT -->
+    {% if page.intro %}
+      <div class="rich-text mb-4">
+        {{ page.intro|richtext }}
       </div>
+    {% endif %}
 
-      <!-- Bedroom Type Selection -->
-      <div class="mb-4" id="bedroomContainer">
-        <label class="block font-semibold mb-1">Select Bedroom Types:</label>
-        <div>
-          <input type="checkbox" id="bed_All" value="All" checked class="form-checkbox">
-          <label for="bed_All" class="ml-2">All Bedrooms</label>
+    <!-- MAIN LAYOUT: LEFT SIDEBAR & RIGHT CHART DISPLAY -->
+    <!-- The flex container has a minimum height so that the chart extends to match the sidebar -->
+    <div class="flex flex-row gap-8 mb-8 min-h-[600px]">
+
+      <!-- LEFT SIDEBAR (Fixed width: 256px) with Chart Controls -->
+      <div class="w-64 bg-gray-100 p-4 rounded shadow">
+        <!-- Data Type Selection -->
+        <div class="mb-4" id="dataTypeContainer">
+          <label class="block font-semibold mb-1">Select Data Types:</label>
+          <div>
+            <input type="checkbox" id="dt_median" value="median" checked class="form-checkbox">
+            <label for="dt_median" class="ml-2">Median Asking Rent</label>
+          </div>
+          <div>
+            <input type="checkbox" id="dt_inventory" value="inventory" class="form-checkbox">
+            <label for="dt_inventory" class="ml-2">Rental Inventory</label>
+          </div>
         </div>
-        <div>
-          <input type="checkbox" id="bed_Studio" value="Studio" class="form-checkbox">
-          <label for="bed_Studio" class="ml-2">Studio</label>
+
+        <!-- Bedroom Type Selection -->
+        <div class="mb-4" id="bedroomContainer">
+          <label class="block font-semibold mb-1">Select Bedroom Types:</label>
+          <div>
+            <input type="checkbox" id="bed_All" value="All" checked class="form-checkbox">
+            <label for="bed_All" class="ml-2">All Bedrooms</label>
+          </div>
+          <div>
+            <input type="checkbox" id="bed_Studio" value="Studio" class="form-checkbox">
+            <label for="bed_Studio" class="ml-2">Studio</label>
+          </div>
+          <div>
+            <input type="checkbox" id="bed_OneBd" value="OneBd" class="form-checkbox">
+            <label for="bed_OneBd" class="ml-2">One Bedroom</label>
+          </div>
+          <div>
+            <input type="checkbox" id="bed_TwoBd" value="TwoBd" class="form-checkbox">
+            <label for="bed_TwoBd" class="ml-2">Two Bedroom</label>
+          </div>
+          <div>
+            <input type="checkbox" id="bed_ThreePlusBd" value="ThreePlusBd" class="form-checkbox">
+            <label for="bed_ThreePlusBd" class="ml-2">Three+ Bedrooms</label>
+          </div>
         </div>
-        <div>
-          <input type="checkbox" id="bed_OneBd" value="OneBd" class="form-checkbox">
-          <label for="bed_OneBd" class="ml-2">One Bedroom</label>
-        </div>
-        <div>
-          <input type="checkbox" id="bed_TwoBd" value="TwoBd" class="form-checkbox">
-          <label for="bed_TwoBd" class="ml-2">Two Bedroom</label>
-        </div>
-        <div>
-          <input type="checkbox" id="bed_ThreePlusBd" value="ThreePlusBd" class="form-checkbox">
-          <label for="bed_ThreePlusBd" class="ml-2">Three+ Bedrooms</label>
-        </div>
-      </div>
 
       <!-- Neighborhood Selection -->
       <div class="mb-4" id="neighborhoodContainer">
@@ -870,264 +875,204 @@
         </div>
       </div>
 
-      <!-- Chart Controls Title -->
-      <div class="mb-2">
-        <label class="block font-semibold">Chart Controls</label>
-      </div>
+        <!-- Chart Controls Title -->
+        <div class="mb-2">
+          <label class="block font-semibold">Chart Controls</label>
+        </div>
 
-      <!-- Secondary Axis Toggle -->
-      <div class="mb-4" id="secondaryAxisToggleContainer">
-        <input type="checkbox" id="toggleInventorySecondary" class="form-checkbox">
-        <label for="toggleInventorySecondary" class="ml-2">Plot Rental Inventory on Secondary Y Axis</label>
-      </div>
+        <!-- Secondary Axis Toggle -->
+        <div class="mb-4" id="secondaryAxisToggleContainer">
+          <input type="checkbox" id="toggleInventorySecondary" class="form-checkbox">
+          <label for="toggleInventorySecondary" class="ml-2">Plot Rental Inventory on Secondary Y Axis</label>
+        </div>
 
-      <!-- Deselect All / Reset Defaults Button (uses components/button.html) -->
-      <div class="mb-4">
-        {% include "components/button.html" with title="Deselect All" url="#" extra_class="reset-filters" id="resetFilters" %}
-      </div>
-    </div>
-
-    <!-- RIGHT COLUMN (Remaining width) : CHART CANVAS CONTAINER -->
-    <div class="flex-1">
-      <div class="relative mx-auto h-full" style="max-width: 900px;">
-        <canvas id="rentChart" class="h-full"></canvas>
-        <div
-          id="loadingIndicator"
-          class="absolute inset-0 flex justify-center items-center bg-white bg-opacity-75 hidden"
-        >
-          <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+        <!-- Deselect All / Reset Defaults Button -->
+        <div class="mb-4">
+          {% include "components/button.html" with title="Deselect All" url="#" extra_class="reset-filters" id="resetFilters" %}
         </div>
       </div>
+
+      <!-- RIGHT COLUMN (Remaining width): CHART CANVAS CONTAINER -->
+      <div class="flex-1">
+        <div class="relative mx-auto h-full" style="max-width: 900px;">
+          <canvas id="rentChart" class="h-full"></canvas>
+          <div id="loadingIndicator" class="absolute inset-0 flex justify-center items-center bg-white bg-opacity-75 hidden">
+            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        </div>
+      </div>
+
+    </div> <!-- End of main row -->
+
+    <!-- DATA FAQs SECTION -->
+    <div class="faq-section bg-gray-50 p-4 rounded mt-8">
+      <h2 class="text-2xl font-bold mb-4">Data FAQs</h2>
+      <div class="richtext-content">
+        {{ page.faq_section|richtext }}
+      </div>
     </div>
+  </div> <!-- .site-padding container -->
 
-  </div> <!-- End of main row -->
+  {% include_block page.body %}
 
-  <!-- DATA FAQs SECTION -->
-  <div class="faq-section bg-gray-50 p-4 rounded mt-8">
-    <h2 class="text-2xl font-bold mb-4">Data FAQs</h2>
-    <div class="richtext-content">
-      {{ page.faq_section|richtext }}
-    </div>
-  </div>
-
-</div> <!-- .site-padding container -->
-
-<!-- Include Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-  // FILTER FUNCTIONALITY (Neighborhood Search)
-  document.getElementById('checkboxFilter').addEventListener('input', function() {
-    const filterValue = this.value.toLowerCase();
-    const container = document.getElementById('checkboxContainer');
-    const checkboxDivs = container.getElementsByTagName('div');
-    for (let i = 0; i < checkboxDivs.length; i++) {
-      const labelText = checkboxDivs[i].querySelector('label').textContent.toLowerCase();
-      checkboxDivs[i].style.display = (labelText.indexOf(filterValue) > -1) ? '' : 'none';
-    }
-  });
-
-  // RESET / DESELECT ALL FUNCTION
-  function resetFilters(e) {
-    e.preventDefault();
-    // Reset Data Types
-    document.getElementById('dt_median').checked = true;
-    document.getElementById('dt_inventory').checked = false;
-
-    // Reset Bedroom Types
-    document.getElementById('bed_All').checked = true;
-    document.getElementById('bed_Studio').checked = false;
-    document.getElementById('bed_OneBd').checked = false;
-    document.getElementById('bed_TwoBd').checked = false;
-    document.getElementById('bed_ThreePlusBd').checked = false;
-
-    // Reset Neighborhoods (only Manhattan checked)
-    const neighborhoodCheckboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']");
-    neighborhoodCheckboxes.forEach(cb => {
-      cb.checked = (cb.id === "nb_Manhattan");
-    });
-
-    // Reset secondary axis toggle
-    document.getElementById('toggleInventorySecondary').checked = false;
-
-    // Clear search filter input
-    document.getElementById('checkboxFilter').value = "";
-
-    // Re-render the chart
-    fetchAndRenderChart();
-  }
-
-  document.addEventListener("DOMContentLoaded", function() {
-    document.getElementById('resetFilters').addEventListener('click', resetFilters);
-  });
-
-  // CHART RENDERING FUNCTIONALITY
-  function fetchAndRenderChart() {
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    loadingIndicator.classList.remove('hidden');
-
-    // Selected Data Types
-    let dataTypeCheckboxes = document.querySelectorAll("#dataTypeContainer input[type='checkbox']:checked");
-    let selectedDataTypes = Array.from(dataTypeCheckboxes).map(cb => cb.value);
-
-    // Selected Bedroom Types
-    let bedroomCheckboxes = document.querySelectorAll("#bedroomContainer input[type='checkbox']:checked");
-    let selectedBedroomTypes = Array.from(bedroomCheckboxes).map(cb => cb.value);
-
-    // Selected Neighborhoods
-    let neighborhoodCheckboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']:checked");
-    let selectedNeighborhoods = Array.from(neighborhoodCheckboxes).map(cb => cb.value);
-
-    // If nothing is selected for Data Type or Bedrooms, clear chart and stop
-    if (selectedDataTypes.length === 0 || selectedBedroomTypes.length === 0) {
-      if (window.rentChartInstance) {
-        window.rentChartInstance.destroy();
+  <!-- Include Chart.js and chart rendering JS -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // FILTER FUNCTIONALITY (Neighborhood Search)
+    document.getElementById('checkboxFilter').addEventListener('input', function() {
+      const filterValue = this.value.toLowerCase();
+      const container = document.getElementById('checkboxContainer');
+      const checkboxDivs = container.getElementsByTagName('div');
+      for (let i = 0; i < checkboxDivs.length; i++) {
+        const labelText = checkboxDivs[i].querySelector('label').textContent.toLowerCase();
+        checkboxDivs[i].style.display = (labelText.indexOf(filterValue) > -1) ? '' : 'none';
       }
-      loadingIndicator.classList.add('hidden');
-      return;
-    }
-
-    // Secondary Axis toggle
-    const toggleInventorySecondary = document.getElementById('toggleInventorySecondary').checked;
-
-    // Prepare fetch requests for each (dataType, bedroomType) combination
-    let requests = [];
-    selectedDataTypes.forEach(dt => {
-      selectedBedroomTypes.forEach(bed => {
-        let url = `/homedata/rental-data-json/?data=${dt}&bedrooms=${bed}`;
-        requests.push(
-          fetch(url)
-            .then(response => response.json())
-            .then(jsonData => ({ dataType: dt, bedroom: bed, jsonData: jsonData }))
-        );
-      });
     });
 
-    Promise.all(requests)
-      .then(results => {
-        // Determine chart labels from any valid neighborhood's monthly data
-        let labels = [];
-        for (let res of results) {
-          for (let nb of selectedNeighborhoods) {
-            if (res.jsonData[nb] && res.jsonData[nb].monthly) {
-              labels = Object.keys(res.jsonData[nb].monthly).sort();
-              break;
-            }
-          }
-          if (labels.length) break;
-        }
-        if (!labels.length) {
-          labels = [];
-        }
+    // RESET / DESELECT ALL FUNCTION
+    function resetFilters(e) {
+      e.preventDefault();
+      document.getElementById('dt_median').checked = true;
+      document.getElementById('dt_inventory').checked = false;
+      document.getElementById('bed_All').checked = true;
+      document.getElementById('bed_Studio').checked = false;
+      document.getElementById('bed_OneBd').checked = false;
+      document.getElementById('bed_TwoBd').checked = false;
+      document.getElementById('bed_ThreePlusBd').checked = false;
+      const neighborhoodCheckboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']");
+      neighborhoodCheckboxes.forEach(cb => { cb.checked = (cb.id === "nb_Manhattan"); });
+      document.getElementById('toggleInventorySecondary').checked = false;
+      document.getElementById('checkboxFilter').value = "";
+      fetchAndRenderChart();
+    }
 
-        // Build datasets
-        let datasets = [];
-        results.forEach(result => {
-          selectedNeighborhoods.forEach(nb => {
-            if (result.jsonData[nb] && result.jsonData[nb].monthly) {
-              let monthlyData = result.jsonData[nb].monthly;
-              let dataValues = labels.map(label => (
-                monthlyData[label] !== undefined ? monthlyData[label] : null
-              ));
-              let datasetLabel = `${nb} (${result.dataType}, ${result.bedroom})`;
-              let ds = {
-                label: datasetLabel,
-                data: dataValues,
-                fill: false,
-                tension: 0.1,
-                yAxisID: (result.dataType === "inventory" && toggleInventorySecondary) ? "y1" : "y"
-              };
-              datasets.push(ds);
+    document.addEventListener("DOMContentLoaded", function() {
+      document.getElementById('resetFilters').addEventListener('click', resetFilters);
+    });
+
+    // CHART RENDERING FUNCTIONALITY
+    function fetchAndRenderChart() {
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      loadingIndicator.classList.remove('hidden');
+      let dataTypeCheckboxes = document.querySelectorAll("#dataTypeContainer input[type='checkbox']:checked");
+      let selectedDataTypes = Array.from(dataTypeCheckboxes).map(cb => cb.value);
+      let bedroomCheckboxes = document.querySelectorAll("#bedroomContainer input[type='checkbox']:checked");
+      let selectedBedroomTypes = Array.from(bedroomCheckboxes).map(cb => cb.value);
+      let neighborhoodCheckboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']:checked");
+      let selectedNeighborhoods = Array.from(neighborhoodCheckboxes).map(cb => cb.value);
+
+      if (selectedDataTypes.length === 0 || selectedBedroomTypes.length === 0) {
+        if (window.rentChartInstance) { window.rentChartInstance.destroy(); }
+        loadingIndicator.classList.add('hidden');
+        return;
+      }
+
+      const toggleInventorySecondary = document.getElementById('toggleInventorySecondary').checked;
+      let requests = [];
+      selectedDataTypes.forEach(dt => {
+        selectedBedroomTypes.forEach(bed => {
+          let url = `/homedata/rental-data-json/?data=${dt}&bedrooms=${bed}`;
+          requests.push(
+            fetch(url)
+              .then(response => response.json())
+              .then(jsonData => ({ dataType: dt, bedroom: bed, jsonData: jsonData }))
+          );
+        });
+      });
+
+      Promise.all(requests)
+        .then(results => {
+          let labels = [];
+          for (let res of results) {
+            for (let nb of selectedNeighborhoods) {
+              if (res.jsonData[nb] && res.jsonData[nb].monthly) {
+                labels = Object.keys(res.jsonData[nb].monthly).sort();
+                break;
+              }
+            }
+            if (labels.length) break;
+          }
+          if (!labels.length) { labels = []; }
+
+          let datasets = [];
+          results.forEach(result => {
+            selectedNeighborhoods.forEach(nb => {
+              if (result.jsonData[nb] && result.jsonData[nb].monthly) {
+                let monthlyData = result.jsonData[nb].monthly;
+                let dataValues = labels.map(label => (monthlyData[label] !== undefined ? monthlyData[label] : null));
+                let datasetLabel = `${nb} (${result.dataType}, ${result.bedroom})`;
+                let ds = {
+                  label: datasetLabel,
+                  data: dataValues,
+                  fill: false,
+                  tension: 0.1,
+                  yAxisID: (result.dataType === "inventory" && toggleInventorySecondary) ? "y1" : "y"
+                };
+                datasets.push(ds);
+              }
+            });
+          });
+
+          const colors = [
+            'rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+            'rgba(199, 199, 199, 1)', 'rgba(0, 128, 128, 1)', 'rgba(255, 0, 255, 1)',
+            'rgba(128, 0, 128, 1)', 'rgba(0, 255, 255, 1)', 'rgba(128, 128, 0, 1)',
+            'rgba(255, 140, 0, 1)', 'rgba(70, 130, 180, 1)', 'rgba(139, 69, 19, 1)',
+            'rgba(75, 0, 130, 1)', 'rgba(220, 20, 60, 1)'
+          ];
+          datasets.forEach((ds, idx) => {
+            ds.borderColor = colors[idx % colors.length];
+            ds.backgroundColor = colors[idx % colors.length];
+          });
+
+          if (window.rentChartInstance) { window.rentChartInstance.destroy(); }
+
+          const scalesConfig = {
+            x: { title: { display: true, text: 'Month' } },
+            y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Dollars' } }
+          };
+          if (toggleInventorySecondary) {
+            scalesConfig.y1 = {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              title: { display: true, text: 'Units' }
+            };
+          }
+
+          const ctx = document.getElementById('rentChart').getContext('2d');
+          window.rentChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: datasets },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              plugins: {
+                title: { display: true, text: 'Historical Rental Trends' },
+                tooltip: { mode: 'index', intersect: false }
+              },
+              scales: scalesConfig
             }
           });
+        })
+        .catch(error => {
+          console.error("Error fetching data:", error);
+          alert("An error occurred while fetching the rental data.");
+        })
+        .finally(() => {
+          loadingIndicator.classList.add('hidden');
         });
+    }
 
-        // Expanded color palette
-        const colors = [
-          'rgba(75, 192, 192, 1)',
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(153, 102, 255, 1)',
-          'rgba(255, 159, 64, 1)',
-          'rgba(199, 199, 199, 1)',
-          'rgba(0, 128, 128, 1)',
-          'rgba(255, 0, 255, 1)',
-          'rgba(128, 0, 128, 1)',
-          'rgba(0, 255, 255, 1)',
-          'rgba(128, 128, 0, 1)',
-          'rgba(255, 140, 0, 1)',
-          'rgba(70, 130, 180, 1)',
-          'rgba(139, 69, 19, 1)',
-          'rgba(75, 0, 130, 1)',
-          'rgba(220, 20, 60, 1)'
-        ];
-        datasets.forEach((ds, idx) => {
-          ds.borderColor = colors[idx % colors.length];
-          ds.backgroundColor = colors[idx % colors.length];
-        });
-
-        // Destroy any existing chart
-        if (window.rentChartInstance) {
-          window.rentChartInstance.destroy();
-        }
-
-        // Build scales
-        const scalesConfig = {
-          x: {
-            title: { display: true, text: 'Month' }
-          },
-          y: {
-            type: 'linear',
-            display: true,
-            position: 'left',
-            title: { display: true, text: 'Dollars' }
-          }
-        };
-        if (toggleInventorySecondary) {
-          scalesConfig.y1 = {
-            type: 'linear',
-            display: true,
-            position: 'right',
-            grid: { drawOnChartArea: false },
-            title: { display: true, text: 'Units' }
-          };
-        }
-
-        // Create the chart
-        const ctx = document.getElementById('rentChart').getContext('2d');
-        window.rentChartInstance = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: datasets
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              title: { display: true, text: 'Historical Rental Trends' },
-              tooltip: { mode: 'index', intersect: false }
-            },
-            scales: scalesConfig
-          }
-        });
-      })
-      .catch(error => {
-        console.error("Error fetching data:", error);
-        alert("An error occurred while fetching the rental data.");
-      })
-      .finally(() => {
-        loadingIndicator.classList.add('hidden');
-      });
-  }
-
-  document.addEventListener("DOMContentLoaded", function() {
-    fetchAndRenderChart();
-    document.getElementById('checkboxContainer').addEventListener('change', fetchAndRenderChart);
-    document.getElementById('dataTypeContainer').addEventListener('change', fetchAndRenderChart);
-    document.getElementById('bedroomContainer').addEventListener('change', fetchAndRenderChart);
-    document.getElementById('toggleInventorySecondary').addEventListener('change', fetchAndRenderChart);
-  });
-</script>
+    document.addEventListener("DOMContentLoaded", function() {
+      fetchAndRenderChart();
+      document.getElementById('checkboxContainer').addEventListener('change', fetchAndRenderChart);
+      document.getElementById('dataTypeContainer').addEventListener('change', fetchAndRenderChart);
+      document.getElementById('bedroomContainer').addEventListener('change', fetchAndRenderChart);
+      document.getElementById('toggleInventorySecondary').addEventListener('change', fetchAndRenderChart);
+    });
+  </script>
 {% endblock %}

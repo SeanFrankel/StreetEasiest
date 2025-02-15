@@ -1,0 +1,30 @@
+# Ignore CSV files
+*.csv
+
+# Ignore common dependency directories
+node_modules/
+bower_components/
+__pycache__/
+
+# Ignore build artifacts and temporary directories
+dist/
+build/
+tmp/
+temp/
+
+# Ignore log and temporary files
+*.log
+*.tmp
+*.swp
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+.env*
+env/
+venv/
+.venv*
+
+# Optionally ignore all hidden files and directories (uncomment if desired)
+# .*
