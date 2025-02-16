@@ -19,6 +19,14 @@
       {% endif %}
     </div>
 
+    <!-- HOW TO USE SECTION -->
+    {% if page.how_to_use %}
+      <div class="rich-text mb-8">
+        <h2 class="font-serif4 font-bold text-3xl mb-4">How to Use</h2>
+        {{ page.how_to_use|richtext }}
+      </div>
+    {% endif %}
+
     <!-- Search Form -->
     <section class="lookup-form pb-20">
       <form id="lookup-form" class="form flex flex-col sm:flex-row items-center gap-4">
@@ -50,6 +58,14 @@
     <section id="results" class="lookup-results py-10" aria-live="polite" aria-busy="false">
       <p>Results will appear here after searching.</p>
     </section>
+
+    <!-- DATA FAQS SECTION -->
+    {% if page.data_faqs %}
+      <div class="rich-text mt-8">
+        <h2 class="font-serif4 font-bold text-3xl mb-4">Data FAQs</h2>
+        {{ page.data_faqs|richtext }}
+      </div>
+    {% endif %}
   </div>
 
   {% include_block page.body %}

@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from wagtail.admin.panels import FieldPanel
 from wagtail.models import Page
+from wagtail.fields import RichTextField
 
 from myproject.utils.models import BasePage  # Adjust if your BasePage location is different
 
@@ -94,10 +95,20 @@ class NYCAddressLookupPage(BasePage):
             "and NYCHA data. A rent stabilized lookup is also provided."
         ),
     )
+    data_faqs = RichTextField(
+        blank=True,
+        help_text="Data FAQs content for the page."
+    )
+    how_to_use = RichTextField(
+        blank=True,
+        help_text="Instructions on how to use the page."
+    )
 
     content_panels = BasePage.content_panels + [
         FieldPanel("header"),
         FieldPanel("instructions"),
+        FieldPanel("data_faqs"),
+        FieldPanel("how_to_use"),
     ]
 
     parent_page_types = ["home.HomePage"]
@@ -183,7 +194,7 @@ class AddressService:
             version with the suffix stripped.
           - The final token (if it is a common street type like STREET) is expanded
             to include alternatives.
-          - The remaining tokens (if any) are treated as the “middle” portion of the street name.
+          - The remaining tokens (if any) are treated as the "middle" portion of the street name.
         """
         tokens = address.strip().upper().split()
         variants = set()

@@ -8,6 +8,14 @@
 
   <div class="site-padding site-container py-8">
 
+    <!-- HOW TO USE SECTION -->
+    {% if page.how_to_use %}
+      <div class="rich-text mb-8">
+        <h2 class="font-serif4 font-bold text-3xl mb-4">How to Use</h2>
+        {{ page.how_to_use|richtext }}
+      </div>
+    {% endif %}
+
     <!-- PAGE TITLE -->
     <h1 class="font-serif4 font-bold text-4xl lg:text-7xl mb-4">Historical Rental Trends</h1>
 
@@ -886,6 +894,23 @@
           <label for="toggleInventorySecondary" class="ml-2">Plot Rental Inventory on Secondary Y Axis</label>
         </div>
 
+        <!-- Seasonality Adjustment Toggle -->
+        <div class="mb-4">
+          <label class="block font-semibold mb-1">Data Display Options:</label>
+          <div>
+            <input type="checkbox" id="rawDataCheckbox" value="raw" checked class="form-checkbox">
+            <label for="rawDataCheckbox" class="ml-2">Display Raw Data Only</label>
+          </div>
+          <div>
+            <input type="checkbox" id="seasonalCheckbox" value="seasonal" class="form-checkbox">
+            <label for="seasonalCheckbox" class="ml-2">Show Only Seasonally Adjusted Data</label>
+          </div>
+          <div>
+            <input type="checkbox" id="showBothCheckbox" value="both" class="form-checkbox">
+            <label for="showBothCheckbox" class="ml-2">Show Both Raw and Seasonally Adjusted Data</label>
+          </div>
+        </div>
+
         <!-- Deselect All / Reset Defaults Button -->
         <div class="mb-4">
           {% include "components/button.html" with title="Deselect All" url="#" extra_class="reset-filters" id="resetFilters" %}
@@ -904,16 +929,15 @@
 
     </div> <!-- End of main row -->
 
-    <!-- DATA FAQs SECTION -->
-    <div class="faq-section bg-gray-50 p-4 rounded mt-8">
-      <h2 class="text-2xl font-bold mb-4">Data FAQs</h2>
-      <div class="richtext-content">
-        {{ page.faq_section|richtext }}
-      </div>
-    </div>
-  </div> <!-- .site-padding container -->
-
   {% include_block page.body %}
+
+  <!-- DATA FAQS SECTION -->
+  {% if page.data_faqs %}
+    <div class="rich-text mt-8">
+      <h2 class="font-serif4 font-bold text-3xl mb-4">Data FAQs</h2>
+      {{ page.data_faqs|richtext }}
+    </div>
+  {% endif %}
 
   <!-- Include Chart.js and chart rendering JS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -950,113 +974,247 @@
       document.getElementById('resetFilters').addEventListener('click', resetFilters);
     });
 
-    // CHART RENDERING FUNCTIONALITY
-    function fetchAndRenderChart() {
+    // Add this initialization code at the top of your script
+    document.addEventListener("DOMContentLoaded", function() {
+      console.log("DOM Content Loaded");
+      
+      // Set default selections if none are made
+      const defaultSelections = () => {
+        if (!document.querySelector("#dataTypeContainer input:checked")) {
+          document.querySelector("#dataTypeContainer input[value='median']").checked = true;
+        }
+        if (!document.querySelector("#bedroomContainer input:checked")) {
+          document.querySelector("#bedroomContainer input[value='All']").checked = true;
+        }
+        if (!document.querySelector("#checkboxContainer input:checked")) {
+          document.querySelector("#checkboxContainer input[value='Manhattan']").checked = true;
+        }
+        // Ensure raw data checkbox is checked by default
+        document.getElementById('rawDataCheckbox').checked = true;
+        document.getElementById('seasonalCheckbox').checked = false;
+        document.getElementById('showBothCheckbox').checked = false;
+      };
+
+      // Set default selections
+      defaultSelections();
+
+      // Add event listeners
+      const addListeners = () => {
+        document.getElementById('rawDataCheckbox').addEventListener('change', function() {
+          if (this.checked) {
+            document.getElementById('seasonalCheckbox').checked = false;
+            document.getElementById('showBothCheckbox').checked = false;
+          }
+          updateChart();
+        });
+
+        document.getElementById('seasonalCheckbox').addEventListener('change', function() {
+          if (this.checked) {
+            document.getElementById('rawDataCheckbox').checked = false;
+            document.getElementById('showBothCheckbox').checked = false;
+          }
+          updateChart();
+        });
+
+        document.getElementById('showBothCheckbox').addEventListener('change', function() {
+          if (this.checked) {
+            document.getElementById('rawDataCheckbox').checked = false;
+            document.getElementById('seasonalCheckbox').checked = false;
+          }
+          updateChart();
+        });
+
+        // Add listeners for other controls
+        document.getElementById('checkboxContainer').addEventListener('change', updateChart);
+        document.getElementById('dataTypeContainer').addEventListener('change', updateChart);
+        document.getElementById('bedroomContainer').addEventListener('change', updateChart);
+      };
+
+      // Add all event listeners
+      addListeners();
+
+      // Add listener for the secondary axis toggle
+      document.getElementById('toggleInventorySecondary').addEventListener('change', updateChart);
+
+      // Initial chart render
+      console.log("Triggering initial chart update");
+      updateChart();
+    });
+
+    // Modify the updateChart function to handle secondary axis
+    function updateChart() {
+      console.log("updateChart called");
       const loadingIndicator = document.getElementById('loadingIndicator');
       loadingIndicator.classList.remove('hidden');
+
+      // Get selected data types
       let dataTypeCheckboxes = document.querySelectorAll("#dataTypeContainer input[type='checkbox']:checked");
       let selectedDataTypes = Array.from(dataTypeCheckboxes).map(cb => cb.value);
+      console.log("Selected data types:", selectedDataTypes);
+
+      // Get selected bedroom types
       let bedroomCheckboxes = document.querySelectorAll("#bedroomContainer input[type='checkbox']:checked");
       let selectedBedroomTypes = Array.from(bedroomCheckboxes).map(cb => cb.value);
+      console.log("Selected bedroom types:", selectedBedroomTypes);
+
+      // Get selected neighborhoods
       let neighborhoodCheckboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']:checked");
       let selectedNeighborhoods = Array.from(neighborhoodCheckboxes).map(cb => cb.value);
+      console.log("Selected neighborhoods:", selectedNeighborhoods);
 
-      if (selectedDataTypes.length === 0 || selectedBedroomTypes.length === 0) {
+      // Get seasonality state
+      const rawDataCheckbox = document.getElementById('rawDataCheckbox');
+      const seasonalCheckbox = document.getElementById('seasonalCheckbox');
+      const showBothCheckbox = document.getElementById('showBothCheckbox');
+      const showSeasonalOnly = seasonalCheckbox.checked;
+      const showBoth = showBothCheckbox.checked;
+      const useSeasonalData = showSeasonalOnly || showBoth;
+
+      console.log("Seasonality state:", { showSeasonalOnly, showBoth, useSeasonalData });
+
+      if (selectedDataTypes.length === 0 || selectedBedroomTypes.length === 0 || selectedNeighborhoods.length === 0) {
+        console.log("No selections made in required fields");
         if (window.rentChartInstance) { window.rentChartInstance.destroy(); }
         loadingIndicator.classList.add('hidden');
         return;
       }
 
-      const toggleInventorySecondary = document.getElementById('toggleInventorySecondary').checked;
       let requests = [];
       selectedDataTypes.forEach(dt => {
         selectedBedroomTypes.forEach(bed => {
-          let url = `/homedata/rental-data-json/?data=${dt}&bedrooms=${bed}`;
-          requests.push(
-            fetch(url)
-              .then(response => response.json())
-              .then(jsonData => ({ dataType: dt, bedroom: bed, jsonData: jsonData }))
-          );
+          selectedNeighborhoods.forEach(nb => {
+            const url = `/homedata/rental-data-json/?data=${dt}&bedrooms=${bed}&area=${nb}&seasonal=${useSeasonalData}`;
+            console.log("Fetching URL:", url);
+            requests.push(
+              fetch(url)
+                .then(response => response.json())
+                .then(jsonData => {
+                  console.log("Received data for:", dt, bed, nb, jsonData);
+                  return { dataType: dt, bedroom: bed, neighborhood: nb, jsonData: jsonData };
+                })
+            );
+          });
         });
       });
 
       Promise.all(requests)
-        .then(results => {
-          let labels = [];
-          for (let res of results) {
-            for (let nb of selectedNeighborhoods) {
-              if (res.jsonData[nb] && res.jsonData[nb].monthly) {
-                labels = Object.keys(res.jsonData[nb].monthly).sort();
-                break;
-              }
-            }
-            if (labels.length) break;
-          }
-          if (!labels.length) { labels = []; }
-
+        .then(responses => {
+          console.log("All responses received:", responses);
           let datasets = [];
-          results.forEach(result => {
-            selectedNeighborhoods.forEach(nb => {
-              if (result.jsonData[nb] && result.jsonData[nb].monthly) {
-                let monthlyData = result.jsonData[nb].monthly;
-                let dataValues = labels.map(label => (monthlyData[label] !== undefined ? monthlyData[label] : null));
-                let datasetLabel = `${nb} (${result.dataType}, ${result.bedroom})`;
-                let ds = {
-                  label: datasetLabel,
-                  data: dataValues,
+          let labels = null;
+          const useSecondaryAxis = document.getElementById('toggleInventorySecondary').checked;
+
+          responses.forEach(response => {
+            Object.entries(response.jsonData).forEach(([area, areaData]) => {
+              const borough = areaData.Borough;
+              const monthlyData = areaData.monthly;
+              const isInventory = response.dataType === 'inventory';
+
+              if (!monthlyData) {
+                console.warn(`No monthly data for ${area}`);
+                return;
+              }
+
+              // Default to raw data
+              if (!showSeasonalOnly && monthlyData.raw) {
+                const dates = Object.keys(monthlyData.raw).sort();
+                const values = dates.map(date => monthlyData.raw[date]);
+                const color = getRandomColor();
+                datasets.push({
+                  label: `${area} (${borough}) - Raw ${isInventory ? 'Inventory' : 'Rent'}`,
+                  data: values,
+                  borderColor: color,
+                  backgroundColor: color,
                   fill: false,
-                  tension: 0.1,
-                  yAxisID: (result.dataType === "inventory" && toggleInventorySecondary) ? "y1" : "y"
-                };
-                datasets.push(ds);
+                  yAxisID: useSecondaryAxis && isInventory ? 'y1' : 'y'
+                });
+                if (!labels) labels = dates;
+              }
+
+              // Add seasonal data if requested
+              if ((showSeasonalOnly || showBoth) && monthlyData.adjusted) {
+                const dates = Object.keys(monthlyData.adjusted).sort();
+                const values = dates.map(date => monthlyData.adjusted[date]);
+                const color = getRandomColor();
+                datasets.push({
+                  label: `${area} (${borough}) - Seasonally Adjusted ${isInventory ? 'Inventory' : 'Rent'}`,
+                  data: values,
+                  borderColor: color,
+                  backgroundColor: color,
+                  fill: false,
+                  yAxisID: useSecondaryAxis && isInventory ? 'y1' : 'y'
+                });
+                if (!labels) labels = dates;
               }
             });
           });
 
-          const colors = [
-            'rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-            'rgba(255, 206, 86, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-            'rgba(199, 199, 199, 1)', 'rgba(0, 128, 128, 1)', 'rgba(255, 0, 255, 1)',
-            'rgba(128, 0, 128, 1)', 'rgba(0, 255, 255, 1)', 'rgba(128, 128, 0, 1)',
-            'rgba(255, 140, 0, 1)', 'rgba(70, 130, 180, 1)', 'rgba(139, 69, 19, 1)',
-            'rgba(75, 0, 130, 1)', 'rgba(220, 20, 60, 1)'
-          ];
-          datasets.forEach((ds, idx) => {
-            ds.borderColor = colors[idx % colors.length];
-            ds.backgroundColor = colors[idx % colors.length];
-          });
-
-          if (window.rentChartInstance) { window.rentChartInstance.destroy(); }
-
-          const scalesConfig = {
-            x: { title: { display: true, text: 'Month' } },
-            y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Dollars' } }
-          };
-          if (toggleInventorySecondary) {
-            scalesConfig.y1 = {
-              type: 'linear',
-              display: true,
-              position: 'right',
-              grid: { drawOnChartArea: false },
-              title: { display: true, text: 'Units' }
-            };
+          console.log("Created datasets:", datasets);
+          
+          // Create or update chart
+          const ctx = document.getElementById('rentChart').getContext('2d');
+          if (window.rentChartInstance) {
+            window.rentChartInstance.destroy();
           }
 
-          const ctx = document.getElementById('rentChart').getContext('2d');
-          window.rentChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: { labels: labels, datasets: datasets },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              interaction: { mode: 'index', intersect: false },
-              plugins: {
-                title: { display: true, text: 'Historical Rental Trends' },
-                tooltip: { mode: 'index', intersect: false }
+          if (datasets.length > 0 && labels) {
+            const hasInventoryData = datasets.some(ds => ds.label.includes('Inventory'));
+            
+            window.rentChartInstance = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: labels,
+                datasets: datasets
               },
-              scales: scalesConfig
-            }
-          });
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                  mode: 'index',
+                  intersect: false
+                },
+                plugins: {
+                  tooltip: {
+                    mode: 'index',
+                    intersect: false
+                  },
+                  legend: {
+                    position: 'top'
+                  }
+                },
+                scales: {
+                  y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: false,
+                    title: {
+                      display: true,
+                      text: 'Rent (USD)'
+                    }
+                  },
+                  ...(useSecondaryAxis && hasInventoryData ? {
+                    y1: {
+                      type: 'linear',
+                      display: true,
+                      position: 'right',
+                      beginAtZero: false,
+                      grid: {
+                        drawOnChartArea: false
+                      },
+                      title: {
+                        display: true,
+                        text: 'Inventory Count'
+                      }
+                    }
+                  } : {})
+                }
+              }
+            });
+            console.log("Chart created successfully");
+          } else {
+            console.warn("No valid datasets to display");
+          }
         })
         .catch(error => {
           console.error("Error fetching data:", error);
@@ -1067,12 +1225,19 @@
         });
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
-      fetchAndRenderChart();
-      document.getElementById('checkboxContainer').addEventListener('change', fetchAndRenderChart);
-      document.getElementById('dataTypeContainer').addEventListener('change', fetchAndRenderChart);
-      document.getElementById('bedroomContainer').addEventListener('change', fetchAndRenderChart);
-      document.getElementById('toggleInventorySecondary').addEventListener('change', fetchAndRenderChart);
-    });
+    // Helper function for random colors
+    function getRandomColor() {
+      const colors = [
+        'rgba(75, 192, 192, 1)',
+        'rgba(255, 99, 132, 1)',
+        'rgba(54, 162, 235, 1)',
+        'rgba(255, 206, 86, 1)',
+        'rgba(153, 102, 255, 1)',
+        'rgba(255, 159, 64, 1)',
+        'rgba(0, 128, 0, 1)',
+        'rgba(128, 0, 128, 1)'
+      ];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
   </script>
 {% endblock %}

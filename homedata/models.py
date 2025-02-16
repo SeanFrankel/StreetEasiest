@@ -13,15 +13,21 @@ class RentalTrendsPage(Page):
         blank=True,
         help_text="Intro text for the page."
     )
-    faq_section = RichTextField(
-        blank=True,
-        help_text="FAQ content for the page (shown at the bottom)."
-    )
 
+    data_faqs = RichTextField(
+        blank=True,
+        help_text="Data FAQs content for the page."
+    )
+    how_to_use = RichTextField(
+        blank=True,
+        help_text="Instructions on how to use the page."
+    )
     content_panels = Page.content_panels + [
         FieldPanel('intro'),
-        FieldPanel('faq_section'),
+        FieldPanel('data_faqs'),
+        FieldPanel('how_to_use'),
     ]
+
 
     # Ensure that this page can only be created as a child of your HomePage.
     parent_page_types = ['home.HomePage']
