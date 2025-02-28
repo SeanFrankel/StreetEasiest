@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+
+{% block title %}Search{% endblock %}
+
+{% block content %}
+    <div class="container my-5">
+        <h1>Search Results</h1>
+        
+        <form action="{% url 'search' %}" method="get" class="mb-4">
+            <div class="input-group">
+                <input type="text" class="form-control" name="query" placeholder="Search..." value="{{ search_query|default:'' }}">
+                <button class="btn btn-primary" type="submit">Search</button>
+            </div>
+        </form>
+
+        {% if search_query %}
+            <h2>Results for "{{ search_query }}"</h2>
+            
+            {% if search_results %}
+                <div class="search-results mt-4">
+                    {% for result in search_results %}
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h3 class="card-title">
+                                    <a href="{% pageurl result %}">{{ result.title }}</a>
+                                </h3>
+                                {% if result.listing_summary %}
+                                    <p class="card-text">{{ result.listing_summary }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <nav aria-label="Search results pagination">
+                    <ul class="pagination">
+                        {% if search_results.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?query={{ search_query|urlencode }}&page={{ search_results.previous_page_number }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">Page {{ search_results.number }} of {{ search_results.paginator.num_pages }}</span>
+                        </li>
+                        
+                        {% if search_results.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?query={{ search_query|urlencode }}&page={{ search_results.next_page_number }}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% else %}
+                <p>No results found.</p>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endblock %} 

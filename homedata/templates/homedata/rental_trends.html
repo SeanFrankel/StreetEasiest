@@ -32,6 +32,8 @@
 
       <!-- LEFT SIDEBAR (Fixed width: 256px) with Chart Controls -->
       <div class="w-64 bg-gray-100 p-4 rounded shadow">
+
+        
         <!-- Data Type Selection -->
         <div class="mb-4" id="dataTypeContainer">
           <label class="block font-semibold mb-1">Select Data Types:</label>
@@ -142,7 +144,144 @@
         checkboxDivs[i].style.display = (labelText.indexOf(filterValue) > -1) ? '' : 'none';
       }
     });
-
+  
+    // Define a color palette to keep colors consistent
+    const colorPalette = {
+      'Manhattan': '#4e79a7',
+      'Brooklyn': '#f28e2c',
+      'Queens': '#e15759',
+      'Bronx': '#76b7b2',
+      'Staten Island': '#59a14f',
+      'All': '#af7aa1',
+      'median': '#4e79a7',
+      'inventory': '#f28e2c',
+      'Studio': '#e15759',
+      'OneBd': '#76b7b2',
+      'TwoBd': '#59a14f',
+      'ThreePlusBd': '#af7aa1'
+    };
+  
+    // Color cache to ensure consistent colors for the same data series
+    const colorCache = {};
+    
+    // Generate a deterministic color based on key parameters
+    function getConsistentColor(dataType, bedroom, neighborhood) {
+      const key = `${dataType}_${bedroom}_${neighborhood}`;
+      
+      if (colorCache[key]) {
+        return colorCache[key];
+      }
+      
+      // Use color from palette if available, otherwise generate a deterministic color
+      if (colorPalette[neighborhood]) {
+        const baseColor = colorPalette[neighborhood];
+        // Slight variations for bedroom types
+        if (bedroom !== 'All') {
+          const hslColor = hexToHSL(baseColor);
+          // Adjust lightness based on data type
+          if (dataType === 'inventory') {
+            hslColor.l = Math.min(hslColor.l + 15, 90);
+          }
+          // Adjust hue based on bedroom type
+          if (bedroom === 'Studio') hslColor.h = (hslColor.h + 10) % 360;
+          if (bedroom === 'OneBd') hslColor.h = (hslColor.h + 20) % 360;
+          if (bedroom === 'TwoBd') hslColor.h = (hslColor.h + 30) % 360;
+          if (bedroom === 'ThreePlusBd') hslColor.h = (hslColor.h + 40) % 360;
+          
+          colorCache[key] = hslToHex(hslColor);
+        } else {
+          colorCache[key] = baseColor;
+        }
+      } else {
+        // Generate a deterministic color from the key
+        let hash = 0;
+        for (let i = 0; i < key.length; i++) {
+          hash = key.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        
+        const h = Math.abs(hash) % 360;
+        const s = 70;
+        const l = 60;
+        
+        colorCache[key] = hslToHex({h, s, l});
+      }
+      
+      return colorCache[key];
+    }
+    
+    // Helper function to convert hex to HSL
+    function hexToHSL(hex) {
+      // Remove the # if present
+      hex = hex.replace(/^#/, '');
+      
+      // Parse the hex values
+      let r = parseInt(hex.substr(0, 2), 16) / 255;
+      let g = parseInt(hex.substr(2, 2), 16) / 255;
+      let b = parseInt(hex.substr(4, 2), 16) / 255;
+      
+      // Find the min and max values
+      let max = Math.max(r, g, b);
+      let min = Math.min(r, g, b);
+      
+      // Calculate lightness
+      let l = (max + min) / 2;
+      
+      let h, s;
+      
+      if (max === min) {
+        // Achromatic
+        h = s = 0;
+      } else {
+        // Calculate saturation
+        s = l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
+        
+        // Calculate hue
+        switch (max) {
+          case r: h = (g - b) / (max - min) + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / (max - min) + 2; break;
+          case b: h = (r - g) / (max - min) + 4; break;
+        }
+        h = Math.round(h * 60);
+      }
+      
+      s = Math.round(s * 100);
+      l = Math.round(l * 100);
+      
+      return { h, s, l };
+    }
+    
+    // Helper function to convert HSL to hex
+    function hslToHex({ h, s, l }) {
+      s /= 100;
+      l /= 100;
+      
+      const c = (1 - Math.abs(2 * l - 1)) * s;
+      const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+      const m = l - c / 2;
+      
+      let r, g, b;
+      
+      if (h >= 0 && h < 60) {
+        [r, g, b] = [c, x, 0];
+      } else if (h >= 60 && h < 120) {
+        [r, g, b] = [x, c, 0];
+      } else if (h >= 120 && h < 180) {
+        [r, g, b] = [0, c, x];
+      } else if (h >= 180 && h < 240) {
+        [r, g, b] = [0, x, c];
+      } else if (h >= 240 && h < 300) {
+        [r, g, b] = [x, 0, c];
+      } else {
+        [r, g, b] = [c, 0, x];
+      }
+      
+      r = Math.round((r + m) * 255).toString(16).padStart(2, '0');
+      g = Math.round((g + m) * 255).toString(16).padStart(2, '0');
+      b = Math.round((b + m) * 255).toString(16).padStart(2, '0');
+      
+      return `#${r}${g}${b}`;
+    }
+  
     // RESET / DESELECT ALL FUNCTION
     function resetFilters(e) {
       e.preventDefault();
@@ -159,11 +298,11 @@
       document.getElementById('checkboxFilter').value = "";
       fetchAndRenderChart();
     }
-
+  
     document.addEventListener("DOMContentLoaded", function() {
       document.getElementById('resetFilters').addEventListener('click', resetFilters);
     });
-
+  
     // Initialization code
     document.addEventListener("DOMContentLoaded", function() {
       console.log("DOM Content Loaded");
@@ -184,10 +323,10 @@
         document.getElementById('seasonalCheckbox').checked = false;
         document.getElementById('showBothCheckbox').checked = false;
       };
-
+  
       // Set default selections
       defaultSelections();
-
+  
       // Add event listeners
       const addListeners = () => {
         document.getElementById('rawDataCheckbox').addEventListener('change', function() {
@@ -197,7 +336,7 @@
           }
           updateChart();
         });
-
+  
         document.getElementById('seasonalCheckbox').addEventListener('change', function() {
           if (this.checked) {
             document.getElementById('rawDataCheckbox').checked = false;
@@ -205,7 +344,7 @@
           }
           updateChart();
         });
-
+  
         document.getElementById('showBothCheckbox').addEventListener('change', function() {
           if (this.checked) {
             document.getElementById('rawDataCheckbox').checked = false;
@@ -213,45 +352,45 @@
           }
           updateChart();
         });
-
+  
         // Add listeners for other controls
         document.getElementById('checkboxContainer').addEventListener('change', updateChart);
         document.getElementById('dataTypeContainer').addEventListener('change', updateChart);
         document.getElementById('bedroomContainer').addEventListener('change', updateChart);
       };
-
+  
       // Add all event listeners
       addListeners();
-
+  
       // Add listener for the secondary axis toggle
       document.getElementById('toggleInventorySecondary').addEventListener('change', updateChart);
-
+  
       // Initial chart render
       console.log("Triggering initial chart update");
       updateChart();
     });
-
+  
     // Update Chart function
     function updateChart() {
       console.log("updateChart called");
       const loadingIndicator = document.getElementById('loadingIndicator');
       loadingIndicator.classList.remove('hidden');
-
+  
       // Get selected data types
       let dataTypeCheckboxes = document.querySelectorAll("#dataTypeContainer input[type='checkbox']:checked");
       let selectedDataTypes = Array.from(dataTypeCheckboxes).map(cb => cb.value);
       console.log("Selected data types:", selectedDataTypes);
-
+  
       // Get selected bedroom types
       let bedroomCheckboxes = document.querySelectorAll("#bedroomContainer input[type='checkbox']:checked");
       let selectedBedroomTypes = Array.from(bedroomCheckboxes).map(cb => cb.value);
       console.log("Selected bedroom types:", selectedBedroomTypes);
-
+  
       // Get selected neighborhoods
       let neighborhoodCheckboxes = document.querySelectorAll("#checkboxContainer input[type='checkbox']:checked");
       let selectedNeighborhoods = Array.from(neighborhoodCheckboxes).map(cb => cb.value);
       console.log("Selected neighborhoods:", selectedNeighborhoods);
-
+  
       // Get seasonality state
       const rawDataCheckbox = document.getElementById('rawDataCheckbox');
       const seasonalCheckbox = document.getElementById('seasonalCheckbox');
@@ -259,16 +398,16 @@
       const showSeasonalOnly = seasonalCheckbox.checked;
       const showBoth = showBothCheckbox.checked;
       const useSeasonalData = showSeasonalOnly || showBoth;
-
+  
       console.log("Seasonality state:", { showSeasonalOnly, showBoth, useSeasonalData });
-
+  
       if (selectedDataTypes.length === 0 || selectedBedroomTypes.length === 0 || selectedNeighborhoods.length === 0) {
         console.log("No selections made in required fields");
         if (window.rentChartInstance) { window.rentChartInstance.destroy(); }
         loadingIndicator.classList.add('hidden');
         return;
       }
-
+  
       let requests = [];
       selectedDataTypes.forEach(dt => {
         selectedBedroomTypes.forEach(bed => {
@@ -286,32 +425,36 @@
           });
         });
       });
-
+  
       Promise.all(requests)
         .then(responses => {
           console.log("All responses received:", responses);
           let datasets = [];
           let labels = null;
           const useSecondaryAxis = document.getElementById('toggleInventorySecondary').checked;
-
+  
           responses.forEach(response => {
             Object.entries(response.jsonData).forEach(([area, areaData]) => {
-              const borough = areaData.Borough;
+              const borough = areaData.Borough || "NYC";  // Default to NYC if borough is undefined
+              const nbName = area || borough; // Use area name or fall back to borough
               const monthlyData = areaData.monthly;
               const isInventory = response.dataType === 'inventory';
-
+  
               if (!monthlyData) {
-                console.warn(`No monthly data for ${area}`);
+                console.warn(`No monthly data for ${nbName}`);
                 return;
               }
-
+  
               // Default to raw data
               if (!showSeasonalOnly && monthlyData.raw) {
                 const dates = Object.keys(monthlyData.raw).sort();
                 const values = dates.map(date => monthlyData.raw[date]);
-                const color = getRandomColor();
+                
+                // Get consistent color based on data parameters
+                const color = getConsistentColor(response.dataType, response.bedroom, nbName);
+                
                 datasets.push({
-                  label: `${area} (${borough}) - Raw ${isInventory ? 'Inventory' : 'Rent'}`,
+                  label: `${nbName} - Raw ${isInventory ? 'Inventory' : 'Rent'}`,
                   data: values,
                   borderColor: color,
                   backgroundColor: color,
@@ -320,14 +463,21 @@
                 });
                 if (!labels) labels = dates;
               }
-
+  
               // Add seasonal data if requested
               if ((showSeasonalOnly || showBoth) && monthlyData.adjusted) {
                 const dates = Object.keys(monthlyData.adjusted).sort();
                 const values = dates.map(date => monthlyData.adjusted[date]);
-                const color = getRandomColor();
+                
+                // Get consistent color with slight variation for seasonal data
+                let color = getConsistentColor(response.dataType, response.bedroom, nbName);
+                // Make seasonal data a darker version of the same color
+                const hslColor = hexToHSL(color);
+                hslColor.l = Math.max(hslColor.l - 15, 30);
+                color = hslToHex(hslColor);
+                
                 datasets.push({
-                  label: `${area} (${borough}) - Seasonally Adjusted ${isInventory ? 'Inventory' : 'Rent'}`,
+                  label: `${nbName} - Seasonally Adjusted ${isInventory ? 'Inventory' : 'Rent'}`,
                   data: values,
                   borderColor: color,
                   backgroundColor: color,
@@ -338,7 +488,7 @@
               }
             });
           });
-
+  
           console.log("Created datasets:", datasets);
           
           // Create or update chart
@@ -346,7 +496,7 @@
           if (window.rentChartInstance) {
             window.rentChartInstance.destroy();
           }
-
+  
           if (datasets.length > 0 && labels) {
             const hasInventoryData = datasets.some(ds => ds.label.includes('Inventory'));
             
@@ -370,6 +520,14 @@
                   },
                   legend: {
                     position: 'top'
+                  },
+                  title: {
+                    display: true,
+                    text: 'NYC Rental Trends',
+                    font: {
+                      size: 16,
+                      weight: 'bold'
+                    }
                   }
                 },
                 scales: {
@@ -405,29 +563,18 @@
           } else {
             console.warn("No valid datasets to display");
           }
+  
+          loadingIndicator.classList.add('hidden');
         })
         .catch(error => {
           console.error("Error fetching data:", error);
-          alert("An error occurred while fetching the rental data.");
-        })
-        .finally(() => {
           loadingIndicator.classList.add('hidden');
         });
     }
-
-    // Helper function for random colors
+  
+    // Replacement for the missing getRandomColor function (no longer used)
     function getRandomColor() {
-      const colors = [
-        'rgba(75, 192, 192, 1)',
-        'rgba(255, 99, 132, 1)',
-        'rgba(54, 162, 235, 1)',
-        'rgba(255, 206, 86, 1)',
-        'rgba(153, 102, 255, 1)',
-        'rgba(255, 159, 64, 1)',
-        'rgba(0, 128, 0, 1)',
-        'rgba(128, 0, 128, 1)'
-      ];
-      return colors[Math.floor(Math.random() * colors.length)];
+      return `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
     }
   </script>
 {% endblock %}

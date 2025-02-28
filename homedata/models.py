@@ -1,7 +1,8 @@
 from django.db import models
 from wagtail.models import Page
-from wagtail.fields import RichTextField
+from wagtail.fields import RichTextField, StreamField
 from wagtail.admin.panels import FieldPanel
+from wagtail.blocks import RichTextBlock
 
 class RentalTrendsPage(Page):
     """
@@ -13,6 +14,10 @@ class RentalTrendsPage(Page):
         blank=True,
         help_text="Intro text for the page."
     )
+    
+    body = StreamField([
+        ('rich_text', RichTextBlock()),
+    ], blank=True, use_json_field=True)
 
     data_faqs = RichTextField(
         blank=True,
@@ -28,7 +33,6 @@ class RentalTrendsPage(Page):
         FieldPanel('how_to_use'),
     ]
 
-
     # Ensure that this page can only be created as a child of your HomePage.
     parent_page_types = ['home.HomePage']
 
@@ -36,3 +40,18 @@ class RentalTrendsPage(Page):
     subpage_types = []
 
     template = "homedata/rental_trends.html"
+    
+    def get_context(self, request, *args, **kwargs):
+        context = super().get_context(request, *args, **kwargs)
+        
+        # Add available neighborhoods (normally these would come from your data)
+        context['neighborhoods'] = [
+            "Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island", 
+            "Upper East Side", "Upper West Side", "Midtown", "Downtown", 
+            "Williamsburg", "Park Slope", "Astoria", "Long Island City"
+        ]
+        
+        # Add available years for filtering
+        context['years'] = list(range(2010, 2024))
+        
+        return context

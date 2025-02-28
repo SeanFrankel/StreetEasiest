@@ -1,16 +1,18 @@
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.template.response import TemplateResponse
-
+from django.shortcuts import render
 from wagtail.models import Page
 
 
 def search(request):
-    search_query = request.GET.get("query")
-    page = request.GET.get("page", 1)
+    search_query = request.GET.get('query', None)
+    page = request.GET.get('page', 1)
 
     # Search
     if search_query:
         search_results = Page.objects.live().search(search_query)
+        
+        # In newer Wagtail versions, Query model is removed
+        # No need to record query hits manually
     else:
         search_results = Page.objects.none()
 
@@ -23,14 +25,7 @@ def search(request):
     except EmptyPage:
         search_results = paginator.page(paginator.num_pages)
 
-    return TemplateResponse(
-        request,
-        "pages/search_view.html",
-        {
-            "search_query": search_query,
-            "search_results": search_results,
-            "SEO_NOINDEX": bool(
-                search_query
-            ),  # prevent google from indexing illicit search queries
-        },
-    )
+    return render(request, 'search/search.html', {
+        'search_query': search_query,
+        'search_results': search_results,
+    })
