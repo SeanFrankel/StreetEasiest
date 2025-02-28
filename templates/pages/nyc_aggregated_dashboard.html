@@ -2,36 +2,171 @@
 {% load wagtailcore_tags wagtailimages_tags static %}
 
 {% block content %}
-<div class="site-padding site-container">
-  <h1>{{ page.header }}</h1>
-  <p>{{ page.instructions }}</p>
-  <form id="dashboard-form">
-    <input type="text" id="address" name="address" placeholder="e.g., 123 Main St" required />
-    <input type="text" id="zip-code" name="zip_code" placeholder="e.g., 10001" required />
-    <button type="submit">Get Dashboard Data</button>
-  </form>
-  <div id="dashboard-results">
-    <!-- Aggregated data will be rendered here -->
+<div class="site-padding site-container py-8">
+  <h1 class="font-serif4 font-bold text-4xl lg:text-5xl mb-4">{{ page.header }}</h1>
+  
+  {% if page.instructions %}
+    <div class="rich-text mb-6">
+      {{ page.instructions|richtext }}
+    </div>
+  {% endif %}
+  
+  <div class="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
+    <h2 class="font-serif4 font-bold text-2xl mb-4">Search a Building</h2>
+    <form id="dashboard-form" class="flex flex-col md:flex-row gap-4">
+      <div class="flex-grow">
+        <label for="address" class="block mb-1 font-medium">Street Address</label>
+        <input type="text" id="address" name="address" 
+               placeholder="e.g., 123 Main St" required
+               class="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div class="md:w-1/4">
+        <label for="zip-code" class="block mb-1 font-medium">ZIP Code</label>
+        <input type="text" id="zip-code" name="zip_code" 
+               placeholder="e.g., 10001" required
+               class="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div class="md:self-end">
+        <button type="submit" 
+                class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition duration-200">
+          Get Data
+        </button>
+      </div>
+    </form>
+  </div>
+  
+  <div id="loading-indicator" class="hidden text-center py-8">
+    <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+    <p class="mt-2">Loading building data...</p>
+  </div>
+  
+  <div id="dashboard-results" class="hidden">
+    <!-- Dashboard results will be displayed here -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="font-serif4 font-bold text-xl mb-4 border-b pb-2">Building Information</h2>
+        <div id="building-info">
+          <!-- Building info will be populated here -->
+        </div>
+      </div>
+      
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="font-serif4 font-bold text-xl mb-4 border-b pb-2">Violations</h2>
+        <div id="violations-info">
+          <!-- Violations info will be populated here -->
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+      <h2 class="font-serif4 font-bold text-xl mb-4 border-b pb-2">Rent Information</h2>
+      <div id="rent-info">
+        <!-- Rent info will be populated here -->
+      </div>
+    </div>
+  </div>
+  
+  <div id="error-message" class="hidden bg-red-100 text-red-700 p-4 rounded-lg">
+    Error message will appear here
   </div>
 </div>
 
 <script>
 document.getElementById("dashboard-form").addEventListener("submit", async function(e) {
   e.preventDefault();
+  
   const address = document.getElementById("address").value.trim();
   const zipCode = document.getElementById("zip-code").value.trim();
+  const loadingIndicator = document.getElementById("loading-indicator");
   const resultsDiv = document.getElementById("dashboard-results");
-  resultsDiv.innerHTML = "Loading...";
+  const errorDiv = document.getElementById("error-message");
+  
+  // Hide previous results and errors, show loading
+  resultsDiv.classList.add("hidden");
+  errorDiv.classList.add("hidden");
+  loadingIndicator.classList.remove("hidden");
+  
   try {
-    const res = await fetch(`{{ page.url }}?address=${encodeURIComponent(address)}&zip_code=${encodeURIComponent(zipCode)}`, { headers: {"X-Requested-With": "XMLHttpRequest"} });
+    const res = await fetch(`/dashboard-data/?address=${encodeURIComponent(address)}&zip_code=${encodeURIComponent(zipCode)}`, {
+      headers: {"X-Requested-With": "XMLHttpRequest"}
+    });
+    
     const data = await res.json();
+    
+    loadingIndicator.classList.add("hidden");
+    
     if (data.success) {
-      resultsDiv.innerHTML = `<pre>${JSON.stringify(data.data, null, 2)}</pre>`;
+      // Show results
+      resultsDiv.classList.remove("hidden");
+      
+      // Populate building info
+      const buildingInfo = document.getElementById("building-info");
+      buildingInfo.innerHTML = `
+        <div class="grid grid-cols-2 gap-2">
+          <div class="font-medium">Address:</div>
+          <div>${data.data.building_info.address}</div>
+          
+          <div class="font-medium">ZIP Code:</div>
+          <div>${data.data.building_info.zip_code}</div>
+          
+          <div class="font-medium">Borough:</div>
+          <div>${data.data.building_info.borough}</div>
+          
+          <div class="font-medium">Year Built:</div>
+          <div>${data.data.building_info.year_built}</div>
+          
+          <div class="font-medium">Units:</div>
+          <div>${data.data.building_info.units}</div>
+        </div>
+      `;
+      
+      // Populate violations info
+      const violationsInfo = document.getElementById("violations-info");
+      violationsInfo.innerHTML = `
+        <div class="grid grid-cols-2 gap-2">
+          <div class="font-medium">Total Violations:</div>
+          <div>${data.data.violations.total}</div>
+          
+          <div class="font-medium">Open Violations:</div>
+          <div>${data.data.violations.open}</div>
+        </div>
+        
+        <h3 class="font-medium mt-4 mb-2">Violation Categories:</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <div>Heat/Hot Water:</div>
+          <div>${data.data.violations.categories.heat}</div>
+          
+          <div>Plumbing:</div>
+          <div>${data.data.violations.categories.plumbing}</div>
+          
+          <div>Electrical:</div>
+          <div>${data.data.violations.categories.electrical}</div>
+        </div>
+      `;
+      
+      // Populate rent info
+      const rentInfo = document.getElementById("rent-info");
+      rentInfo.innerHTML = `
+        <div class="grid grid-cols-2 gap-2">
+          <div class="font-medium">Rent Stabilized:</div>
+          <div>${data.data.rent_info.rent_stabilized ? "Yes" : "No"}</div>
+          
+          <div class="font-medium">Median Rent:</div>
+          <div>${data.data.rent_info.median_rent}</div>
+          
+          <div class="font-medium">Neighborhood Average:</div>
+          <div>${data.data.rent_info.neighborhood_avg}</div>
+        </div>
+      `;
     } else {
-      resultsDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+      // Show error
+      errorDiv.textContent = data.error;
+      errorDiv.classList.remove("hidden");
     }
   } catch (error) {
-    resultsDiv.innerHTML = `<p>Error fetching data: ${error.message}</p>`;
+    loadingIndicator.classList.add("hidden");
+    errorDiv.textContent = `Error fetching data: ${error.message}`;
+    errorDiv.classList.remove("hidden");
   }
 });
 </script>

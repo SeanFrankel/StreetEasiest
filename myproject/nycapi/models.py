@@ -81,12 +81,11 @@ class DataItem:
 class NYCAddressLookupPage(BasePage):
     template = "pages/nyc_address_lookup_page.html"
 
-    header = models.CharField(
-        max_length=255,
+    header = models.TextField(
         help_text="Header displayed at the top of the page.",
         default="NYC Address Lookup Tool",
     )
-    instructions = models.TextField(
+    instructions = RichTextField(
         help_text="Instructions displayed to users on how to use the tool.",
         blank=True,
         default=(

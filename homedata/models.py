@@ -9,8 +9,7 @@ class RentalTrendsPage(Page):
     A Wagtail page that displays rental trends (using your CSV data and interactive chart).
     Includes an intro (CharField) and a FAQ section (RichTextField).
     """
-    intro = models.CharField(
-        max_length=255,
+    intro = RichTextField(
         blank=True,
         help_text="Intro text for the page."
     )

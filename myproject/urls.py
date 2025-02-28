@@ -8,6 +8,7 @@ from wagtail.documents import urls as wagtaildocs_urls
 from wagtail.contrib.sitemaps.views import sitemap
 
 from myproject.search import views as search_views
+from myproject.home.views import get_dashboard_data
 
 urlpatterns = [
     path("django-admin/", admin.site.urls),
@@ -16,6 +17,7 @@ urlpatterns = [
     path("search/", search_views.search, name="search"),
     path("homedata/", include("homedata.urls")),
     path("sitemap.xml", sitemap),
+    path('dashboard-data/', get_dashboard_data, name='dashboard_data'),
 ]
 
 
