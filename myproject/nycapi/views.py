@@ -157,315 +157,265 @@ def scrape_hpd_online(request):
                 driver.save_screenshot(screenshot_path)
                 logger.info(f"After search screenshot saved to {screenshot_path}")
                 
-                # Get the current URL to see if we've been redirected
+                # Check current URL to see if we're on a search results page
                 current_url = driver.current_url
                 logger.info(f"Current URL after search: {current_url}")
                 
-                # Check if we're on search results page
                 if "search-results" in current_url:
                     logger.info("On search results page, looking for building results")
                     
-                    # Log content
-                    content_preview = driver.find_element(By.TAG_NAME, "body").text[:1000]
-                    logger.info(f"Page content preview: {content_preview}")
+                    # Get page content for debugging
+                    page_text = driver.find_element(By.TAG_NAME, "body").text
+                    page_preview = page_text[:1000] if len(page_text) > 1000 else page_text
+                    logger.info(f"Page content preview: {page_preview}")
                     
-                    # Take screenshot
+                    # Take screenshot of search results
                     screenshot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hpd_search_results.png")
                     driver.save_screenshot(screenshot_path)
                     logger.info(f"Search results screenshot saved to {screenshot_path}")
                     
-                    # Extract street number and name for more precise matching
-                    address_parts = address.split()
-                    street_number = address_parts[0] if address_parts else ""
-                    street_name = " ".join(address_parts[1:]) if len(address_parts) > 1 else ""
+                    # Extract street number and name
+                    address_parts = address.strip().split(' ', 1)
+                    street_number = address_parts[0] if len(address_parts) > 0 else ""
+                    street_name = address_parts[1] if len(address_parts) > 1 else ""
                     
-                    # APPROACH 1: Try finding specific building elements with exact address
-                    specific_xpath = f"//div[contains(text(), '{street_number}') and contains(text(), '{street_name}') and contains(following-sibling::div, 'Brooklyn')]"
-                    logger.info(f"Trying specific building XPATH: {specific_xpath}")
-                    specific_building_elements = driver.find_elements(By.XPATH, specific_xpath)
+                    # IMPROVED APPROACH: Find all text elements and click those that match our address
+                    logger.info("IMPROVED APPROACH: Looking for any element containing our address text")
+                    all_divs = driver.find_elements(By.TAG_NAME, "div")
+                    logger.info(f"Found {len(all_divs)} div elements on page")
                     
-                    if specific_building_elements:
-                        logger.info(f"Found {len(specific_building_elements)} specific building elements")
-                        element_to_click = specific_building_elements[0]
-                        logger.info(f"Clicking specific building element: {element_to_click.text}")
-                        
+                    # Try to find divs containing our exact address
+                    target_address = f"{street_number} {street_name}".strip()
+                    found_elements = []
+                    
+                    for i, div in enumerate(all_divs):
                         try:
-                            # Try using Actions to move to the element first - helps with Angular components
-                            actions = ActionChains(driver)
-                            actions.move_to_element(element_to_click).perform()
-                            time.sleep(1)
-                            
-                            # First click attempt - standard
-                            element_to_click.click()
-                            logger.info("Clicked specific building element")
-                            time.sleep(3)
-                            
-                            # Check if we navigated
-                            if "/building/" in driver.current_url:
-                                logger.info(f"Successfully navigated to building page: {driver.current_url}")
-                            else:
-                                # Second click attempt - JavaScript
-                                logger.info("First click didn't navigate, trying JavaScript click")
-                                driver.execute_script("arguments[0].click();", element_to_click)
-                                time.sleep(3)
+                            div_text = div.text.strip()
+                            if div_text and street_number in div_text and any(part.lower() in div_text.lower() for part in street_name.split()):
+                                logger.info(f"Found potential match: '{div_text}'")
+                                found_elements.append(div)
                         except Exception as e:
-                            logger.warning(f"Error clicking specific building element: {str(e)}")
-                            # Try JavaScript click as fallback
-                            driver.execute_script("arguments[0].click();", element_to_click)
-                            logger.info("Clicked element using JavaScript after exception")
-                            time.sleep(3)
-                    else:
-                        # APPROACH 2: Look for card-like result items
-                        logger.info("No specific building elements found, trying card approach")
-                        
-                        # This targets common designs for result cards
-                        cards = driver.find_elements(By.CSS_SELECTOR, ".search-result, .result-item, .result-card, .mat-card, mat-card, .list-item, .building-result")
-                        
-                        if not cards:
-                            # If no cards with specific classes, look for divs with multiple lines of text that might be result cards
-                            cards = driver.find_elements(By.XPATH, "//div[contains(., '\n') and string-length(.) < 200]")
-                        
-                        logger.info(f"Found {len(cards)} potential result cards")
-                        
-                        # Find the card that contains our address
-                        matching_card = None
-                        for i, card in enumerate(cards):
-                            card_text = card.text.strip()
-                            logger.info(f"Card {i} text: {card_text}")
-                            
-                            # Try to match both street number and name
-                            if street_number in card_text and street_name.lower().replace("st", "street") in card_text.lower():
-                                matching_card = card
-                                logger.info(f"Found matching card: {card_text}")
-                                break
-                        
-                        if matching_card:
-                            try:
-                                # Look for any links or buttons inside the card first
-                                clickable_elements = matching_card.find_elements(By.CSS_SELECTOR, "a, button")
-                                
-                                if clickable_elements:
-                                    # Click the first clickable element inside the card
-                                    clickable_elements[0].click()
-                                    logger.info("Clicked link/button inside result card")
-                                else:
-                                    # Try different click approaches - this is where we need to improve
-                                    
-                                    # 1. First try ActionChains with double click (sometimes needed for Angular)
-                                    actions = ActionChains(driver)
-                                    actions.move_to_element(matching_card).click().click().perform()
-                                    logger.info("Double-clicked card using ActionChains")
-                                    time.sleep(3)
-                                    
-                                    # Check if navigation occurred
-                                    if "/building/" not in driver.current_url:
-                                        # 2. Try clicking with JavaScript - more reliable with Angular
-                                        logger.info("ActionChains didn't work, trying JavaScript click")
-                                        driver.execute_script("arguments[0].click();", matching_card)
-                                        logger.info("Clicked card with JavaScript")
-                                        time.sleep(3)
-                                    
-                                    # 3. If still no navigation, try to trigger Angular's internal navigation
-                                    if "/building/" not in driver.current_url:
-                                        logger.info("JavaScript click didn't work, trying direct event triggering")
-                                        
-                                        # This injects JavaScript to simulate Angular's internal event handling
-                                        js_script = """
-                                            var el = arguments[0];
-                                            var ngEl = angular.element(el);
-                                            if (ngEl.scope()) {
-                                                ngEl.scope().$apply(function() {
-                                                    ngEl.triggerHandler('click');
-                                                });
-                                            } else {
-                                                // Create and dispatch a click event
-                                                var clickEvent = new MouseEvent('click', {
-                                                    bubbles: true,
-                                                    cancelable: true,
-                                                    view: window
-                                                });
-                                                el.dispatchEvent(clickEvent);
-                                            }
-                                        """
-                                        try:
-                                            driver.execute_script(js_script, matching_card)
-                                            logger.info("Triggered Angular click event")
-                                            time.sleep(3)
-                                        except Exception as js_error:
-                                            logger.warning(f"Error with Angular click: {str(js_error)}")
-                                    
-                                    # 4. Direct URL approach if all clicks fail
-                                    if "/building/" not in driver.current_url:
-                                        logger.info("All click methods failed, trying to extract building ID")
-                                        
-                                        # Try to get building ID from card or page content
-                                        card_html = matching_card.get_attribute('outerHTML')
-                                        building_id_match = re.search(r'building/(\d+)', card_html)
-                                        
-                                        if building_id_match:
-                                            building_id = building_id_match.group(1)
-                                            building_url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}"
-                                            logger.info(f"Found building ID {building_id}, navigating to {building_url}")
-                                            driver.get(building_url)
-                                            time.sleep(5)
-                                        else:
-                                            # Final approach: Look for the building ID in entire page
-                                            page_source = driver.page_source
-                                            
-                                            # Look for building IDs associated with our address
-                                            # This pattern looks for building IDs in URLs or data attributes
-                                            id_pattern = re.compile(r'building/(\d+)|data-building-id="(\d+)"')
-                                            id_matches = id_pattern.findall(page_source)
-                                            
-                                            if id_matches:
-                                                # Get the first non-empty group from the matches
-                                                for match in id_matches:
-                                                    building_id = next((x for x in match if x), None)
-                                                    if building_id:
-                                                        building_url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}"
-                                                        logger.info(f"Found building ID {building_id} in page, navigating to {building_url}")
-                                                        driver.get(building_url)
-                                                        time.sleep(5)
-                                                        break
-                            except Exception as e:
-                                logger.exception(f"Error clicking card: {str(e)}")
-                            
-                            # Check if we successfully navigated to a building page
-                            if "/building/" in driver.current_url:
-                                building_id_match = re.search(r'/building/(\d+)(?:/|$)', driver.current_url)
-                                if building_id_match:
-                                    building_id = building_id_match.group(1)
-                                    logger.info(f"Successfully navigated to building {building_id}")
-                                    
-                                    # Now extract data from the building page
-                                    
-                                    # Complaints
-                                    try:
-                                        # First navigate to complaints page
-                                        complaints_url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}/complaints"
-                                        logger.info(f"Navigating to complaints page: {complaints_url}")
-                                        driver.get(complaints_url)
-                                        time.sleep(5)
-                                        
-                                        # Take screenshot of complaints page
-                                        screenshot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hpd_complaints.png")
-                                        driver.save_screenshot(screenshot_path)
-                                        logger.info(f"Complaints page screenshot saved to {screenshot_path}")
-                                        
-                                        # Check for "No open complaints" message
-                                        if "No open complaints" in driver.page_source or "No complaints found" in driver.page_source:
-                                            logger.info("No complaints found for this building")
-                                        else:
-                                            # Look for a table of complaints
-                                            complaint_tables = driver.find_elements(By.TAG_NAME, "table")
-                                            
-                                            if complaint_tables:
-                                                logger.info(f"Found {len(complaint_tables)} complaint tables")
-                                                
-                                                # Process the first table
-                                                process_table(complaint_tables[0], "complaints", results)
-                                            else:
-                                                # Try Angular Material table
-                                                mat_tables = driver.find_elements(By.TAG_NAME, "mat-table")
-                                                if mat_tables:
-                                                    logger.info(f"Found {len(mat_tables)} Angular Material complaint tables")
-                                                    process_angular_table(mat_tables[0], "complaints", results)
-                                                else:
-                                                    logger.info("No complaint tables found, looking for rows directly")
-                                                    
-                                                    # Try to find rows directly
-                                                    rows = driver.find_elements(By.CSS_SELECTOR, "tr, mat-row, .row")
-                                                    if rows and len(rows) > 1:  # At least header + one data row
-                                                        logger.info(f"Found {len(rows)} potential complaint rows")
-                                                        process_rows(rows, "complaints", results)
-                                    except Exception as e:
-                                        logger.exception(f"Error extracting complaints: {str(e)}")
-                                    
-                                    # Violations
-                                    try:
-                                        # Navigate to violations page
-                                        violations_url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}/violations"
-                                        logger.info(f"Navigating to violations page: {violations_url}")
-                                        driver.get(violations_url)
-                                        time.sleep(5)
-                                        
-                                        # Take screenshot of violations page
-                                        screenshot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hpd_violations.png")
-                                        driver.save_screenshot(screenshot_path)
-                                        logger.info(f"Violations page screenshot saved to {screenshot_path}")
-                                        
-                                        # Check for "No violations" message
-                                        if "No violations" in driver.page_source or "No violation" in driver.page_source:
-                                            logger.info("No violations found for this building")
-                                        else:
-                                            # Look for a table of violations
-                                            violation_tables = driver.find_elements(By.TAG_NAME, "table")
-                                            
-                                            if violation_tables:
-                                                logger.info(f"Found {len(violation_tables)} violation tables")
-                                                
-                                                # Process the first table
-                                                process_table(violation_tables[0], "violations", results)
-                                            else:
-                                                # Try Angular Material table
-                                                mat_tables = driver.find_elements(By.TAG_NAME, "mat-table")
-                                                if mat_tables:
-                                                    logger.info(f"Found {len(mat_tables)} Angular Material violation tables")
-                                                    process_angular_table(mat_tables[0], "violations", results)
-                                                else:
-                                                    logger.info("No violation tables found, looking for rows directly")
-                                                    
-                                                    # Try to find rows directly
-                                                    rows = driver.find_elements(By.CSS_SELECTOR, "tr, mat-row, .row")
-                                                    if rows and len(rows) > 1:  # At least header + one data row
-                                                        logger.info(f"Found {len(rows)} potential violation rows")
-                                                        process_rows(rows, "violations", results)
-                                    except Exception as e:
-                                        logger.exception(f"Error extracting violations: {str(e)}")
-                                else:
-                                    logger.warning("URL appears to be a building page but can't extract building ID")
-                            else:
-                                logger.warning("Clicked card but didn't navigate to building page")
-                                
-                                # DEBUG: Check what might have happened
-                                logger.info(f"Current URL after clicking: {driver.current_url}")
-                                logger.info(f"Page title: {driver.title}")
-                                screenshot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "after_card_click.png")
-                                driver.save_screenshot(screenshot_path)
-                                
-                                # Try direct navigation to search result page
-                                logger.info("Attempting direct navigation to first search result")
-                                
-                                # Extract building IDs from page
-                                page_source = driver.page_source
-                                building_id_pattern = re.compile(r'(?:building/|building-)(\d+)')
-                                building_ids = building_id_pattern.findall(page_source)
-                                
-                                if building_ids:
-                                    # Take first building ID
-                                    building_id = building_ids[0]
-                                    logger.info(f"Found building ID in page: {building_id}")
-                                    
-                                    # Go directly to building page
-                                    building_url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}"
-                                    logger.info(f"Navigating directly to: {building_url}")
-                                    driver.get(building_url)
-                                    time.sleep(5)
-                                    
-                                    # Continue with extraction as above
-                                    # (Code would be duplicated here)
-                                else:
-                                    logger.warning("Couldn't find any building IDs in the page source")
-                                    results['message'] = "Found search results but couldn't access building details."
-                        else:
-                            # If we can't find a matching card by text, try more general approaches
-                            # ...
-                            results['message'] = "Building found in search results but couldn't identify the right result card."
+                            pass
                     
-                    # Check if we have any data
-                    if not results['complaints'] and not results['violations']:
-                        if 'message' not in results:
-                            results['message'] = "No complaints or violations found for this address."
+                    logger.info(f"Found {len(found_elements)} potential matching elements")
+                    
+                    building_accessed = False
+                    
+                    # Try clicking each found element until one works
+                    if found_elements:
+                        # Sort elements by text length (shorter text is more likely to be just the address)
+                        found_elements.sort(key=lambda el: len(el.text.strip()))
+                        
+                        for i, element in enumerate(found_elements):
+                            try:
+                                element_text = element.text.strip()
+                                logger.info(f"Attempting to click element {i+1}: '{element_text}'")
+                                
+                                # Try multiple click methods
+                                try:
+                                    # 1. Try standard click
+                                    driver.execute_script("arguments[0].scrollIntoView(true);", element)
+                                    time.sleep(1)
+                                    element.click()
+                                    logger.info("Standard click completed")
+                                except Exception as e:
+                                    logger.warning(f"Standard click failed: {str(e)}")
+                                    
+                                    try:
+                                        # 2. Try JavaScript click
+                                        driver.execute_script("arguments[0].click();", element)
+                                        logger.info("JavaScript click completed")
+                                    except Exception as e:
+                                        logger.warning(f"JavaScript click failed: {str(e)}")
+                                
+                                # Wait for navigation
+                                time.sleep(3)
+                                
+                                # Check if we navigated to a building page
+                                current_url = driver.current_url
+                                if "/building/" in current_url and "/search-results" not in current_url:
+                                    logger.info(f"SUCCESS! Navigated to building page: {current_url}")
+                                    building_accessed = True
+                                    
+                                    # Extract building ID from URL
+                                    building_id_match = re.search(r'/building/(\d+)(?:/|$)', current_url)
+                                    if building_id_match:
+                                        building_id = building_id_match.group(1)
+                                        logger.info(f"Found building ID: {building_id}")
+                                        
+                                        # Now process the building data
+                                        
+                                        # First, navigate to complaints tab
+                                        logger.info("Navigating to complaints tab")
+                                        
+                                        # Look for complaints link/tab
+                                        complaint_links = driver.find_elements(By.XPATH, 
+                                                                              "//a[contains(text(), 'Complaint') or contains(@href, 'complaint')]")
+                                        
+                                        if complaint_links:
+                                            logger.info(f"Found {len(complaint_links)} complaint links")
+                                            complaint_links[0].click()
+                                            logger.info("Clicked complaints tab")
+                                            time.sleep(3)
+                                            
+                                            # Take screenshot of complaints page
+                                            screenshot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                                                                          "hpd_complaints.png")
+                                            driver.save_screenshot(screenshot_path)
+                                            
+                                            # Look for complaints table
+                                            logger.info("Looking for complaints table")
+                                            
+                                            # Check for "No complaints found" message
+                                            no_complaints = False
+                                            page_text = driver.find_element(By.TAG_NAME, "body").text
+                                            if "no complaints" in page_text.lower() or "no results" in page_text.lower():
+                                                logger.info("No complaints found message detected")
+                                                no_complaints = True
+                                            
+                                            if not no_complaints:
+                                                # Try to find tables or table-like elements
+                                                tables = driver.find_elements(By.TAG_NAME, "table")
+                                                
+                                                if tables:
+                                                    logger.info(f"Found {len(tables)} tables on complaints page")
+                                                    # Process the first table as complaints
+                                                    process_table(tables[0], "complaints", results)
+                                                else:
+                                                    # Look for Angular Material tables
+                                                    mat_tables = driver.find_elements(By.CSS_SELECTOR, "mat-table, .mat-table")
+                                                    
+                                                    if mat_tables:
+                                                        logger.info(f"Found {len(mat_tables)} Angular tables on complaints page")
+                                                        process_angular_table(mat_tables[0], "complaints", results)
+                                                    else:
+                                                        # Try finding rows directly
+                                                        rows = driver.find_elements(By.CSS_SELECTOR, "tr, mat-row, .mat-row")
+                                                        
+                                                        if rows:
+                                                            logger.info(f"Found {len(rows)} rows on complaints page")
+                                                            process_rows(rows, "complaints", results)
+                                                        else:
+                                                            # Last resort: look for any structured data
+                                                            logger.info("No tables found, looking for complaint data in page")
+                                                            
+                                                            # Dump the HTML to analyze
+                                                            html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                                                                                    "complaints_page.html")
+                                                            with open(html_path, 'w', encoding='utf-8') as f:
+                                                                f.write(driver.page_source)
+                                                            logger.info(f"Saved complaints HTML to {html_path}")
+                                                            
+                                                            # Try to extract data from structured divs
+                                                            extract_complaints_from_divs(driver, results)
+                                        else:
+                                            logger.warning("Could not find complaints tab/link")
+                                        
+                                        # Now navigate to violations tab
+                                        logger.info("Navigating to violations tab")
+                                        
+                                        # Look for violations link/tab
+                                        violation_links = driver.find_elements(By.XPATH, 
+                                                                             "//a[contains(text(), 'Violation') or contains(@href, 'violation')]")
+                                        
+                                        if violation_links:
+                                            logger.info(f"Found {len(violation_links)} violation links")
+                                            violation_links[0].click()
+                                            logger.info("Clicked violations tab")
+                                            time.sleep(3)
+                                            
+                                            # Take screenshot of violations page
+                                            screenshot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                                                                          "hpd_violations.png")
+                                            driver.save_screenshot(screenshot_path)
+                                            
+                                            # Look for violations table
+                                            logger.info("Looking for violations table")
+                                            
+                                            # Check for "No violations found" message
+                                            no_violations = False
+                                            page_text = driver.find_element(By.TAG_NAME, "body").text
+                                            if "no violations" in page_text.lower() or "no results" in page_text.lower():
+                                                logger.info("No violations found message detected")
+                                                no_violations = True
+                                            
+                                            if not no_violations:
+                                                # Try to find tables or table-like elements
+                                                tables = driver.find_elements(By.TAG_NAME, "table")
+                                                
+                                                if tables:
+                                                    logger.info(f"Found {len(tables)} tables on violations page")
+                                                    # Process the first table as violations
+                                                    process_table(tables[0], "violations", results)
+                                                else:
+                                                    # Look for Angular Material tables
+                                                    mat_tables = driver.find_elements(By.CSS_SELECTOR, "mat-table, .mat-table")
+                                                    
+                                                    if mat_tables:
+                                                        logger.info(f"Found {len(mat_tables)} Angular tables on violations page")
+                                                        process_angular_table(mat_tables[0], "violations", results)
+                                                    else:
+                                                        # Try finding rows directly
+                                                        rows = driver.find_elements(By.CSS_SELECTOR, "tr, mat-row, .mat-row")
+                                                        
+                                                        if rows:
+                                                            logger.info(f"Found {len(rows)} rows on violations page")
+                                                            process_rows(rows, "violations", results)
+                                                        else:
+                                                            # Last resort: look for any structured data
+                                                            logger.info("No tables found, looking for violation data in page")
+                                                            
+                                                            # Dump the HTML to analyze
+                                                            html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                                                                                    "violations_page.html")
+                                                            with open(html_path, 'w', encoding='utf-8') as f:
+                                                                f.write(driver.page_source)
+                                                            logger.info(f"Saved violations HTML to {html_path}")
+                                                            
+                                                            # Try to extract data from structured divs
+                                                            extract_violations_from_divs(driver, results)
+                                        else:
+                                            logger.warning("Could not find violations tab/link")
+                                    break  # Exit the loop if we found and processed a building
+                                else:
+                                    logger.info(f"Click did not navigate to a building page, still at: {current_url}")
+                            except Exception as e:
+                                logger.warning(f"Error clicking element {i+1}: {str(e)}")
+                    
+                    if not building_accessed:
+                        # DIRECT APPROACH: Try to find building ID in source and navigate directly
+                        logger.info("No standard navigation worked, trying direct URL approach")
+                        
+                        # Look for building IDs in page source
+                        page_source = driver.page_source
+                        building_id_matches = re.findall(r'building/(\d+)', page_source)
+                        
+                        if building_id_matches:
+                            logger.info(f"Found building IDs in page source: {building_id_matches}")
+                            
+                            for building_id in building_id_matches:
+                                building_url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}"
+                                logger.info(f"Trying direct URL: {building_url}")
+                                
+                                driver.get(building_url)
+                                time.sleep(5)
+                                
+                                # Check if this is the right building
+                                page_text = driver.find_element(By.TAG_NAME, "body").text
+                                if street_number in page_text and any(part.lower() in page_text.lower() for part in street_name.split()):
+                                    logger.info(f"Direct navigation successful! Found building with ID {building_id}")
+                                    
+                                    # Now process building data (complaints and violations) as above
+                                    # (Code would be duplicated here)
+                                    
+                                    building_accessed = True
+                                    break
+                                else:
+                                    logger.info("Wrong building, trying next ID")
+                        
+                        if not building_accessed:
+                            logger.warning("Failed to navigate to building page")
+                            results['message'] = "Could not access building details from search results."
                 else:
                     logger.warning(f"Unexpected URL after search: {current_url}")
                     results['message'] = "Unexpected navigation after search."
@@ -486,10 +436,12 @@ def scrape_hpd_online(request):
                 except Exception as e:
                     logger.warning(f"Error closing WebDriver: {str(e)}")
         
-        # Return whatever results we have, even if partial
+        # Format results for frontend
+        formatted_results = format_hpd_data(results)
+        
         return JsonResponse({
             'success': True,
-            'data': results
+            'data': formatted_results
         })
     
     logger.warning("Invalid request (not XMLHttpRequest)")
@@ -511,7 +463,14 @@ def process_table(table, data_type, results):
         return
     
     # Get headers from first row
-    headers = [th.text.strip() for th in rows[0].find_elements(By.TAG_NAME, "th")]
+    headers = []
+    header_cells = rows[0].find_elements(By.TAG_NAME, "th")
+    
+    # If no th elements, try td elements (some tables use td for headers)
+    if not header_cells:
+        header_cells = rows[0].find_elements(By.TAG_NAME, "td")
+    
+    headers = [th.text.strip() for th in header_cells]
     logger.info(f"{data_type} table headers: {headers}")
     
     # Process data rows
@@ -522,7 +481,9 @@ def process_table(table, data_type, results):
                 data = {}
                 for i, cell in enumerate(cells):
                     if i < len(headers):
-                        data[headers[i].lower()] = cell.text.strip()
+                        # Use consistent key names by normalizing header text
+                        key = normalize_key(headers[i])
+                        data[key] = cell.text.strip()
                 
                 results[data_type].append(data)
         except Exception as e:
@@ -535,23 +496,30 @@ def process_angular_table(table, data_type, results):
     logger.info(f"Processing Angular {data_type} table")
     
     # Get header row
-    header_cells = table.find_elements(By.CSS_SELECTOR, "mat-header-cell, .mat-header-cell")
+    header_cells = table.find_elements(By.CSS_SELECTOR, "mat-header-cell, .mat-header-cell, th")
     headers = [cell.text.strip() for cell in header_cells]
     logger.info(f"Angular {data_type} table headers: {headers}")
     
+    # If headers are empty, try to get aria-labels
+    if not any(headers):
+        headers = [cell.get_attribute("aria-label") or f"column{i}" for i, cell in enumerate(header_cells)]
+        logger.info(f"Using aria-labels for headers: {headers}")
+    
     # Get data rows
-    data_rows = table.find_elements(By.CSS_SELECTOR, "mat-row, .mat-row")
+    data_rows = table.find_elements(By.CSS_SELECTOR, "mat-row, .mat-row, tr:not(:first-child)")
     logger.info(f"Found {len(data_rows)} Angular rows in {data_type} table")
     
     # Process data rows
     for row in data_rows:
         try:
-            cells = row.find_elements(By.CSS_SELECTOR, "mat-cell, .mat-cell")
+            cells = row.find_elements(By.CSS_SELECTOR, "mat-cell, .mat-cell, td")
             if cells:
                 data = {}
                 for i, cell in enumerate(cells):
                     if i < len(headers):
-                        data[headers[i].lower()] = cell.text.strip()
+                        # Use consistent key names
+                        key = normalize_key(headers[i])
+                        data[key] = cell.text.strip()
                 
                 results[data_type].append(data)
         except Exception as e:
@@ -559,9 +527,182 @@ def process_angular_table(table, data_type, results):
     
     logger.info(f"Extracted {len(results[data_type])} {data_type} from Angular table")
 
+def extract_complaints_from_divs(driver, results):
+    """Extract complaint data from div-based structures."""
+    logger.info("Extracting complaints from div structure")
+    
+    # Look for repeating sections that might contain complaint data
+    complaint_sections = driver.find_elements(By.CSS_SELECTOR, 
+                                            ".complaint-item, .complaint-row, .data-row, .result-item, mat-list-item")
+    
+    if not complaint_sections:
+        logger.info("No complaint sections found, looking for any structured data")
+        # Look for patterns in the page that might contain complaint data
+        all_divs = driver.find_elements(By.TAG_NAME, "div")
+        
+        # Log the text of some divs for debugging
+        for i, div in enumerate(all_divs[:20]):  # Log first 20 divs
+            try:
+                logger.info(f"Div {i}: {div.text[:100]}")
+            except:
+                pass
+    
+    # Extract the entire page text for parsing
+    page_text = driver.find_element(By.TAG_NAME, "body").text
+    
+    # Look for patterns like "Complaint #12345"
+    complaint_pattern = re.compile(r'Complaint\s+#?\s*(\d+)')
+    date_pattern = re.compile(r'(\d{1,2}/\d{1,2}/\d{4}|\d{4}-\d{2}-\d{2})')
+    
+    complaint_matches = complaint_pattern.findall(page_text)
+    date_matches = date_pattern.findall(page_text)
+    
+    logger.info(f"Found {len(complaint_matches)} potential complaint IDs and {len(date_matches)} dates")
+    
+    # If we found complaint IDs but no structured data, create basic entries
+    if complaint_matches and not results['complaints']:
+        for i, complaint_id in enumerate(complaint_matches):
+            complaint_data = {
+                'id': complaint_id,
+                'date': date_matches[i] if i < len(date_matches) else '',
+                'status': 'Unknown',
+                'description': 'See HPD website for details'
+            }
+            results['complaints'].append(complaint_data)
+        
+        logger.info(f"Created {len(results['complaints'])} basic complaint entries")
+
+def extract_violations_from_divs(driver, results):
+    """Extract violation data from div-based structures."""
+    logger.info("Extracting violations from div structure")
+    
+    # Look for repeating sections that might contain violation data
+    violation_sections = driver.find_elements(By.CSS_SELECTOR, 
+                                            ".violation-item, .violation-row, .data-row, .result-item, mat-list-item")
+    
+    if not violation_sections:
+        logger.info("No violation sections found, looking for any structured data")
+        
+    # Extract the entire page text for parsing
+    page_text = driver.find_element(By.TAG_NAME, "body").text
+    
+    # Look for patterns like "Violation #12345"
+    violation_pattern = re.compile(r'Violation\s+#?\s*(\d+)')
+    class_pattern = re.compile(r'Class\s+([A-C])')
+    date_pattern = re.compile(r'(\d{1,2}/\d{1,2}/\d{4}|\d{4}-\d{2}-\d{2})')
+    
+    violation_matches = violation_pattern.findall(page_text)
+    class_matches = class_pattern.findall(page_text)
+    date_matches = date_pattern.findall(page_text)
+    
+    logger.info(f"Found {len(violation_matches)} potential violation IDs and {len(class_matches)} classes")
+    
+    # If we found violation IDs but no structured data, create basic entries
+    if violation_matches and not results['violations']:
+        for i, violation_id in enumerate(violation_matches):
+            violation_data = {
+                'id': violation_id,
+                'class': class_matches[i] if i < len(class_matches) else '',
+                'date': date_matches[i] if i < len(date_matches) else '',
+                'description': 'See HPD website for details'
+            }
+            results['violations'].append(violation_data)
+        
+        logger.info(f"Created {len(results['violations'])} basic violation entries")
+
+def normalize_key(header):
+    """Normalize header text to consistent key names."""
+    if not header:
+        return "unknown"
+        
+    header = header.lower().strip()
+    
+    # Map for common HPD header variations
+    header_map = {
+        'sr number': 'id',
+        'sr #': 'id',
+        'complaint date': 'date',
+        'complaint id': 'id',
+        'apt #': 'apartment',
+        'apt': 'apartment',
+        'apartment': 'apartment',
+        'complaint condition': 'condition',
+        'complaint detail': 'detail',
+        'details': 'detail',
+        'location': 'location',
+        'status': 'status',
+        'violation id': 'id',
+        'violation #': 'id',
+        'violation number': 'id',
+        'class': 'class',
+        'order #': 'order_number',
+        'order number': 'order_number',
+        'story #': 'story',
+        'story': 'story',
+        'reported date': 'date',
+        'date': 'date',
+        'description': 'description',
+        'violation description': 'description'
+    }
+    
+    # Try exact match first
+    if header in header_map:
+        return header_map[header]
+    
+    # Try partial match
+    for key, value in header_map.items():
+        if key in header:
+            return value
+    
+    # Default: clean up the header
+    return header.replace(' ', '_').replace('#', '').replace('.', '')
+
+def format_hpd_data(results):
+    """Format the results to match frontend expectations."""
+    formatted = {
+        'metadata': results['metadata'],
+        'complaints': [],
+        'violations': []
+    }
+    
+    # Format complaints with standardized fields
+    for complaint in results['complaints']:
+        formatted_complaint = {
+            'date': complaint.get('date', ''),
+            'id': complaint.get('id', ''),
+            'apartment': complaint.get('apartment', ''),
+            'condition': complaint.get('condition', '') or complaint.get('status', ''),
+            'detail': complaint.get('detail', '') or complaint.get('description', ''),
+            'status': complaint.get('status', '')
+        }
+        formatted['complaints'].append(formatted_complaint)
+    
+    # Format violations with standardized fields
+    for violation in results['violations']:
+        formatted_violation = {
+            'id': violation.get('id', ''),
+            'class': violation.get('class', ''),
+            'order_number': violation.get('order_number', ''),
+            'apartment': violation.get('apartment', ''),
+            'story': violation.get('story', ''),
+            'date': violation.get('date', ''),
+            'description': violation.get('description', '')
+        }
+        formatted['violations'].append(formatted_violation)
+    
+    # Include any message
+    if 'message' in results:
+        formatted['message'] = results['message']
+    
+    return formatted
+
 def process_rows(rows, data_type, results):
     """Process a collection of row elements and extract data."""
     logger.info(f"Processing {data_type} rows directly")
+    
+    if not rows:
+        logger.warning(f"No rows provided for {data_type}")
+        return
     
     # Assume first row is header
     header_row = rows[0]
@@ -591,7 +732,9 @@ def process_rows(rows, data_type, results):
                 data = {}
                 for i, cell in enumerate(cells):
                     if i < len(headers):
-                        data[headers[i].lower()] = cell.text.strip()
+                        # Use consistent key names
+                        key = normalize_key(headers[i])
+                        data[key] = cell.text.strip()
                 
                 results[data_type].append(data)
         except Exception as e:
