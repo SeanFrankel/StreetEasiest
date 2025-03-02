@@ -14,6 +14,7 @@ from wagtail.models import Page
 from wagtail.fields import RichTextField
 
 from myproject.utils.models import BasePage  # Adjust if your BasePage location is different
+from myproject.standardpages.models import BasePage as StandardBasePage
 
 logger = logging.getLogger(__name__)
 
@@ -446,3 +447,39 @@ class AddressService:
         rent_stabilized_result = self.get_rent_stabilized_data(address, zip_code)
         data["rent_stabilized"] = [rent_stabilized_result]
         return data
+
+
+class HPDLookupPage(StandardBasePage):
+    template = "nycapi/hpd_lookup_page.html"
+
+    header = models.TextField(
+        help_text="Header displayed at the top of the page.",
+        default="NYC HPD Lookup Tool",
+    )
+    instructions = RichTextField(
+        help_text="Instructions displayed to users on how to use the tool.",
+        blank=True,
+        default=(
+            "Enter an address and zip code to scrape housing violation information "
+            "directly from HPD Online. This tool will retrieve 311 complaints and "
+            "housing violations by accessing the official HPD website."
+        ),
+    )
+    data_faqs = RichTextField(
+        blank=True,
+        help_text="Data FAQs content for the page."
+    )
+    how_to_use = RichTextField(
+        blank=True,
+        help_text="Instructions on how to use the page."
+    )
+
+    content_panels = StandardBasePage.content_panels + [
+        FieldPanel("header"),
+        FieldPanel("instructions"),
+        FieldPanel("data_faqs"),
+        FieldPanel("how_to_use"),
+    ]
+
+    parent_page_types = ["home.HomePage"]
+    subpage_types = []
