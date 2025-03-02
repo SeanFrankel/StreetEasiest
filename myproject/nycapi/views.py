@@ -3,6 +3,7 @@ import time
 import json
 import os
 import re
+import traceback
 from django.http import JsonResponse
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -14,1140 +15,1325 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
 from selenium.webdriver.common.action_chains import ActionChains
+from urllib.parse import urlparse, parse_qs
+from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
+import requests
+from bs4 import BeautifulSoup
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-def scrape_hpd_online(request):
-    """Handle requests to scrape HPD Online database using Selenium."""
-    logger.info("HPD scraping request received")
+def extract_table_data(driver, url, what_to_extract="violations"):
+    """Extract data from HPD table directly using the driver, specially handling both tables."""
+    logger.info(f"Extracting {what_to_extract} data from {url}")
     
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        address = request.GET.get('address', '')
-        zip_code = request.GET.get('zip_code', '')
+    try:
+        # Navigate to the URL
+        driver.get(url)
         
-        logger.info(f"Searching for Address: '{address}', ZIP: '{zip_code}'")
+        # Wait for the page to load
+        WebDriverWait(driver, 30).until(
+            lambda d: len(d.find_elements(By.CSS_SELECTOR, "app-root > *")) > 0
+        )
         
-        if not address or not zip_code:
-            logger.warning("Missing required fields: address or zip_code")
-            return JsonResponse({
-                'success': False,
-                'error': 'Address and ZIP code are required'
-            })
+        # Take a screenshot for debugging
+        screenshot_name = f"{what_to_extract}_page.png"
+        screenshot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), screenshot_name)
+        driver.save_screenshot(screenshot_path)
+        logger.info(f"{what_to_extract.capitalize()} page screenshot saved to {screenshot_path}")
         
-        # Initialize results with the data we know is correct
-        results = {
-            'violations': [],
-            'complaints': [],
-            'metadata': {
-                'address': address,
-                'zip_code': zip_code,
-                'borough': get_borough_from_zip(zip_code)
-            }
+        # Wait a bit more for dynamic content to load
+        time.sleep(2)
+        
+        # Find all tables
+        tables = driver.find_elements(By.CSS_SELECTOR, "mat-table, .mat-table, [role='table'], table")
+        
+        if not tables:
+            logger.warning(f"No tables found on {what_to_extract} page")
+            return []
+        
+        logger.info(f"Found {len(tables)} potential tables")
+        
+        extracted_data = []
+        
+        for table_idx, table in enumerate(tables):
+            try:
+                # Get table headers
+                header_elements = table.find_elements(By.CSS_SELECTOR, "th, .mat-header-cell, [role='columnheader']")
+                headers = [header.text.strip() for header in header_elements if header.text.strip()]
+                
+                logger.info(f"Table {table_idx} headers: {headers}")
+                
+                # If no headers found, this might not be a data table
+                if not headers:
+                    continue
+                
+                # Get table rows
+                rows = table.find_elements(By.CSS_SELECTOR, "tr:not(:first-child), .mat-row, [role='row']:not([role='columnheader'])")
+                
+                logger.info(f"Found {len(rows)} rows in table {table_idx}")
+                
+                # Process each row
+                for row in rows:
+                    cells = row.find_elements(By.CSS_SELECTOR, "td, .mat-cell, [role='cell']")
+                    
+                    if cells:
+                        # Create a data object for this row
+                        row_data = {}
+                        
+                        # Map cell values to headers
+                        for i, cell in enumerate(cells):
+                            if i < len(headers):
+                                key = headers[i].lower().replace(' ', '_').replace('#', '').strip()
+                                value = cell.text.strip()
+                                row_data[key] = value
+                        
+                        # Special handling for violations page
+                        if what_to_extract == "violations":
+                            # Look for specific columns related to violations
+                            for header, value in list(row_data.items()):
+                                # Map to standard field names based on what's in the header
+                                if re.search(r'viol.*id|nov.*id|id|novid', header):
+                                    row_data['violation_number'] = value
+                                elif re.search(r'class|severity', header):
+                                    row_data['class'] = value
+                                    row_data['severity'] = value
+                                elif re.search(r'order', header):
+                                    row_data['order'] = value
+                                elif re.search(r'apt|apartment', header):
+                                    row_data['apartment'] = value
+                                elif re.search(r'story|floor', header):
+                                    row_data['story'] = value
+                                elif re.search(r'date', header):
+                                    row_data['date'] = value
+                                elif re.search(r'desc|description', header):
+                                    row_data['description'] = value
+                        
+                        # Special handling for complaints page
+                        elif what_to_extract == "complaints":
+                            # Map fields for complaints
+                            for header, value in list(row_data.items()):
+                                if re.search(r'sr.*num|service', header):
+                                    row_data['sr_number'] = value
+                                elif re.search(r'date', header):
+                                    row_data['date'] = value
+                                elif re.search(r'complaint.*id|id', header):
+                                    row_data['complaint_id'] = value
+                                elif re.search(r'apt|apartment|unit', header):
+                                    row_data['apt'] = value
+                                elif re.search(r'desc|description|type', header):
+                                    row_data['description'] = value
+                                elif re.search(r'detail', header):
+                                    row_data['complaint_detail'] = value
+                                elif re.search(r'loc|location|where', header):
+                                    row_data['location'] = value
+                                elif re.search(r'status|state', header):
+                                    row_data['status'] = value
+                        
+                        # If this row contains actual data (not just empty cells), add it
+                        if any(value for value in row_data.values()):
+                            extracted_data.append(row_data)
+            
+            except Exception as e:
+                logger.error(f"Error processing table {table_idx}: {str(e)}")
+                logger.error(traceback.format_exc())
+        
+        logger.info(f"Successfully extracted {len(extracted_data)} {what_to_extract} rows")
+        
+        # If we didn't find any data, try backup extraction methods
+        if not extracted_data:
+            logger.warning(f"No data found in tables. Trying alternative extraction methods...")
+            
+            # For violations, look for cards or list items
+            if what_to_extract == "violations":
+                items = driver.find_elements(By.CSS_SELECTOR, ".violation-item, mat-card, .card, .item")
+                
+                for item in items:
+                    try:
+                        item_text = item.text
+                        
+                        # Try to extract violation info from text
+                        vio_number_match = re.search(r'\b(\d{6,8})\b', item_text)
+                        if vio_number_match:
+                            vio_data = {'violation_number': vio_number_match.group(1)}
+                            
+                            # Try to find class
+                            class_match = re.search(r'class\s*[:-]?\s*([abc])', item_text, re.IGNORECASE)
+                            if class_match:
+                                vio_data['class'] = class_match.group(1).upper()
+                            
+                            # Try to find apartment
+                            apt_match = re.search(r'apt\s*[#:]?\s*([0-9a-z]+)', item_text, re.IGNORECASE)
+                            if apt_match:
+                                vio_data['apartment'] = apt_match.group(1).upper()
+                            
+                            # Try to find date
+                            date_match = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})', item_text)
+                            if date_match:
+                                vio_data['date'] = date_match.group(1)
+                            
+                            # Try to find description
+                            desc_match = re.search(r'(§.*?(?=\n\n|\Z))', item_text, re.DOTALL)
+                            if desc_match:
+                                vio_data['description'] = desc_match.group(1).strip()
+                            
+                            extracted_data.append(vio_data)
+                    except Exception as e:
+                        logger.warning(f"Error processing item: {str(e)}")
+        
+        return extracted_data
+        
+    except Exception as e:
+        logger.error(f"Error extracting {what_to_extract} data: {str(e)}")
+        logger.error(traceback.format_exc())
+        return []
+
+def get_building_id(address, zipcode):
+    """
+    Get building ID (BIN) for a given address and ZIP code using NYC API
+    
+    Args:
+        address: Building address (e.g., "393 Hewes St")
+        zipcode: ZIP code (e.g., "11211")
+        
+    Returns:
+        Building ID (BIN) or None if not found
+    """
+    logger.info(f"Getting building ID for address: {address}, zip: {zipcode}")
+    
+    # Parse the address into house number and street name
+    parts = address.strip().split(' ', 1)
+    if len(parts) != 2:
+        logger.warning(f"Could not parse address: {address}")
+        return None
+    
+    house_number, street_name = parts[0], parts[1]
+    
+    # Map zipcode to borough code
+    borough = get_borough_from_zip(zipcode)
+    borough_code = {"Manhattan": "1", "Bronx": "2", "Brooklyn": "3", "Queens": "4", "Staten Island": "5"}.get(borough, "3")
+    
+    # NYC API Subscription Key
+    API_KEY = getattr(settings, "NYC_API_KEY", "ge4fy3cAUtrn!NM")
+    
+    # First try the official NYC Geosearch API
+    try:
+        # NYC Geosearch API endpoint
+        api_url = "https://api.nyc.gov/geo/geoclient/v1/address"
+        
+        # Set up proper headers with subscription key
+        headers = {
+            "Ocp-Apim-Subscription-Key": API_KEY,
+            "Accept": "application/json"
         }
         
-        driver = None
+        # Parameters for the API call
+        params = {
+            "houseNumber": house_number,
+            "street": street_name,
+            "borough": borough,
+            "zip": zipcode
+        }
         
-        try:
-            # Set up Chrome options
-            chrome_options = Options()
-            chrome_options.add_argument("--headless=new")
-            chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--window-size=1920,1080")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--no-sandbox")
+        logger.info(f"Calling NYC Geosearch API with: {params}")
+        response = requests.get(api_url, headers=headers, params=params, timeout=10)
+        
+        # Check response status
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"Geosearch API response: {data}")
             
-            # Add a realistic user agent
-            user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            chrome_options.add_argument(f"user-agent={user_agent}")
+            # Try to extract BIN from response
+            if "address" in data and "buildingIdentificationNumber" in data["address"]:
+                bin_number = data["address"]["buildingIdentificationNumber"]
+                if bin_number and bin_number != "0000000":
+                    logger.info(f"Found building ID from Geosearch API: {bin_number}")
+                    return bin_number
             
-            # Initialize the driver
-            logger.info("Initializing Chrome WebDriver")
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-            driver.set_page_load_timeout(30)
-            logger.info("Chrome WebDriver initialized successfully")
+            # If BIN not found, try to find alternative property identifiers
+            if "address" in data and "bbl" in data["address"]:
+                bbl = data["address"]["bbl"]
+                logger.info(f"Found BBL from Geosearch API: {bbl}")
+                # You could use this BBL to try another API call if needed
+        
+        logger.warning(f"Geosearch API call failed or didn't return a valid BIN. Status: {response.status_code}")
+        logger.warning(f"Response content: {response.text[:200]}")
+        
+    except Exception as e:
+        logger.error(f"Error calling NYC Geosearch API: {str(e)}")
+    
+    # Next try DOB BIS API for building information
+    try:
+        # DOB BIS API endpoint
+        dob_api_url = "https://api.nyc.gov/buildings/buildinginfo/v1/address"
+        
+        # Set up proper headers with subscription key
+        headers = {
+            "Ocp-Apim-Subscription-Key": API_KEY,
+            "Accept": "application/json"
+        }
+        
+        # Parameters for the API call
+        params = {
+            "house_number": house_number,
+            "street_name": street_name,
+            "borough": borough
+        }
+        
+        logger.info(f"Calling DOB BIS API with: {params}")
+        response = requests.get(dob_api_url, headers=headers, params=params, timeout=10)
+        
+        # Check response status
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"DOB API response: {data}")
             
-            # Navigate to the HPD Online homepage
-            hpd_url = "https://hpdonline.nyc.gov/hpdonline/"
-            logger.info(f"Navigating to HPD homepage: {hpd_url}")
-            driver.get(hpd_url)
+            # Try to extract BIN from response
+            if isinstance(data, list) and len(data) > 0 and "bin" in data[0]:
+                bin_number = data[0]["bin"]
+                logger.info(f"Found building ID from DOB API: {bin_number}")
+                return bin_number
+        
+        logger.warning(f"DOB API call failed or didn't return a valid BIN. Status: {response.status_code}")
+        
+    except Exception as e:
+        logger.error(f"Error calling DOB BIS API: {str(e)}")
+    
+    # As a last resort, try HPD Data portal API
+    try:
+        # HPD Data portal API endpoint for housing maintenance code violations
+        hpd_api_url = "https://data.cityofnewyork.us/resource/wvxf-dwi5.json"
+        
+        # Build query to find violations for this address
+        where_clause = f"housenumber='{house_number}' AND streetname='{street_name}' AND zip='{zipcode}'"
+        
+        # Parameters for the API call
+        params = {
+            "$where": where_clause,
+            "$limit": 1
+        }
+        
+        logger.info(f"Calling HPD Data API with: {params}")
+        response = requests.get(hpd_api_url, params=params, timeout=10)
+        
+        # Check response status
+        if response.status_code == 200:
+            data = response.json()
             
-            # Wait for Angular app to load
-            logger.info("Waiting for Angular app to initialize...")
-            
-            # Wait for app-root to have children - indicates Angular has rendered content
-            WebDriverWait(driver, 20).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, "app-root > *")) > 0
-            )
-            
-            # Take screenshot after Angular loads
-            screenshot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hpd_angular_loaded.png")
-            driver.save_screenshot(screenshot_path)
-            logger.info(f"Angular app loaded, screenshot saved to {screenshot_path}")
-            
-            # Find the search input box
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "input"))
-            )
-            
-            # Find search input
-            search_input = None
-            inputs = driver.find_elements(By.TAG_NAME, "input")
-            logger.info(f"Found {len(inputs)} input fields")
-            
-            for input_field in inputs:
-                placeholder = input_field.get_attribute("placeholder")
-                if placeholder and ("search" in placeholder.lower() or "address" in placeholder.lower()):
-                    search_input = input_field
-                    logger.info(f"Found search input with placeholder: {placeholder}")
-                    break
-            
-            if not search_input and len(inputs) > 0:
-                # If all else fails, try the first input
-                search_input = inputs[0]
-                logger.info("Using first input field as search input")
-            
-            if not search_input:
-                logger.error("Could not find search input field")
-                raise Exception("Could not locate search input field on HPD website")
+            # Try to extract BIN from response
+            if isinstance(data, list) and len(data) > 0 and "buildingid" in data[0]:
+                bin_number = data[0]["buildingid"]
+                logger.info(f"Found building ID from HPD Data API: {bin_number}")
+                return bin_number
+        
+        logger.warning(f"HPD Data API call failed or didn't return a valid BIN. Status: {response.status_code}")
+        
+    except Exception as e:
+        logger.error(f"Error calling HPD Data API: {str(e)}")
+    
+    # If all APIs fail, fall back to the browser-based method
+    logger.info(f"API methods failed. Trying fallback browser method to find building ID for {address}, {zipcode}")
+    return get_building_id_from_hpd(address, zipcode)
 
-            # Click the search input first to ensure focus
-            search_input.click()
+def get_building_id_from_hpd(address, zipcode):
+    """
+    Fallback method to get building ID by searching on HPD website directly
+    
+    Args:
+        address: Building address (e.g., "393 Hewes St")
+        zipcode: ZIP code (e.g., "11211")
+        
+    Returns:
+        Building ID (BIN) or None if not found
+    """
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import time
+    
+    # Initialize a headless browser
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    
+    # Start the browser
+    driver = webdriver.Chrome(options=options)
+    try:
+        # Go to HPD Online search page
+        driver.get("https://hpdonline.nyc.gov/hpdonline/")
+        
+        # Wait for page to load
+        wait = WebDriverWait(driver, 30)
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        
+        # Wait for Angular app to initialize
+        time.sleep(5)
+        
+        # Look for search input fields
+        search_fields = driver.find_elements(By.CSS_SELECTOR, "input[type='text'], mat-input, .mat-input-element")
+        
+        if not search_fields:
+            logger.warning("Could not find search input fields on HPD website")
+            return None
+        
+        # Fill in house number
+        house_number = address.split(' ')[0]
+        if len(search_fields) > 0:
+            search_fields[0].clear()
+            search_fields[0].send_keys(house_number)
+        
+        # Fill in street name
+        street_name = address[address.find(' ')+1:]
+        if len(search_fields) > 1:
+            search_fields[1].clear()
+            search_fields[1].send_keys(street_name)
+        
+        # Fill in ZIP code if there's a field for it
+        if len(search_fields) > 2:
+            search_fields[2].clear()
+            search_fields[2].send_keys(zipcode)
+        
+        # Look for search button
+        search_buttons = driver.find_elements(By.CSS_SELECTOR, 
+                                             "button[type='submit'], button.search-button, button:contains('Search')")
+        
+        if not search_buttons:
+            # Try finding by text content
+            buttons = driver.find_elements(By.TAG_NAME, "button")
+            for button in buttons:
+                if "search" in button.text.lower():
+                    search_buttons = [button]
+                    break
+        
+        if search_buttons:
+            search_buttons[0].click()
             
-            # Enter partial address to trigger autocomplete (don't include ZIP or borough)
-            # Just enter the street name and number
-            partial_address = address.split(',')[0] if ',' in address else address
-            search_input.clear()
-            search_input.send_keys(partial_address)
-            logger.info(f"Entered partial address to trigger autocomplete: {partial_address}")
+            # Wait for results to load
+            time.sleep(5)
             
-            # Wait for autocomplete suggestions
-            logger.info("Looking for autocomplete suggestions")
-            autocomplete_selected = False
-            try:
-                # Different possible ways autocomplete might be implemented
-                autocomplete_items = None
-                
-                # Try mat-option (Angular Material)
-                autocomplete_items = driver.find_elements(By.CSS_SELECTOR, "mat-option, .mat-option")
-                if autocomplete_items:
-                    logger.info(f"Found {len(autocomplete_items)} Angular Material autocomplete options")
-                
-                # If no mat-options, try ul/li pattern
-                if not autocomplete_items:
-                    autocomplete_items = driver.find_elements(By.CSS_SELECTOR, "ul.autocomplete-results li, .autocomplete-suggestion, .suggestion-item")
-                    if autocomplete_items:
-                        logger.info(f"Found {len(autocomplete_items)} standard autocomplete options")
-                
-                # If still no items, try dropdown items
-                if not autocomplete_items:
-                    autocomplete_items = driver.find_elements(By.CSS_SELECTOR, ".dropdown-item, .suggestion, [role='option']")
-                    if autocomplete_items:
-                        logger.info(f"Found {len(autocomplete_items)} dropdown autocomplete options")
-                
-                # Take screenshot of autocomplete results
-                driver.save_screenshot(os.path.join(os.path.dirname(os.path.abspath(__file__)), "autocomplete_results.png"))
-                
-                # If we found autocomplete items, select the first one
-                if autocomplete_items and len(autocomplete_items) > 0:
-                    # Get the first autocomplete item
-                    first_item = autocomplete_items[0]
-                    logger.info(f"Selecting first autocomplete suggestion: {first_item.text}")
-                    
-                    try:
-                        # Try normal click
-                        first_item.click()
-                        logger.info("Clicked autocomplete item successfully")
-                        autocomplete_selected = True
-                        
-                        # After clicking an autocomplete suggestion, wait a moment for any page updates
-                        time.sleep(2)
-                    except Exception as click_e:
-                        logger.warning(f"Error with standard click: {str(click_e)}")
-                        try:
-                            # Try JavaScript click as fallback
-                            driver.execute_script("arguments[0].click();", first_item)
-                            logger.info("Clicked autocomplete item with JavaScript")
-                            autocomplete_selected = True
-                            
-                            # After clicking an autocomplete suggestion, wait a moment for any page updates
-                            time.sleep(2)
-                        except Exception as js_e:
-                            logger.warning(f"Error with JavaScript click: {str(js_e)}")
-                            # If clicking fails, just continue with the search as entered
-                else:
-                    logger.info("No autocomplete suggestions found, continuing with manual search")
-            except Exception as auto_e:
-                logger.warning(f"Error handling autocomplete: {str(auto_e)}")
-            
-            # Submit search if we haven't selected an autocomplete item
-            # (selecting an item might automatically trigger the search)
-            if not autocomplete_selected:
-                try:
-                    # Try to use the original search input
-                    logger.info("Submitting search with Enter key")
-                    search_input.send_keys(Keys.RETURN)
-                except Exception as stale_e:
-                    logger.warning(f"Original search input is stale, trying to find it again: {str(stale_e)}")
-                    
-                    # The element might be stale, try to find it again
-                    try:
-                        inputs = driver.find_elements(By.TAG_NAME, "input")
-                        for input_field in inputs:
-                            placeholder = input_field.get_attribute("placeholder")
-                            if placeholder and ("search" in placeholder.lower() or "address" in placeholder.lower()):
-                                logger.info(f"Found search input again with placeholder: {placeholder}")
-                                input_field.send_keys(Keys.RETURN)
-                                break
-                    except Exception as refind_e:
-                        logger.warning(f"Could not refind search input: {str(refind_e)}")
-                        # Check if the page is already showing search results
-                        current_url = driver.current_url
-                        if "search-results" in current_url or "building" in current_url:
-                            logger.info("Already on search results page, continuing")
-                        else:
-                            # Last resort - try to navigate to search results using JavaScript
-                            try:
-                                driver.execute_script("document.querySelector('form').submit();")
-                                logger.info("Submitted search using JavaScript form submission")
-                            except Exception as js_e:
-                                logger.warning(f"Could not submit search using JavaScript: {str(js_e)}")
-            else:
-                logger.info("Autocomplete option selected, not submitting with Enter key")
-            
-            # Wait for search results to load
-            logger.info("Waiting for search results to load")
-            time.sleep(3)
-            
-            # Take screenshot of search results
-            results_screenshot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hpd_search_results.png")
-            driver.save_screenshot(results_screenshot_path)
-            logger.info(f"Search results screenshot saved to {results_screenshot_path}")
-            
-            # Check if we've been redirected to a building page
+            # Check if we got redirected to a building page
             current_url = driver.current_url
             logger.info(f"Current URL after search: {current_url}")
             
-            building_id = None
+            # Extract building ID from URL if available
+            if "building/" in current_url:
+                building_id = current_url.split("building/")[1].split("/")[0]
+                if building_id and building_id.isdigit():
+                    logger.info(f"Found building ID from HPD search: {building_id}")
+                    return building_id
             
-            # Try to extract building ID from current URL if redirected
-            building_id_match = re.search(r'/building/(\d+)', current_url)
-            if building_id_match:
-                building_id = building_id_match.group(1)
-                logger.info(f"Extracted building ID from URL: {building_id}")
-            else:
-                # We're on search results page, need to find and click the right building
-                logger.info("Looking for building in search results")
+            # If we're on a search results page, try to find and click the first result
+            result_links = driver.find_elements(By.CSS_SELECTOR, "a[href*='building/'], .search-result a, mat-row")
+            
+            if result_links:
+                # Click the first result
+                result_links[0].click()
+                time.sleep(3)
                 
-                # Log the page source for debugging
-                page_source = driver.page_source
-                logger.info(f"Page source length: {len(page_source)}")
-                
-                # First try to find mat-cards which are commonly used in Angular Material
-                building_cards = driver.find_elements(By.CSS_SELECTOR, "mat-card, .mat-card, .search-result-item")
-                logger.info(f"Found {len(building_cards)} potential building cards")
-                
-                building_links = []
-                
-                # Process cards if found
-                if building_cards:
-                    for card in building_cards:
-                        try:
-                            card_text = card.text
-                            logger.info(f"Card text: {card_text}")
-                            
-                            # Look for address components
-                            address_parts = partial_address.strip().split(' ', 1)
-                            street_num = address_parts[0] if len(address_parts) > 0 else ""
-                            street_name = address_parts[1] if len(address_parts) > 1 else ""
-                            
-                            # Calculate relevance score
-                            relevance_score = 0
-                            if street_num in card_text:
-                                relevance_score += 2
-                            if street_name.lower() in card_text.lower():
-                                relevance_score += 3
-                            if zip_code in card_text:
-                                relevance_score += 2
-                            
-                            # Find links within the card
-                            card_links = card.find_elements(By.TAG_NAME, "a")
-                            for link in card_links:
-                                href = link.get_attribute("href")
-                                if href and '/building/' in href:
-                                    bid_match = re.search(r'/building/(\d+)', href)
-                                    if bid_match:
-                                        building_links.append({
-                                            'element': link,
-                                            'href': href,
-                                            'building_id': bid_match.group(1),
-                                            'text': card_text,
-                                            'score': relevance_score
-                                        })
-                            
-                            # If no links with href found, try to find elements that might be clickable
-                            if not card_links:
-                                clickable_elements = card.find_elements(By.CSS_SELECTOR, "[role='button'], button, .clickable")
-                                if clickable_elements:
-                                    for element in clickable_elements:
-                                        building_links.append({
-                                            'element': element,
-                                            'href': None,
-                                            'building_id': None,
-                                            'text': card_text,
-                                            'score': relevance_score
-                                        })
-                        except Exception as e:
-                            logger.warning(f"Error processing card: {str(e)}")
-                
-                # If no cards or no building links found in cards, try to find any links
-                if not building_links:
-                    # Look for links that might point to a building page
-                    links = driver.find_elements(By.TAG_NAME, "a")
-                    logger.info(f"Found {len(links)} links on the page")
-                    
-                    # Find all links that might be building details links
-                    for link in links:
-                        try:
-                            href = link.get_attribute("href")
-                            if href and '/building/' in href:
-                                building_id_match = re.search(r'/building/(\d+)', href)
-                                if building_id_match:
-                                    # Extract the text around the link to check if it matches our address
-                                    link_text = link.text
-                                    parent_text = ""
-                                    try:
-                                        parent = link.find_element(By.XPATH, "..")
-                                        parent_text = parent.text
-                                    except:
-                                        pass
-                                    
-                                    context_text = link_text + " " + parent_text
-                                    logger.info(f"Building link text: {context_text}")
-                                    
-                                    # Extract the street number and name for fuzzy matching
-                                    address_parts = partial_address.strip().split(' ', 1)
-                                    street_num = address_parts[0] if len(address_parts) > 0 else ""
-                                    street_name = address_parts[1] if len(address_parts) > 1 else ""
-                                    
-                                    # Check for fuzzy match (to handle cases like 393 vs 395)
-                                    relevance_score = 0
-                                    
-                                    # Address number might be slightly different
-                                    try:
-                                        address_number = int(street_num)
-                                        # Look for numbers in the link text
-                                        numbers_in_text = re.findall(r'\b\d+\b', context_text)
-                                        for num in numbers_in_text:
-                                            try:
-                                                text_num = int(num)
-                                                # If numbers are close (within ±5), give points
-                                                if abs(address_number - text_num) <= 5:
-                                                    relevance_score += 3 - min(abs(address_number - text_num), 3)
-                                            except:
-                                                pass
-                                    except:
-                                        # If we can't convert to int, check for exact match
-                                        if street_num in context_text:
-                                            relevance_score += 2
-                                    
-                                    # Street name should match more closely
-                                    if street_name.lower() in context_text.lower():
-                                        relevance_score += 3
-                                    
-                                    # ZIP code is also important
-                                    if zip_code in context_text:
-                                        relevance_score += 2
-                                    
-                                    # Include this as a candidate
-                                    building_links.append({
-                                        'element': link,
-                                        'href': href,
-                                        'building_id': building_id_match.group(1),
-                                        'text': context_text,
-                                        'score': relevance_score
-                                    })
-                        except Exception as e:
-                            logger.warning(f"Error processing link: {str(e)}")
-                
-                # If still no building links, try to scan the entire page for rows or items
-                if not building_links:
-                    # Look for any row-like elements that might contain building info
-                    rows = driver.find_elements(By.CSS_SELECTOR, "tr, .row, [role='row'], div.item, .list-item")
-                    logger.info(f"Found {len(rows)} potential rows or list items")
-                    
-                    for row in rows:
-                        try:
-                            row_text = row.text
-                            logger.info(f"Row text: {row_text}")
-                            
-                            # Check if the row contains our address
-                            address_parts = partial_address.strip().split(' ', 1)
-                            street_num = address_parts[0] if len(address_parts) > 0 else ""
-                            street_name = address_parts[1] if len(address_parts) > 1 else ""
-                            
-                            # Calculate relevance score
-                            relevance_score = 0
-                            if street_num in row_text:
-                                relevance_score += 2
-                            if street_name.lower() in row_text.lower():
-                                relevance_score += 3
-                            if zip_code in row_text:
-                                relevance_score += 2
-                            
-                            # If this row seems relevant, look for clickable elements
-                            if relevance_score > 0:
-                                # Find links or buttons within the row
-                                clickable = row.find_elements(By.CSS_SELECTOR, "a, button, [role='button'], .clickable")
-                                for element in clickable:
-                                    href = element.get_attribute("href")
-                                    if href and '/building/' in href:
-                                        bid_match = re.search(r'/building/(\d+)', href)
-                                        if bid_match:
-                                            building_links.append({
-                                                'element': element,
-                                                'href': href,
-                                                'building_id': bid_match.group(1),
-                                                'text': row_text,
-                                                'score': relevance_score
-                                            })
-                                    elif element.is_enabled() and element.is_displayed():
-                                        building_links.append({
-                                            'element': element,
-                                            'href': None,
-                                            'building_id': None,
-                                            'text': row_text,
-                                            'score': relevance_score
-                                        })
-                        except Exception as e:
-                            logger.warning(f"Error processing row: {str(e)}")
-                
-                # If STILL no building links, try to extract building IDs from the page source
-                if not building_links:
-                    # Look for building IDs in the HTML
-                    logger.info("No building links found through UI elements, checking HTML source")
-                    building_id_matches = re.findall(r'/building/(\d+)', page_source)
-                    if building_id_matches:
-                        # Remove duplicates
-                        unique_building_ids = list(set(building_id_matches))
-                        logger.info(f"Found {len(unique_building_ids)} building IDs in HTML: {unique_building_ids}")
-                        
-                        # Since we can't determine relevance, take the first one
-                        building_id = unique_building_ids[0]
-                        logger.info(f"Selected building ID from HTML: {building_id}")
-                    else:
-                        # Last resort - try direct API access
-                        search_url = f"https://hpdonline.nyc.gov/HPDonline/provide/bldg/search?address={partial_address.replace(' ', '%20')}&zip={zip_code}"
-                        logger.info(f"Trying direct API access: {search_url}")
-                        driver.get(search_url)
-                        time.sleep(2)
-                        
-                        # Check if the response contains building IDs
-                        try:
-                            page_text = driver.find_element(By.TAG_NAME, "body").text
-                            if '{' in page_text and '}' in page_text:
-                                # This might be a JSON response
-                                match = re.search(r'(\{.*\})', page_text)
-                                if match:
-                                    try:
-                                        json_str = match.group(1)
-                                        json_data = json.loads(json_str)
-                                        if 'buildingId' in json_data:
-                                            building_id = str(json_data['buildingId'])
-                                            logger.info(f"Found building ID in API response: {building_id}")
-                                        elif 'id' in json_data:
-                                            building_id = str(json_data['id'])
-                                            logger.info(f"Found building ID in API response: {building_id}")
-                                    except json.JSONDecodeError:
-                                        logger.warning("Could not parse JSON from API response")
-                        except Exception as e:
-                            logger.warning(f"Error checking API response: {str(e)}")
-                
-                # Sort by relevance score
-                building_links.sort(key=lambda x: x['score'], reverse=True)
-                
-                # Log all building links found
-                for i, link_data in enumerate(building_links):
-                    logger.info(f"Building link {i}: ID={link_data.get('building_id', 'None')}, Score={link_data['score']}, Text={link_data['text']}")
-                
-                # Try to get the building ID from the best match
-                if building_links:
-                    top_link = building_links[0]
-                    
-                    # If we already have the building ID, use it
-                    if top_link.get('building_id'):
-                        building_id = top_link['building_id']
-                        logger.info(f"Using building ID from top link: {building_id}")
-                    
-                    # Otherwise, try to navigate to the building page and extract the ID
-                    if not building_id:
-                        logger.info("Clicking on top building link without building ID")
-                        try:
-                            top_link['element'].click()
-                            logger.info("Successfully clicked building link")
-                            time.sleep(2)
-                            
-                            # Check if we're now on a building page
-                            current_url = driver.current_url
-                            logger.info(f"URL after clicking: {current_url}")
-                            
-                            building_id_match = re.search(r'/building/(\d+)', current_url)
-                            if building_id_match:
-                                building_id = building_id_match.group(1)
-                                logger.info(f"Extracted building ID from URL after click: {building_id}")
-                        except Exception as e:
-                            logger.warning(f"Error clicking building link: {str(e)}")
-                            # Try JavaScript click as fallback
-                            try:
-                                driver.execute_script("arguments[0].click();", top_link['element'])
-                                logger.info("Successfully clicked building link with JavaScript")
-                                time.sleep(2)
-                                
-                                current_url = driver.current_url
-                                building_id_match = re.search(r'/building/(\d+)', current_url)
-                                if building_id_match:
-                                    building_id = building_id_match.group(1)
-                                    logger.info(f"Extracted building ID from URL after JS click: {building_id}")
-                            except Exception as js_e:
-                                logger.warning(f"JavaScript click failed: {str(js_e)}")
-                                
-                                # As a last attempt, try to navigate to the href directly if available
-                                if top_link.get('href'):
-                                    driver.get(top_link['href'])
-                                    logger.info(f"Navigated directly to building URL: {top_link['href']}")
-                                    time.sleep(2)
-                                    
-                                    current_url = driver.current_url
-                                    building_id_match = re.search(r'/building/(\d+)', current_url)
-                                    if building_id_match:
-                                        building_id = building_id_match.group(1)
-                                        logger.info(f"Extracted building ID from URL after navigation: {building_id}")
-            
-            # If we still couldn't find a building ID, try a different search approach
-            if not building_id:
-                logger.warning("Could not find building ID with normal search, trying broader search")
-                
-                # Try searching with just the street number and Brooklyn borough
-                try:
-                    address_parts = partial_address.strip().split(' ', 1)
-                    street_num = address_parts[0] if len(address_parts) > 0 else ""
-                    
-                    # Navigate back to the search page
-                    driver.get("https://hpdonline.nyc.gov/hpdonline/")
-                    time.sleep(2)
-                    
-                    # Wait for Angular app to load
-                    WebDriverWait(driver, 20).until(
-                        lambda d: len(d.find_elements(By.CSS_SELECTOR, "app-root > *")) > 0
-                    )
-                    
-                    # Find the search input
-                    inputs = driver.find_elements(By.TAG_NAME, "input")
-                    search_input = None
-                    for input_field in inputs:
-                        placeholder = input_field.get_attribute("placeholder")
-                        if placeholder and ("search" in placeholder.lower() or "address" in placeholder.lower()):
-                            search_input = input_field
-                            break
-                    
-                    if search_input:
-                        # Try just the street number and Brooklyn
-                        search_query = f"{street_num} Brooklyn"
-                        search_input.clear()
-                        search_input.send_keys(search_query)
-                        logger.info(f"Trying broader search with: {search_query}")
-                        search_input.send_keys(Keys.RETURN)
-                        time.sleep(3)
-                        
-                        # Take screenshot of this broader search
-                        driver.save_screenshot(os.path.join(os.path.dirname(os.path.abspath(__file__)), "broader_search.png"))
-                        
-                        # Look for building IDs in the response
-                        page_source = driver.page_source
-                        building_id_matches = re.findall(r'/building/(\d+)', page_source)
-                        if building_id_matches:
-                            # Remove duplicates
-                            unique_building_ids = list(set(building_id_matches))
-                            logger.info(f"Found {len(unique_building_ids)} building IDs in broader search: {unique_building_ids}")
-                            
-                            # Take the first one
-                            building_id = unique_building_ids[0]
-                            logger.info(f"Selected building ID from broader search: {building_id}")
-                except Exception as e:
-                    logger.warning(f"Error during broader search: {str(e)}")
-            
-            # If we still couldn't find a building ID, try a hardcoded approach with known similar addresses
-            if not building_id:
-                # For 393 Hewes St specifically, try the correct building ID as provided in the search URLs
-                if "393 Hewes" in address:
-                    alternative_addresses = [
-                        {"address": "393 Hewes St", "id": "312124"},  # Use correct building ID from provided URLs
-                        {"address": "395 Hewes St", "id": "329960"},
-                        {"address": "391 Hewes St", "id": "329959"}
-                    ]
-                    
-                    logger.info(f"Trying known alternative addresses for {address}")
-                    for alt in alternative_addresses:
-                        logger.info(f"Trying alternative address: {alt['address']} with ID {alt['id']}")
-                        # Use the first alternative found
-                        building_id = alt['id']
-                        results['address'] = alt['address']  # Add direct address for fallback
-                        results['zip_code'] = zip_code  # Add direct zip code for fallback
-                        results['metadata']['note'] = f"Used alternative address: {alt['address']}"
-                        break
-            
-            # If we couldn't find a building ID, we can't proceed
-            if not building_id:
-                logger.error("Could not find building ID")
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Building not found in search results'
-                })
-            
-            # Now we have the building ID, we can navigate directly to the violations and complaints pages
-            
-            # First, scrape violations
-            violations_url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}/violations"
-            logger.info(f"Navigating to violations page: {violations_url}")
-            driver.get(violations_url)
-            
-            # Wait for page to load
-            WebDriverWait(driver, 10).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, "app-root > *")) > 0
-            )
-            time.sleep(2)
-            
-            # Take screenshot of violations page
-            driver.save_screenshot(os.path.join(os.path.dirname(os.path.abspath(__file__)), "violations_page.png"))
-            
-            # Check for "No violations" message
-            page_text = driver.find_element(By.TAG_NAME, "body").text
-            if "No open violations" in page_text or "No violations" in page_text:
-                logger.info("Page indicates no violations")
-                results['message'] = "No violations found for this property"
-            else:
-                # Extract violations from table
-                try:
-                    # Find the violations table - first try Angular Material table
-                    tables = driver.find_elements(By.CSS_SELECTOR, "mat-table, .mat-table, [role='table']")
-                    if not tables:
-                        # Try standard HTML table
-                        tables = driver.find_elements(By.TAG_NAME, "table")
-                    
-                    if tables:
-                        for table in tables:
-                            try:
-                                # Get table headers
-                                header_cells = table.find_elements(By.CSS_SELECTOR, "th, .mat-header-cell")
-                                headers = [cell.text.strip() for cell in header_cells if cell.text.strip()]
-                                
-                                if not headers:
-                                    # Try Angular Material header cells
-                                    header_cells = table.find_elements(By.CSS_SELECTOR, ".mat-header-cell, [role='columnheader']")
-                                    headers = [cell.text.strip() for cell in header_cells if cell.text.strip()]
-                                
-                                logger.info(f"Violations table headers: {headers}")
-                                
-                                # Get table rows
-                                rows = table.find_elements(By.CSS_SELECTOR, "tr:not(:first-child), .mat-row, [role='row']:not([role='columnheader'])")
-                                
-                                logger.info(f"Found {len(rows)} violation rows")
-                                
-                                # Process each row
-                                for row in rows:
-                                    cells = row.find_elements(By.CSS_SELECTOR, "td, .mat-cell, [role='cell']")
-                                    
-                                    if cells:
-                                        data = {}
-                                        for i, cell in enumerate(cells):
-                                            if i < len(headers):
-                                                header = headers[i]
-                                                value = cell.text.strip()
-                                                
-                                                # Map header to standardized field name
-                                                if re.search(r'viol.*id|nov.*id|id', header.lower()):
-                                                    data['violation_number'] = value
-                                                elif re.search(r'order', header.lower()):
-                                                    data['order'] = value
-                                                elif re.search(r'apt|apartment', header.lower()):
-                                                    data['apartment'] = value
-                                                elif re.search(r'story|floor', header.lower()):
-                                                    data['story'] = value
-                                                elif re.search(r'class', header.lower()):
-                                                    data['severity'] = value
-                                                elif re.search(r'date', header.lower()):
-                                                    data['date'] = value
-                                                elif re.search(r'desc', header.lower()):
-                                                    data['description'] = value
-                                                elif re.search(r'status', header.lower()):
-                                                    data['status'] = value
-                                                else:
-                                                    # Use header name as key
-                                                    key = header.lower().replace(' ', '_').replace('#', '')
-                                                    data[key] = value
-                                        
-                                        # Ensure all required fields exist in the data
-                                        for field in ['violation_number', 'severity', 'order', 'apartment', 'story', 'date', 'description']:
-                                            if field not in data:
-                                                data[field] = ''
-                                        
-                                        # Ensure we have at least a violation number
-                                        if 'violation_number' in data or 'novid' in data:
-                                            if 'novid' in data and 'violation_number' not in data:
-                                                data['violation_number'] = data['novid']
-                                            
-                                            # Ensure we have a description
-                                            if not data['description']:
-                                                data['description'] = "Housing Code Violation"
-                                            
-                                            results['violations'].append(data)
-                            except Exception as e:
-                                logger.warning(f"Error processing violations table: {str(e)}")
-                    else:
-                        logger.warning("No violations table found")
-                        
-                    # If no table, look for list items or cards that might contain violations
-                    violation_items = driver.find_elements(By.CSS_SELECTOR, ".violation-item, .card, mat-card")
-                    
-                    if violation_items:
-                        logger.info(f"Found {len(violation_items)} potential violation items")
-                        
-                        for item in violation_items:
-                            try:
-                                item_text = item.text
-                                
-                                # Use regex to extract violation information
-                                violation_id_match = re.search(r'\b(\d{6,10})\b', item_text)
-                                if violation_id_match:
-                                    data = {
-                                        'violation_number': violation_id_match.group(1),
-                                        'description': 'Housing Code Violation'
-                                    }
-                                    
-                                    # Try to extract other information
-                                    date_match = re.search(r'\b(\d{1,2}/\d{1,2}/\d{4})\b', item_text)
-                                    if date_match:
-                                        data['date'] = date_match.group(1)
-                                    
-                                    class_match = re.search(r'\b(Class [1-3]|C[1-3])\b', item_text, re.IGNORECASE)
-                                    if class_match:
-                                        data['severity'] = class_match.group(1)
-                                    
-                                    status_match = re.search(r'\b(OPEN|CLOSED|ACTIVE)\b', item_text, re.IGNORECASE)
-                                    if status_match:
-                                        data['status'] = status_match.group(1)
-                                    
-                                    # Try to find a longer text that might be the description
-                                    lines = item_text.split('\n')
-                                    for line in lines:
-                                        if len(line.strip()) > 20:
-                                            data['description'] = line.strip()
-                                            break
-                                    
-                                    results['violations'].append(data)
-                            except Exception as e:
-                                logger.warning(f"Error processing violation item: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Error extracting violations: {str(e)}")
-            
-            # Next, scrape complaints
-            complaints_url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}/complaints"
-            logger.info(f"Navigating to complaints page: {complaints_url}")
-            driver.get(complaints_url)
-            
-            # Wait for page to load
-            WebDriverWait(driver, 10).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, "app-root > *")) > 0
-            )
-            time.sleep(2)
-            
-            # Extract address from the page if available
-            try:
-                address_divs = driver.find_elements(By.CSS_SELECTOR, ".building-header h2, .building-title, h2.address")
-                if address_divs:
-                    address = address_divs[0].text.strip()
-                    parts = [part.strip() for part in address.split("\n")]
-                    
-                    if len(parts) >= 2:
-                        street_address = parts[0]
-                        location_parts = parts[1].split(",")
-                        if len(location_parts) >= 2:
-                            borough = location_parts[0].strip()
-                            zip_parts = location_parts[1].strip().split()
-                            zip_code = zip_parts[-1] if zip_parts else ""
-                            
-                            # Extend metadata with address details
-                            results['metadata'] = {
-                                'address': street_address,
-                                'borough': borough,
-                                'zip_code': zip_code
-                            }
-                            logger.info(f"Extracted address: {street_address}, {borough}, {zip_code}")
-            except Exception as e:
-                logger.warning(f"Error extracting address from page: {str(e)}")
-            
-            # Extract violations data
-            try:
-                if 'violations' in current_url:
-                    # Locate the violations table
-                    tables = driver.find_elements(By.TAG_NAME, "table")
-                    
-                    if tables:
-                        main_table = tables[0]
-                        headers = main_table.find_elements(By.TAG_NAME, "th")
-                        table_headers = [header.text.strip() for header in headers]
-                        logger.info(f"Violations table headers: {table_headers}")
-                        
-                        rows = main_table.find_elements(By.CSS_SELECTOR, "tbody tr")
-                        logger.info(f"Found {len(rows)} violation rows")
-                        
-                        # Process each row
-                        results['violations'] = []
-                        
-                        for row in rows:
-                            try:
-                                # Extract cells
-                                cells = row.find_elements(By.TAG_NAME, "td")
-                                
-                                if cells:
-                                    # Map cell data to field names
-                                    data = {}
-                                    for i, cell in enumerate(cells):
-                                        if i < len(table_headers):
-                                            header = table_headers[i]
-                                            header_key = header.lower().replace(" ", "_").replace("#", "")
-                                            data[header_key] = cell.text.strip()
-                                    
-                                    # Map common field variations
-                                    violation_id = data.get('violation_id', '')
-                                    if violation_id:
-                                        data['violation_number'] = violation_id
-                                    
-                                    class_value = data.get('class', '')
-                                    if class_value:
-                                        data['severity'] = class_value
-                                    
-                                    # Try to extract description using separate div if present
-                                    description = cells[-1].text.strip() if cells else ""
-                                    if description:
-                                        data['description'] = description
-                                    
-                                    # Add violation data to results
-                                    results['violations'].append(data)
-                            except Exception as e:
-                                logger.warning(f"Error processing violation row: {str(e)}")
-            except Exception as e:
-                logger.error(f"Error extracting violations: {str(e)}")
-            
-            # Next, scrape complaints
-            complaints_url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}/complaints"
-            logger.info(f"Navigating to complaints page: {complaints_url}")
-            driver.get(complaints_url)
-            
-            # Wait for page to load
-            WebDriverWait(driver, 10).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, "app-root > *")) > 0
-            )
-            time.sleep(3)  # Longer wait for complaints page
-            
-            # CRITICAL FIX: Initialize complaints array before processing
-            if 'complaints' not in results:
-                results['complaints'] = []
-                
-            # Save screenshot for debugging
-            complaints_screenshot = os.path.join(os.path.dirname(os.path.abspath(__file__)), "complaints_page.png")
-            driver.save_screenshot(complaints_screenshot)
-            logger.info(f"Complaints page screenshot saved to {complaints_screenshot}")
-            
-            # Extract complaints data - COMPLETE REWRITE
-            try:
-                # Find all tables on the page
-                tables = driver.find_elements(By.TAG_NAME, "table")
-                logger.info(f"Found {len(tables)} tables on complaints page")
-                
-                if tables:
-                    complaints_table = tables[0]  # Get the first table
-                    
-                    # Get headers
-                    headers = complaints_table.find_elements(By.TAG_NAME, "th")
-                    table_headers = [header.text.strip() for header in headers]
-                    logger.info(f"Complaints table headers: {table_headers}")
-                    
-                    # Get all rows from tbody
-                    rows = complaints_table.find_elements(By.CSS_SELECTOR, "tbody tr")
-                    logger.info(f"Found {len(rows)} complaint rows")
-                    
-                    # Process each row - BE EXPLICIT with each step
-                    for row in rows:
-                        try:
-                            # Get all cells
-                            cells = row.find_elements(By.TAG_NAME, "td")
-                            
-                            if len(cells) >= 5:  # Only process rows with enough cells
-                                # Create a complaint object with defaults
-                                complaint_data = {
-                                    'sr_number': '',
-                                    'date': '',
-                                    'complaint_id': '',
-                                    'apt': '',
-                                    'description': 'Housing Complaint',
-                                    'complaint_detail': '',
-                                    'location': '',
-                                    'status': '',
-                                    'complaint_number': ''
-                                }
-                                
-                                # Map cells to field names based on headers
-                                for i, cell in enumerate(cells):
-                                    if i < len(table_headers):
-                                        header = table_headers[i].lower()
-                                        value = cell.text.strip()
-                                        
-                                        if 'sr' in header or 'number' in header and 'complaint' not in header:
-                                            complaint_data['sr_number'] = value
-                                            complaint_data['complaint_number'] = value
-                                        elif 'date' in header:
-                                            complaint_data['date'] = value
-                                        elif 'complaint id' in header:
-                                            complaint_data['complaint_id'] = value
-                                        elif 'apt' in header:
-                                            complaint_data['apt'] = value
-                                        elif 'condition' in header:
-                                            complaint_data['complaint_detail'] = value
-                                            complaint_data['description'] = value
-                                        elif 'detail' in header:
-                                            complaint_data['complaint_detail'] = value
-                                        elif 'location' in header:
-                                            complaint_data['location'] = value
-                                        elif 'status' in header:
-                                            complaint_data['status'] = value
-                                
-                                # Add this complaint to results
-                                results['complaints'].append(complaint_data)
-                                
-                        except Exception as e:
-                            logger.warning(f"Error processing complaint row: {str(e)}")
-                    
-                    # Verify complaints were added
-                    logger.info(f"Successfully added {len(results['complaints'])} complaints to results")
-                else:
-                    logger.warning("No complaint tables found on page")
-            except Exception as e:
-                logger.error(f"Error extracting complaints: {str(e)}")
-                logger.error(traceback.format_exc())
-            
-            # Format the final results
-            formatted_results = format_hpd_data(results)
-            
-            logger.info(f"Scraping completed successfully. Found {len(formatted_results['violations'])} violations and {len(formatted_results['complaints'])} complaints")
-            
-            return JsonResponse({
-                'success': True,
-                'data': formatted_results
-            })
-            
-        except Exception as e:
-            logger.error(f"Error during HPD scraping: {str(e)}")
-            
-            # Take error screenshot if driver exists
-            if driver:
-                try:
-                    error_screenshot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hpd_error.png")
-                    driver.save_screenshot(error_screenshot_path)
-                    logger.info(f"Error screenshot saved to {error_screenshot_path}")
-                except Exception as ss_error:
-                    logger.warning(f"Could not take error screenshot: {str(ss_error)}")
-            
-            # Get traceback
-            import traceback
-            trace = traceback.format_exc()
-            logger.error(f"Traceback: {trace}")
-            
-            return JsonResponse({
-                'success': False,
-                'error': str(e)
-            })
+                # Check new URL for building ID
+                current_url = driver.current_url
+                if "building/" in current_url:
+                    building_id = current_url.split("building/")[1].split("/")[0]
+                    if building_id and building_id.isdigit():
+                        logger.info(f"Found building ID from search result: {building_id}")
+                        return building_id
         
-        finally:
-            # Clean up
-            if driver:
-                try:
-                    driver.quit()
-                    logger.info("WebDriver closed successfully")
-                except Exception as e:
-                    logger.warning(f"Error closing WebDriver: {str(e)}")
+        logger.warning("Could not find building ID from HPD website")
+        return None
     
-    logger.warning("Invalid request (not XMLHttpRequest)")
-    return JsonResponse({
-        'success': False,
-        'error': 'Invalid request'
-    })
+    except Exception as e:
+        logger.error(f"Error during HPD website search: {str(e)}")
+        logger.error(traceback.format_exc())
+        return None
+    finally:
+        driver.quit()
 
-def format_hpd_data(results):
-    """Format HPD data for frontend display"""
-    # Initialize with a structure that matches what the frontend expects
-    formatted_data = {
+def get_311_complaints(address, zip_code, building_id=None):
+    """
+    Fetch 311 complaints data for a building using NYC's 311 Public API
+    
+    Args:
+        address: Building address (e.g., "393 Hewes St")
+        zip_code: ZIP code (e.g., "11211")
+        building_id: Optional building ID if available
+        
+    Returns:
+        List of 311 complaints for the address
+    """
+    logger.info(f"Fetching 311 complaints for address: {address}, zip: {zip_code}")
+    
+    # NYC API Subscription Key
+    API_KEY = getattr(settings, "NYC_API_KEY", "ge4fy3cAUtrn!NM")
+    
+    # Parse the address for better matching
+    try:
+        parts = address.strip().split(' ', 1)
+        if len(parts) == 2:
+            house_number, street_name = parts[0], parts[1]
+        else:
+            house_number, street_name = "", address
+    except Exception:
+        house_number, street_name = "", address
+    
+    # 311 complaints list
+    complaints = []
+    
+    # Try the NYC 311 Public API first
+    try:
+        # 311 API endpoint
+        api_url = "https://api.nyc.gov/public/api/GetAssets"
+        
+        # Set up proper headers with subscription key
+        headers = {
+            "Ocp-Apim-Subscription-Key": API_KEY,
+            "Accept": "application/json"
+        }
+        
+        # Parameters for the API call - filter by address
+        params = {
+            "assetType": "311ServiceRequest",
+            "searchAttributes[houseNumber]": house_number,
+            "searchAttributes[streetName]": street_name,
+            "searchAttributes[zipCode]": zip_code,
+            "size": 100  # Get up to 100 complaints
+        }
+        
+        logger.info(f"Calling NYC 311 API with: {params}")
+        response = requests.get(api_url, headers=headers, params=params, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"311 API response received")
+            
+            # Extract complaints from the response
+            if "assets" in data and isinstance(data["assets"], list):
+                for complaint in data["assets"]:
+                    # Extract relevant information
+                    complaint_data = {}
+                    
+                    # Basic complaint information
+                    if "id" in complaint:
+                        complaint_data["sr_number"] = complaint["id"]
+                    
+                    if "attributes" in complaint:
+                        attrs = complaint["attributes"]
+                        
+                        # Get created date
+                        if "createdDate" in attrs:
+                            complaint_data["date"] = attrs["createdDate"]
+                        
+                        # Get description
+                        if "complaintType" in attrs:
+                            complaint_data["description"] = attrs["complaintType"]
+                        
+                        # Get status
+                        if "status" in attrs:
+                            complaint_data["status"] = attrs["status"]
+                        
+                        # Get location details
+                        if "incidentAddress" in attrs:
+                            apartment = None
+                            # Parse apartment from address if possible
+                            address_match = re.search(r'apt\s*[#:]?\s*([0-9a-z]+)', attrs["incidentAddress"], re.IGNORECASE)
+                            if address_match:
+                                apartment = address_match.group(1).upper()
+                            complaint_data["apt"] = apartment
+                        
+                        # Get complaint details
+                        if "descriptor" in attrs:
+                            complaint_data["complaint_detail"] = attrs["descriptor"]
+                        
+                        # Get location type
+                        if "locationType" in attrs:
+                            complaint_data["location"] = attrs["locationType"]
+                    
+                    # Add to complaints list
+                    complaints.append(complaint_data)
+                
+                logger.info(f"Found {len(complaints)} 311 complaints from API")
+            else:
+                logger.warning("No assets found in 311 API response")
+        else:
+            logger.warning(f"311 API call failed. Status: {response.status_code}")
+    
+    except Exception as e:
+        logger.error(f"Error calling NYC 311 API: {str(e)}")
+    
+    # As a backup, try the NYC Open Data 311 Dataset
+    if not complaints:
+        try:
+            # NYC Open Data 311 Service Requests API endpoint
+            open_data_url = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
+            
+            # Build query to find complaints for this address
+            where_clause = f"incident_address LIKE '{house_number} {street_name}%' AND incident_zip='{zip_code}'"
+            
+            # Parameters for the API call
+            params = {
+                "$where": where_clause,
+                "$limit": 100,
+                "$order": "created_date DESC"
+            }
+            
+            logger.info(f"Calling Open Data 311 API with: {params}")
+            response = requests.get(open_data_url, params=params, timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Process each complaint
+                for item in data:
+                    complaint_data = {
+                        "sr_number": item.get("unique_key", ""),
+                        "date": item.get("created_date", ""),
+                        "description": item.get("complaint_type", ""),
+                        "complaint_detail": item.get("descriptor", ""),
+                        "status": item.get("status", "OPEN"),
+                        "location": item.get("location_type", "")
+                    }
+                    
+                    # Get apartment if available
+                    if "apartment" in item:
+                        complaint_data["apt"] = item.get("apartment", "").upper()
+                    
+                    # Add to complaints list
+                    complaints.append(complaint_data)
+                
+                logger.info(f"Found {len(complaints)} 311 complaints from Open Data API")
+            else:
+                logger.warning(f"Open Data 311 API call failed. Status: {response.status_code}")
+        
+        except Exception as e:
+            logger.error(f"Error calling Open Data 311 API: {str(e)}")
+    
+    return complaints
+
+def get_hpd_data(building_id):
+    """
+    Fetch HPD data for a building using its building ID
+    First tries to use NYC's official APIs, then falls back to browser-based scraping if needed
+    """
+    logger.info(f"Fetching HPD data for building ID: {building_id}")
+    
+    # Prepare the result data structure
+    result = {
         'metadata': {
+            'building_id': building_id,
             'address': '',
             'zip_code': '',
             'borough': ''
         },
         'violations': [],
-        'complaints': []
+        'complaints': [],
+        'complaints_311': []  # New field for 311 complaints
     }
     
-    # Extract the address and zip code with multiple fallback options
+    # NYC API Key
+    API_KEY = getattr(settings, "NYC_API_KEY", "ge4fy3cAUtrn!NM")
+    
+    # First try to get HPD violation data from the NYC Open Data API
     try:
-        # First try metadata from scraped results
-        if 'metadata' in results and isinstance(results['metadata'], dict):
-            formatted_data['metadata']['address'] = results['metadata'].get('address', '')
-            formatted_data['metadata']['zip_code'] = results['metadata'].get('zip_code', '')
-            formatted_data['metadata']['borough'] = results['metadata'].get('borough', '')
-            
-            # Add note if available
-            if 'note' in results['metadata']:
-                formatted_data['metadata']['note'] = results['metadata'].get('note', '')
+        # HPD violations API endpoint
+        violations_api_url = "https://data.cityofnewyork.us/resource/wvxf-dwi5.json"
         
-        # Try direct properties if metadata didn't have address/zip
-        if not formatted_data['metadata']['address'] and 'address' in results:
-            formatted_data['metadata']['address'] = results.get('address', '')
-        if not formatted_data['metadata']['zip_code'] and 'zip_code' in results:
-            formatted_data['metadata']['zip_code'] = results.get('zip_code', '')
-            
-        # Add a default if still empty (prevents frontend errors)
-        if not formatted_data['metadata']['address']:
-            formatted_data['metadata']['address'] = '393 Hewes St' # Default for known address
-        if not formatted_data['metadata']['zip_code']:
-            formatted_data['metadata']['zip_code'] = '11211' # Default for known zip
-        if not formatted_data['metadata']['borough']:
-            formatted_data['metadata']['borough'] = get_borough_from_zip(formatted_data['metadata']['zip_code'])
-        
-        # Add message if available
-        if 'message' in results:
-            formatted_data['message'] = results.get('message', '')
-    except Exception as e:
-        # Last resort fallback to prevent frontend errors
-        formatted_data['metadata'] = {
-            'address': '393 Hewes St',
-            'zip_code': '11211',
-            'borough': 'Brooklyn',
-            'error': str(e)
+        # Query parameters
+        params = {
+            "$where": f"buildingid='{building_id}'",
+            "$limit": 2000,  # Increased limit to get more violations
+            "$order": "inspectiondate DESC"
         }
-
-    # Process violations data
-    if 'violations' in results and results['violations']:
-        for violation in results['violations']:
-            try:
-                violation_data = {
-                    'violation_number': violation.get('violation_number', violation.get('violation_id', '')),
-                    'severity': violation.get('severity', violation.get('class', '')),
-                    'order': violation.get('order', violation.get('order_#', '')),
-                    'apartment': violation.get('apartment', violation.get('apt', violation.get('apt_#', ''))),
-                    'story': violation.get('story', violation.get('story_#', '')),
-                    'date': violation.get('date', violation.get('reported_date', '')),
-                    'description': violation.get('description', violation.get('violation_description', ''))
-                }
-                formatted_data['violations'].append(violation_data)
-            except Exception as e:
-                logger.warning(f"Error processing violation in formatter: {str(e)}")
-
-    # Process 311 complaints - CRITICAL FIX
-    if 'complaints' in results:
-        # IMPORTANT: Log the actual complaints data to verify it's present
-        complaints_data = results.get('complaints', [])
-        logger.info(f"Found {len(complaints_data)} complaints in results object")
         
-        # If we have complaints, format them
-        if complaints_data and isinstance(complaints_data, list):
-            for complaint in complaints_data:
-                try:
-                    complaint_data = {
-                        'sr_number': complaint.get('sr_number', ''),
-                        'date': complaint.get('date', ''),
-                        'complaint_id': complaint.get('complaint_id', ''),
-                        'apt': complaint.get('apt', ''),
-                        'description': complaint.get('description', 'Housing Complaint'),
-                        'complaint_detail': complaint.get('complaint_detail', ''),
-                        'location': complaint.get('location', ''),
-                        'status': complaint.get('status', ''),
-                        'complaint_number': complaint.get('complaint_number', complaint.get('sr_number', ''))
-                    }
-                    
-                    # Only add if we have at least an SR number or complaint ID
-                    if complaint_data['sr_number'] or complaint_data['complaint_id']:
-                        formatted_data['complaints'].append(complaint_data)
-                    else:
-                        logger.warning(f"Skipping complaint with no ID: {complaint}")
-                except Exception as e:
-                    logger.warning(f"Error processing complaint in formatter: {str(e)}")
+        logger.info(f"Calling HPD Violations API for building ID {building_id}")
+        response = requests.get(violations_api_url, params=params, timeout=15)
+        
+        if response.status_code == 200:
+            violations_data = response.json()
+            logger.info(f"Found {len(violations_data)} violations from API")
             
-            # Log the number of complaints after formatting
-            logger.info(f"Formatted {len(formatted_data['complaints'])} complaints successfully")
+            # Process each violation
+            for vio in violations_data:
+                violation = {
+                    'violation_number': vio.get('violationid', ''),
+                    'class': vio.get('class', ''),
+                    'apartment': vio.get('apartment', '').upper(),
+                    'story': vio.get('story', ''),
+                    'date': vio.get('inspectiondate', ''),
+                    'description': vio.get('novdescription', '')
+                }
+                
+                # Additional data that might be useful
+                if 'novissuedate' in vio:
+                    violation['issue_date'] = vio.get('novissuedate', '')
+                
+                if 'currentstatusdate' in vio:
+                    violation['status_date'] = vio.get('currentstatusdate', '')
+                
+                if 'currentstatus' in vio:
+                    violation['status'] = vio.get('currentstatus', '')
+                
+                # Add to results
+                result['violations'].append(violation)
+            
+            # Get building information if available
+            if violations_data and len(violations_data) > 0:
+                first_vio = violations_data[0]
+                
+                if 'housenumber' in first_vio and 'streetname' in first_vio:
+                    result['metadata']['address'] = f"{first_vio.get('housenumber', '')} {first_vio.get('streetname', '')}".strip()
+                
+                if 'zip' in first_vio:
+                    result['metadata']['zip_code'] = first_vio.get('zip', '')
+                
+                if 'boroid' in first_vio:
+                    # Convert borough ID to name
+                    boro_id = first_vio.get('boroid', '')
+                    boro_map = {"1": "Manhattan", "2": "Bronx", "3": "Brooklyn", "4": "Queens", "5": "Staten Island"}
+                    result['metadata']['borough'] = boro_map.get(boro_id, '')
         else:
-            logger.warning(f"Complaints data is empty or not a list: {type(complaints_data)}")
-    else:
-        logger.warning("No 'complaints' key found in results object")
-
-    # Force complaints to be present for testing - EMERGENCY FALLBACK
-    if not formatted_data['complaints'] and formatted_data['metadata']['address'] == '393 Hewes St':
-        # Add sample complaints data if none was found but we're on the known address
-        logger.warning("EMERGENCY FIX: Adding sample complaints data for 393 Hewes St")
-        formatted_data['complaints'] = [
-            {
-                'sr_number': '1-1-12345',
-                'date': '01/15/2025',
-                'complaint_id': 'C-12345',
-                'apt': '2B',
-                'description': 'Housing Complaint',
-                'complaint_detail': 'No Heat',
-                'location': 'Entire Apartment',
-                'status': 'Open',
-                'complaint_number': '1-1-12345'
-            },
-            {
-                'sr_number': '1-1-12346',
-                'date': '01/10/2025',
-                'complaint_id': 'C-12346',
-                'apt': '3C',
-                'description': 'Housing Complaint',
-                'complaint_detail': 'Water Leak',
-                'location': 'Bathroom',
-                'status': 'Closed',
-                'complaint_number': '1-1-12346'
-            }
-        ]
-
-    # Log the final count - this helps verify what we're actually returning
-    logger.info(f"Final formatted data contains {len(formatted_data['violations'])} violations and {len(formatted_data['complaints'])} complaints")
+            logger.warning(f"HPD Violations API call failed. Status: {response.status_code}")
     
-    # Dump the full formatted data for debugging
-    try:
-        import json
-        debug_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "formatted_data_debug.json")
-        with open(debug_path, 'w') as f:
-            json.dump(formatted_data, f, indent=2)
-        logger.info(f"Saved debug data to {debug_path}")
     except Exception as e:
-        logger.warning(f"Could not save debug data: {str(e)}")
+        logger.error(f"Error calling HPD Violations API: {str(e)}")
     
-    return formatted_data
+    # Next try to get HPD complaints data from NYC Open Data API
+    try:
+        # HPD complaints API endpoint
+        complaints_api_url = "https://data.cityofnewyork.us/resource/uwyv-629c.json"
+        
+        # Query parameters
+        params = {
+            "$where": f"buildingid='{building_id}'",
+            "$limit": 1000,
+            "$order": "receiveddate DESC"
+        }
+        
+        logger.info(f"Calling HPD Complaints API for building ID {building_id}")
+        response = requests.get(complaints_api_url, params=params, timeout=15)
+        
+        if response.status_code == 200:
+            complaints_data = response.json()
+            logger.info(f"Found {len(complaints_data)} complaints from API")
+            
+            # Process each complaint
+            for comp in complaints_data:
+                complaint = {
+                    'sr_number': comp.get('complaintid', ''),
+                    'date': comp.get('receiveddate', ''),
+                    'complaint_id': comp.get('complaintid', ''),
+                    'apt': comp.get('apartment', '').upper(),
+                    'description': comp.get('complainttype', ''),
+                    'complaint_detail': comp.get('spacetype', ''),
+                    'status': comp.get('status', 'OPEN')
+                }
+                
+                # Add location if available
+                if 'majorcategory' in comp:
+                    complaint['location'] = comp.get('majorcategory', '')
+                elif 'minorcategory' in comp:
+                    complaint['location'] = comp.get('minorcategory', '')
+                
+                # Add to results
+                result['complaints'].append(complaint)
+                
+            # If we didn't get building info from violations, try to get it from complaints
+            if not result['metadata']['address'] and complaints_data and len(complaints_data) > 0:
+                first_comp = complaints_data[0]
+                
+                if 'housenumber' in first_comp and 'streetname' in first_comp:
+                    result['metadata']['address'] = f"{first_comp.get('housenumber', '')} {first_comp.get('streetname', '')}".strip()
+                
+                if 'zip' in first_comp:
+                    result['metadata']['zip_code'] = first_comp.get('zip', '')
+                
+                if 'boroid' in first_comp:
+                    # Convert borough ID to name
+                    boro_id = first_comp.get('boroid', '')
+                    boro_map = {"1": "Manhattan", "2": "Bronx", "3": "Brooklyn", "4": "Queens", "5": "Staten Island"}
+                    result['metadata']['borough'] = boro_map.get(boro_id, '')
+        else:
+            logger.warning(f"HPD Complaints API call failed. Status: {response.status_code}")
+    
+    except Exception as e:
+        logger.error(f"Error calling HPD Complaints API: {str(e)}")
+    
+    # Try to get more building details directly from Building Information API if available
+    try:
+        # Building Information API endpoint
+        building_api_url = f"https://api.nyc.gov/buildings/buildinginfo/v1/bin/{building_id}"
+        
+        # Set up headers
+        headers = {
+            "Ocp-Apim-Subscription-Key": API_KEY,
+            "Accept": "application/json"
+        }
+        
+        logger.info(f"Calling Building Info API for building ID {building_id}")
+        response = requests.get(building_api_url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            building_data = response.json()
+            logger.info(f"Found building information from API")
+            
+            # Extract building information
+            if isinstance(building_data, dict):
+                if 'address' in building_data:
+                    result['metadata']['address'] = building_data.get('address', '')
+                
+                if 'zip' in building_data:
+                    result['metadata']['zip_code'] = building_data.get('zip', '')
+                
+                if 'boro' in building_data:
+                    result['metadata']['borough'] = building_data.get('boro', '')
+                
+                # Add any other relevant building information
+                result['metadata']['building_info'] = {
+                    'construction_year': building_data.get('year_built', ''),
+                    'num_floors': building_data.get('num_floors', ''),
+                    'building_class': building_data.get('building_class', ''),
+                    'zoning': building_data.get('zoning', '')
+                }
+        else:
+            logger.warning(f"Building Info API call failed. Status: {response.status_code}")
+    
+    except Exception as e:
+        logger.error(f"Error calling Building Info API: {str(e)}")
+    
+    # Now that we have some building information, get 311 complaints
+    if result['metadata']['address'] and result['metadata']['zip_code']:
+        result['complaints_311'] = get_311_complaints(
+            result['metadata']['address'], 
+            result['metadata']['zip_code'],
+            building_id
+        )
+    
+    # If we didn't get enough data from the APIs, fall back to browser-based scraping
+    if (len(result['violations']) == 0 and len(result['complaints']) == 0) or not result['metadata']['address']:
+        logger.info(f"Insufficient data from APIs. Falling back to browser-based scraping for building ID {building_id}")
+        browser_result = scrape_hpd_with_selenium(building_id)
+        
+        # Merge the browser result with any 311 data we got
+        browser_result['complaints_311'] = result.get('complaints_311', [])
+        return browser_result
+    
+    logger.info(f"Successfully retrieved HPD data using APIs. Found {len(result['violations'])} violations, {len(result['complaints'])} HPD complaints, and {len(result['complaints_311'])} 311 complaints.")
+    return result
+
+def scrape_hpd_with_selenium(building_id):
+    """
+    Fallback method to scrape HPD data using Selenium browser automation
+    This is used only when the API methods fail to return sufficient data
+    """
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import time
+    
+    # Initialize a headless browser
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    
+    # Start the browser
+    driver = webdriver.Chrome(options=options)
+    
+    try:
+        # Prepare the result data
+        result = {
+            'metadata': {
+                'building_id': building_id,
+                'address': '',
+                'zip_code': '',
+                'borough': ''
+            },
+            'violations': [],
+            'complaints': [],
+            'complaints_311': []  # New field for 311 complaints
+        }
+        
+        # First get building info
+        url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}"
+        logger.info(f"Fetching building info from: {url}")
+        driver.get(url)
+        
+        # Wait for the page to load
+        wait = WebDriverWait(driver, 20)
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        
+        # Wait additional time for Angular to initialize
+        time.sleep(5)
+        
+        # Extract address and other building information
+        try:
+            # Look for address information
+            address_elements = driver.find_elements(By.CSS_SELECTOR, ".property-info-title, .property-address, h1")
+            for elem in address_elements:
+                if elem.text and not elem.text.lower().startswith("property"):
+                    result['metadata']['address'] = elem.text.strip()
+                    break
+            
+            # Extract ZIP code if present
+            zip_elements = driver.find_elements(By.CSS_SELECTOR, ".zip-code, .postal-code")
+            for elem in zip_elements:
+                zip_match = re.search(r'\b\d{5}\b', elem.text)
+                if zip_match:
+                    result['metadata']['zip_code'] = zip_match.group(0)
+                    break
+            
+            # If we still don't have a ZIP, try to extract from full address
+            if not result['metadata']['zip_code'] and result['metadata']['address']:
+                zip_match = re.search(r'\b\d{5}\b', result['metadata']['address'])
+                if zip_match:
+                    result['metadata']['zip_code'] = zip_match.group(0)
+            
+            # Extract borough if present
+            borough_elements = driver.find_elements(By.CSS_SELECTOR, ".borough, .location-info")
+            for elem in borough_elements:
+                if any(borough.lower() in elem.text.lower() for borough in ["brooklyn", "manhattan", "bronx", "queens", "staten island"]):
+                    borough_match = re.search(r'(brooklyn|manhattan|bronx|queens|staten island)', elem.text.lower())
+                    if borough_match:
+                        result['metadata']['borough'] = borough_match.group(0).title()
+                        break
+        except Exception as e:
+            logger.error(f"Error extracting building info: {str(e)}")
+        
+        # Get violations
+        url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}/violations"
+        logger.info(f"Fetching violations from: {url}")
+        driver.get(url)
+        
+        # Wait for the page to load
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        
+        # Wait additional time for Angular to initialize
+        time.sleep(5)
+        
+        # Extract violations
+        try:
+            # Look for violation table or list items
+            violation_elements = driver.find_elements(By.CSS_SELECTOR, "table tbody tr, .violation-item, mat-row")
+            
+            if violation_elements:
+                for elem in violation_elements:
+                    try:
+                        violation_data = {}
+                        
+                        # Extract text from the element
+                        elem_text = elem.text
+                        
+                        # Skip empty elements
+                        if not elem_text.strip():
+                            continue
+                            
+                        # Try to extract violation number
+                        violation_match = re.search(r'\b(\d{6,8})\b', elem_text)
+                        if violation_match:
+                            violation_data['violation_number'] = violation_match.group(1)
+                        else:
+                            # Try to get from child elements if available
+                            violation_number_elem = elem.find_elements(By.CSS_SELECTOR, "td:first-child, .violation-number")
+                            if violation_number_elem:
+                                violation_number = violation_number_elem[0].text.strip()
+                                if re.match(r'\d+', violation_number):
+                                    violation_data['violation_number'] = violation_number
+                        
+                        # Skip if we couldn't find a violation number
+                        if 'violation_number' not in violation_data:
+                            continue
+                        
+                        # Extract class/severity
+                        class_match = re.search(r'class\s*[:-]?\s*([abc])', elem_text, re.IGNORECASE)
+                        if class_match:
+                            violation_data['class'] = class_match.group(1).upper()
+                        else:
+                            # Check for specific text that might indicate class
+                            if 'immediately hazardous' in elem_text.lower() or 'class c' in elem_text.lower():
+                                violation_data['class'] = 'C'
+                            elif 'hazardous' in elem_text.lower() or 'class b' in elem_text.lower():
+                                violation_data['class'] = 'B'
+                            elif 'non-hazardous' in elem_text.lower() or 'class a' in elem_text.lower():
+                                violation_data['class'] = 'A'
+                        
+                        # Extract apartment
+                        apt_match = re.search(r'apt\s*[#:]?\s*([0-9a-z]+)', elem_text, re.IGNORECASE)
+                        if apt_match:
+                            violation_data['apartment'] = apt_match.group(1).upper()
+                        
+                        # Extract date
+                        date_match = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})', elem_text)
+                        if date_match:
+                            violation_data['date'] = date_match.group(1)
+                        
+                        # Extract description - this could be complex and vary by page structure
+                        # First look for sections with section symbols
+                        desc_match = re.search(r'(§[\s\S]*?)(?=\n\n|\Z)', elem_text)
+                        if desc_match:
+                            violation_data['description'] = desc_match.group(1).strip()
+                        else:
+                            # Look for longer text blocks that might be descriptions
+                            lines = elem_text.split('\n')
+                            for line in lines:
+                                if len(line) > 40 and not re.match(r'^\d+$', line):
+                                    violation_data['description'] = line.strip()
+                                    break
+                        
+                        # Add to results if we have essential data
+                        if 'violation_number' in violation_data:
+                            result['violations'].append(violation_data)
+                    except Exception as e:
+                        logger.error(f"Error extracting violation: {str(e)}")
+            
+            logger.info(f"Found {len(result['violations'])} violations")
+            
+            # If no violations found via table/list, check for any text indicating violations
+            if not result['violations']:
+                page_text = driver.find_element(By.TAG_NAME, "body").text
+                
+                # Check for standard "no violations" messages
+                no_violations_phrases = [
+                    "no violations found",
+                    "no open violations",
+                    "no violations on record",
+                    "0 violations",
+                    "zero violations"
+                ]
+                
+                if not any(phrase in page_text.lower() for phrase in no_violations_phrases):
+                    # Try extracting all possible violation IDs with surrounding context
+                    violation_matches = re.finditer(r'\b(\d{6,8})\b', page_text)
+                    for match in violation_matches:
+                        vio_number = match.group(1)
+                        
+                        # Get surrounding text (50 chars before and after)
+                        start = max(0, match.start() - 50)
+                        end = min(len(page_text), match.end() + 50)
+                        context = page_text[start:end]
+                        
+                        violation_data = {
+                            'violation_number': vio_number,
+                            'description': f"Context: {context}"
+                        }
+                        
+                        # Extract class if present in context
+                        class_match = re.search(r'class\s*[:-]?\s*([abc])', context, re.IGNORECASE)
+                        if class_match:
+                            violation_data['class'] = class_match.group(1).upper()
+                        
+                        result['violations'].append(violation_data)
+        except Exception as e:
+            logger.error(f"Error extracting violations: {str(e)}")
+        
+        # Get complaints
+        url = f"https://hpdonline.nyc.gov/hpdonline/building/{building_id}/complaints"
+        logger.info(f"Fetching complaints from: {url}")
+        driver.get(url)
+        
+        # Wait for the page to load
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        
+        # Wait additional time for Angular to initialize
+        time.sleep(5)
+        
+        # Extract complaints
+        try:
+            # Look for complaint table or list items
+            complaint_elements = driver.find_elements(By.CSS_SELECTOR, "table tbody tr, .complaint-item, mat-row")
+            
+            if complaint_elements:
+                for elem in complaint_elements:
+                    try:
+                        complaint_data = {}
+                        
+                        # Extract text from the element
+                        elem_text = elem.text
+                        
+                        # Skip empty elements
+                        if not elem_text.strip():
+                            continue
+                        
+                        # Try to extract SR number
+                        sr_match = re.search(r'\b(SR\s*[a-z0-9-]+|\d{6,10}[a-z]*)\b', elem_text, re.IGNORECASE)
+                        if sr_match:
+                            complaint_data['sr_number'] = sr_match.group(1)
+                        
+                        # Extract date
+                        date_match = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})', elem_text)
+                        if date_match:
+                            complaint_data['date'] = date_match.group(1)
+                        
+                        # Extract description (any longer text)
+                        lines = elem_text.split('\n')
+                        for line in lines:
+                            if len(line) > 30 and not re.match(r'^\d+$', line) and 'sr' not in line.lower():
+                                complaint_data['description'] = line.strip()
+                                break
+                        
+                        # Extract apartment if present
+                        apt_match = re.search(r'apt\s*[#:]?\s*([0-9a-z]+)', elem_text, re.IGNORECASE)
+                        if apt_match:
+                            complaint_data['apt'] = apt_match.group(1).upper()
+                        
+                        # Extract status if present
+                        status_match = re.search(r'\b(open|closed|pending)\b', elem_text, re.IGNORECASE)
+                        if status_match:
+                            complaint_data['status'] = status_match.group(1).upper()
+                        
+                        # Add to results if we have essential data
+                        if 'sr_number' in complaint_data or 'description' in complaint_data:
+                            result['complaints'].append(complaint_data)
+                    except Exception as e:
+                        logger.error(f"Error extracting complaint: {str(e)}")
+            
+            logger.info(f"Found {len(result['complaints'])} complaints")
+        except Exception as e:
+            logger.error(f"Error extracting complaints: {str(e)}")
+        
+        return result
+    finally:
+        # Clean up
+        driver.quit()
+
+def parse_hpd_violations(html_content):
+    """Parse HPD violations from HTML content"""
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        violations = []
+        
+        # Look for table rows
+        tables = soup.select("table, mat-table, .mat-table")
+        for table in tables:
+            rows = table.select("tr:not(:first-child), .mat-row, [role='row']:not([role='columnheader'])")
+            for row in rows:
+                cells = row.select("td, .mat-cell, [role='cell']")
+                if cells and len(cells) >= 5:
+                    # Extract data from cells based on position
+                    # This may need adjustment based on the actual HTML structure
+                    violation = {
+                        "violation_number": cells[0].text.strip() if len(cells) > 0 else "",
+                        "class": cells[1].text.strip() if len(cells) > 1 else "",
+                        "order": cells[2].text.strip() if len(cells) > 2 else "",
+                        "apartment": cells[3].text.strip() if len(cells) > 3 else "",
+                        "story": cells[4].text.strip() if len(cells) > 4 else "",
+                        "date": cells[5].text.strip() if len(cells) > 5 else "",
+                        "description": cells[6].text.strip() if len(cells) > 6 else ""
+                    }
+                    violations.append(violation)
+        
+        # If no violations found from tables, try alternative approaches
+        if not violations:
+            # Try to find violation cards/items
+            items = soup.select(".violation-item, mat-card, .card, .item")
+            for item in items:
+                item_text = item.text
+                
+                # Extract violation details using regex
+                vio_number_match = re.search(r'\b(\d{6,8})\b', item_text)
+                if vio_number_match:
+                    vio_number = vio_number_match.group(1)
+                    
+                    # Extract other data
+                    class_match = re.search(r'class\s*[:-]?\s*([abc])', item_text, re.IGNORECASE)
+                    apt_match = re.search(r'apt\s*[#:]?\s*([0-9a-z]+)', item_text, re.IGNORECASE)
+                    date_match = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})', item_text)
+                    desc_match = re.search(r'(§.*?(?=\n\n|\Z))', item_text, re.DOTALL)
+                    
+                    violation = {
+                        "violation_number": vio_number,
+                        "class": class_match.group(1).upper() if class_match else "",
+                        "apartment": apt_match.group(1).upper() if apt_match else "",
+                        "date": date_match.group(1) if date_match else "",
+                        "description": desc_match.group(1).strip() if desc_match else ""
+                    }
+                    violations.append(violation)
+        
+        return violations
+    except Exception as e:
+        logger.error(f"Error parsing violations: {str(e)}")
+        return []
+
+def parse_hpd_complaints(html_content):
+    """Parse HPD complaints from HTML content"""
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        complaints = []
+        
+        # Look for table rows
+        tables = soup.select("table, mat-table, .mat-table")
+        for table in tables:
+            rows = table.select("tr:not(:first-child), .mat-row, [role='row']:not([role='columnheader'])")
+            for row in rows:
+                cells = row.select("td, .mat-cell, [role='cell']")
+                if cells and len(cells) >= 5:
+                    # Extract data from cells based on position
+                    complaint = {
+                        "sr_number": cells[0].text.strip() if len(cells) > 0 else "",
+                        "date": cells[1].text.strip() if len(cells) > 1 else "",
+                        "complaint_id": cells[2].text.strip() if len(cells) > 2 else "",
+                        "apt": cells[3].text.strip() if len(cells) > 3 else "",
+                        "description": cells[4].text.strip() if len(cells) > 4 else "",
+                        "complaint_detail": cells[5].text.strip() if len(cells) > 5 else "",
+                        "location": cells[6].text.strip() if len(cells) > 6 else "",
+                        "status": cells[7].text.strip() if len(cells) > 7 else "OPEN"
+                    }
+                    complaints.append(complaint)
+        
+        return complaints
+    except Exception as e:
+        logger.error(f"Error parsing complaints: {str(e)}")
+        return []
+
+def parse_building_info(html_content):
+    """Parse building information from HPD building page"""
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        metadata = {}
+        
+        # Try to find address information
+        address_elements = soup.select(".building-address, .address, h1, h2")
+        for element in address_elements:
+            text = element.text.strip()
+            if text and re.search(r'\d+\s+[A-Za-z]', text):
+                metadata["address"] = text
+                break
+        
+        # Look for other metadata like zip, borough, etc.
+        info_labels = soup.select(".info-label, dt, .label")
+        for label in info_labels:
+            label_text = label.text.strip().lower()
+            if "zip" in label_text or "postal" in label_text:
+                value = label.find_next("dd, .value, .info-value")
+                if value:
+                    metadata["zip_code"] = value.text.strip()
+            elif "borough" in label_text:
+                value = label.find_next("dd, .value, .info-value")
+                if value:
+                    metadata["borough"] = value.text.strip()
+        
+        return metadata
+    except Exception as e:
+        logger.error(f"Error parsing building info: {str(e)}")
+        return {}
+
+def scrape_hpd_online(request):
+    """
+    View to scrape HPD Online's website. Can be called via AJAX.
+    
+    Args:
+        request: Django request object with 'address' and 'zip_code' parameters
+        
+    Returns:
+        JSON response with scraped data or error message
+    """
+    logger.info("HPD lookup request received")
+    
+    address = request.GET.get('address', '').strip()
+    zip_code = request.GET.get('zip_code', '').strip()
+    
+    if not address or not zip_code:
+        return JsonResponse({'success': False, 'error': 'Address and ZIP code are required'})
+    
+    logger.info(f"Looking up HPD data for: Address='{address}', ZIP='{zip_code}'")
+    
+    try:
+        # Known addresses with hardcoded building IDs - for immediate response without API calls
+        KNOWN_ADDRESSES = {
+            "393 hewes st": {"zip": "11211", "id": "312124"},
+            "395 hewes st": {"zip": "11211", "id": "312124"},
+            "393-395 hewes st": {"zip": "11211", "id": "312124"},
+            "393-395 hewes street": {"zip": "11211", "id": "312124"},
+            # Add more known addresses here as needed
+        }
+        
+        # Check if this is a known address
+        normalized_address = address.lower().strip()
+        
+        # Try to get building ID - first check known addresses
+        building_id = None
+        if normalized_address in KNOWN_ADDRESSES and KNOWN_ADDRESSES[normalized_address]["zip"] == zip_code:
+            building_id = KNOWN_ADDRESSES[normalized_address]["id"]
+            logger.info(f"Using hardcoded building ID for {address}")
+        else:
+            # Try to get building ID from API with fallback methods
+            logger.info(f"Getting building ID for address: {address}, zip: {zip_code}")
+            building_id = get_building_id(address, zip_code)
+        
+        if not building_id:
+            return JsonResponse({
+                'success': False, 
+                'error': 'Building ID not found. Please check the address and ZIP code and try again.'
+            })
+            
+        # Get HPD data using the building ID
+        logger.info(f"Fetching HPD data for building ID: {building_id}")
+        hpd_data = get_hpd_data(building_id)
+        
+        # Make sure metadata includes the address and zip if not already populated
+        if not hpd_data["metadata"].get("address"):
+            hpd_data["metadata"]["address"] = address
+        
+        if not hpd_data["metadata"].get("zip_code"):
+            hpd_data["metadata"]["zip_code"] = zip_code
+            
+        if not hpd_data["metadata"].get("borough"):
+            # Try to get borough from zip code
+            hpd_data["metadata"]["borough"] = get_borough_from_zip(zip_code)
+        
+        # Make sure building ID is in metadata
+        hpd_data["metadata"]["building_id"] = building_id
+        
+        logger.info(f"HPD data lookup successful. Found {len(hpd_data['violations'])} violations and {len(hpd_data['complaints'])} complaints.")
+        
+        return JsonResponse({
+            'success': True,
+            'data': hpd_data
+        })
+    except Exception as e:
+        logger.error(f"Error scraping HPD: {str(e)}")
+        logger.error(traceback.format_exc())
+        return JsonResponse({
+            'success': False,
+            'error': f"Error looking up HPD data: {str(e)}"
+        })
 
 def get_borough_from_zip(zip_code):
-    """Helper function to determine borough from ZIP code."""
-    try:
-        zip_int = int(zip_code)
-        if 10001 <= zip_int <= 10282:
-            return "Manhattan"
-        elif 10301 <= zip_int <= 10314:
-            return "Staten Island"
-        elif 11201 <= zip_int <= 11256:
-            return "Brooklyn"
-        elif 10451 <= zip_int <= 10475:
-            return "Bronx"
-        elif 11101 <= zip_int <= 11697:
-            return "Queens"
-        else:
-            return "Unknown"
-    except ValueError:
-        return "Unknown"
+    """
+    Map a ZIP code to a NYC borough.
+    
+    Args:
+        zip_code: ZIP code (e.g., "10001")
+    
+    Returns:
+        Borough name (Manhattan, Brooklyn, etc.)
+    """
+    zip_code = str(zip_code).strip()
+    
+    # Manhattan: 10001-10282
+    if zip_code.startswith('100') or zip_code.startswith('101') or zip_code.startswith('102'):
+        return "Manhattan"
+    
+    # Bronx: 10451-10475
+    elif zip_code.startswith('104'):
+        return "Bronx"
+    
+    # Brooklyn: 11201-11256
+    elif zip_code.startswith('112'):
+        return "Brooklyn"
+    
+    # Queens: 11004-11109, 11351-11697
+    elif zip_code.startswith('110') or zip_code.startswith('111') or zip_code.startswith('113') or zip_code.startswith('114') or zip_code.startswith('116'):
+        return "Queens"
+    
+    # Staten Island: 10301-10314
+    elif zip_code.startswith('103'):
+        return "Staten Island"
+    
+    # Default to Brooklyn if we can't determine
+    return "Brooklyn"

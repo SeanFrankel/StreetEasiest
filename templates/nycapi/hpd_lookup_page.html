@@ -2,6 +2,81 @@
 {% load wagtailcore_tags wagtailimages_tags static %}
 
 {% block content %}
+<style>
+  /* Add styles for long descriptions */
+  td.description-cell {
+    max-width: 500px;
+    min-width: 250px;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    hyphens: auto;
+    white-space: normal;
+    text-align: left;
+  }
+  
+  /* Style for severity/class indicators */
+  .class-indicator {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    text-align: center;
+    width: 24px;
+  }
+  
+  .class-indicator.class-a {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  
+  .class-indicator.class-b {
+    background-color: #cce5ff;
+    color: #004085;
+  }
+  
+  .class-indicator.class-c {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  
+  /* Make tables more readable */
+  .table-container {
+    overflow-x: auto;
+    margin-bottom: 1.5rem;
+  }
+  
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    table-layout: fixed;
+  }
+  
+  th {
+    background-color: #f8f9fa;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 10px;
+  }
+  
+  tr:nth-child(even) {
+    background-color: #f2f2f2;
+  }
+  
+  tr:hover {
+    background-color: #e9ecef;
+  }
+  
+  /* Column width styles */
+  th:nth-child(1), td:nth-child(1) { width: 10%; } /* VIOLATION ID */
+  th:nth-child(2), td:nth-child(2) { width: 5%; } /* CLASS */
+  th:nth-child(3), td:nth-child(3) { width: 8%; } /* ORDER # */
+  th:nth-child(4), td:nth-child(4) { width: 7%; } /* APT # */
+  th:nth-child(5), td:nth-child(5) { width: 7%; } /* STORY # */
+  th:nth-child(6), td:nth-child(6) { width: 10%; } /* REPORTED DATE */
+  th:nth-child(7), td:nth-child(7) { width: 53%; } /* VIOLATION DESCRIPTION */
+</style>
+
 <div class="site-padding site-container py-8">
   <h1 class="font-serif4 font-bold text-4xl lg:text-5xl mb-4">{{ page.header }}</h1>
   
@@ -33,12 +108,12 @@
         </button>
       </div>
     </form>
+    <p class="text-sm text-gray-500 mt-2">Enter an address like "393 Hewes St" and ZIP code to get direct HPD data.</p>
   </div>
   
   <div id="loading-indicator" class="hidden text-center py-8">
     <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
     <p class="mt-2">Fetching data from HPD Online...</p>
-    <p class="text-sm text-gray-500">This process requires automated browsing and may take 15-20 seconds.</p>
   </div>
   
   <div id="results-container" class="hidden">
@@ -51,17 +126,17 @@
     
     <div id="violations-container" class="mb-8">
       <h2 class="font-serif4 font-bold text-2xl mb-4">Housing Violations</h2>
-      <div class="overflow-x-auto">
+      <div class="table-container">
         <table class="min-w-full bg-white rounded-lg shadow-md">
           <thead class="bg-gray-100">
             <tr>
-              <th class="py-3 px-4 text-left">Violation Number</th>
-              <th class="py-3 px-4 text-left">Severity</th>
-              <th class="py-3 px-4 text-left">Order</th>
-              <th class="py-3 px-4 text-left">Apartment</th>
-              <th class="py-3 px-4 text-left">Story</th>
-              <th class="py-3 px-4 text-left">Date</th>
-              <th class="py-3 px-4 text-left">Description</th>
+              <th class="py-3 px-4 text-left">VIOLATION ID</th>
+              <th class="py-3 px-4 text-left">CLASS</th>
+              <th class="py-3 px-4 text-left">ORDER #</th>
+              <th class="py-3 px-4 text-left">APT #</th>
+              <th class="py-3 px-4 text-left">STORY #</th>
+              <th class="py-3 px-4 text-left">REPORTED DATE</th>
+              <th class="py-3 px-4 text-left">VIOLATION DESCRIPTION</th>
             </tr>
           </thead>
           <tbody id="violations-table-body">
@@ -75,20 +150,19 @@
     </div>
     
     <div id="complaints-container" class="mb-8">
-      <h2 class="font-serif4 font-bold text-2xl mb-4">311 Complaints</h2>
-      <div class="overflow-x-auto">
+      <h2 class="font-serif4 font-bold text-2xl mb-4">HPD Complaints</h2>
+      <div class="table-container">
         <table class="min-w-full bg-white rounded-lg shadow-md">
           <thead class="bg-gray-100">
             <tr>
-              <th class="py-3 px-4 text-left">Sr Number</th>
-              <th class="py-3 px-4 text-left">Date</th>
-              <th class="py-3 px-4 text-left">Complaint Id</th>
-              <th class="py-3 px-4 text-left">Apt</th>
-              <th class="py-3 px-4 text-left">Description</th>
-              <th class="py-3 px-4 text-left">Complaint Detail</th>
-              <th class="py-3 px-4 text-left">Location</th>
-              <th class="py-3 px-4 text-left">Status</th>
-              <th class="py-3 px-4 text-left">Complaint Number</th>
+              <th class="py-3 px-4 text-left">SR NUMBER</th>
+              <th class="py-3 px-4 text-left">DATE</th>
+              <th class="py-3 px-4 text-left">COMPLAINT ID</th>
+              <th class="py-3 px-4 text-left">APT</th>
+              <th class="py-3 px-4 text-left">DESCRIPTION</th>
+              <th class="py-3 px-4 text-left">COMPLAINT DETAIL</th>
+              <th class="py-3 px-4 text-left">LOCATION</th>
+              <th class="py-3 px-4 text-left">STATUS</th>
             </tr>
           </thead>
           <tbody id="complaints-table-body">
@@ -98,6 +172,39 @@
       </div>
       <div id="no-complaints" class="hidden bg-gray-50 p-4 text-center rounded mt-4">
         No complaints found for this property.
+      </div>
+    </div>
+    
+    <!-- New 311 Complaints Section -->
+    <div id="complaints-311-container" class="mb-8">
+      <h2 class="font-serif4 font-bold text-2xl mb-4">NYC 311 Complaints</h2>
+      <div class="table-container">
+        <table class="min-w-full bg-white rounded-lg shadow-md">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="py-3 px-4 text-left">SR NUMBER</th>
+              <th class="py-3 px-4 text-left">DATE</th>
+              <th class="py-3 px-4 text-left">APT</th>
+              <th class="py-3 px-4 text-left">DESCRIPTION</th>
+              <th class="py-3 px-4 text-left">COMPLAINT DETAIL</th>
+              <th class="py-3 px-4 text-left">LOCATION</th>
+              <th class="py-3 px-4 text-left">STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="complaints-311-table-body">
+            <!-- 311 Complaints data will be populated here -->
+          </tbody>
+        </table>
+      </div>
+      <div id="no-complaints-311" class="hidden bg-gray-50 p-4 text-center rounded mt-4">
+        No 311 complaints found for this property.
+      </div>
+    </div>
+    
+    <div id="hpd-links" class="mt-4 mb-8 text-center">
+      <p class="text-sm text-gray-600">View on HPD Online:</p>
+      <div id="direct-links" class="flex justify-center space-x-4 mt-2">
+        <!-- Links will be added here -->
       </div>
     </div>
   </div>
@@ -137,6 +244,7 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
   loadingIndicator.classList.remove("hidden");
   
   try {
+    // Make API call to get HPD data
     const res = await fetch(`/scrape-hpd/?address=${encodeURIComponent(address)}&zip_code=${encodeURIComponent(zipCode)}`, {
       headers: {"X-Requested-With": "XMLHttpRequest"}
     });
@@ -149,13 +257,43 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
       // Show results container
       resultsContainer.classList.remove("hidden");
       
+      // Log full data for debugging
+      console.log("HPD data:", data.data);
+      
+      // Get building ID for direct links
+      const buildingId = data.data.metadata.building_id;
+      
       // Populate property info
       const propertyDetails = document.getElementById("property-details");
       propertyDetails.innerHTML = `
         <div><strong>Address:</strong> ${data.data.metadata.address}</div>
         <div><strong>ZIP Code:</strong> ${data.data.metadata.zip_code}</div>
         <div><strong>Borough:</strong> ${data.data.metadata.borough}</div>
+        <div><strong>Building ID:</strong> ${buildingId}</div>
       `;
+      
+      // Add direct links to HPD Online
+      if (buildingId) {
+        const directLinks = document.getElementById("direct-links");
+        directLinks.innerHTML = `
+          <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}" target="_blank" 
+            class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+            Building Info
+          </a>
+          <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}/violations" target="_blank"
+            class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+            Violations
+          </a>
+          <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}/complaints" target="_blank"
+            class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+            Complaints
+          </a>
+          <a href="https://a810-bisweb.nyc.gov/bisweb/PropertyProfileOverviewServlet?bin=${buildingId}" target="_blank"
+            class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+            DOB BIS
+          </a>
+        `;
+      }
       
       // Populate violations table
       const violationsBody = document.getElementById("violations-table-body");
@@ -170,15 +308,42 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
           const row = document.createElement('tr');
           row.className = "border-b";
           
-          // Map fields exactly as they appear in the column headers
+          // Format the severity/class for better display
+          let severityClass = violation.class || '';
+          let severityDisplay = severityClass;
+          
+          if (severityClass) {
+            // If it's a single character class indicator (like A, B, C)
+            if (severityClass.length === 1) {
+              const classLower = severityClass.toLowerCase();
+              severityDisplay = `<span class="class-indicator class-${classLower}">${severityClass}</span>`;
+            }
+          }
+          
+          // Ensure description has a value
+          let description = violation.description || '';
+          
+          // Format description with highlighted section numbers
+          if (description) {
+            // Highlight section numbers
+            description = description.replace(/(§\s*[\d-]+[^\s]*)/g, '<span class="font-semibold text-blue-800">$1</span>');
+            
+            // Highlight violation types
+            description = description.replace(/(adm code|hmc)/gi, '<span class="font-semibold text-indigo-700">$1</span>');
+            
+            // Format apt reference
+            description = description.replace(/(located at apt \w+)/g, '<span class="text-green-700">$1</span>');
+          }
+          
+          // Map fields to match HPD interface columns exactly
           row.innerHTML = `
             <td class="py-3 px-4">${violation.violation_number || ''}</td>
-            <td class="py-3 px-4">${violation.severity || ''}</td>
+            <td class="py-3 px-4">${severityDisplay}</td>
             <td class="py-3 px-4">${violation.order || ''}</td>
             <td class="py-3 px-4">${violation.apartment || ''}</td>
             <td class="py-3 px-4">${violation.story || ''}</td>
             <td class="py-3 px-4">${violation.date || ''}</td>
-            <td class="py-3 px-4">${violation.description || ''}</td>
+            <td class="py-3 px-4 description-cell">${description}</td>
           `;
           
           violationsBody.appendChild(row);
@@ -200,12 +365,29 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
         // Clear existing rows
         complaintsBody.innerHTML = '';
         
-        // Create data rows using the static column structure
+        // Create data rows using the static column structure - PRECISELY MATCHING HPD COLUMN ORDER
         data.data.complaints.forEach(complaint => {
           const row = document.createElement('tr');
           row.className = "border-b";
           
-          // Map fields exactly as they appear in the column headers
+          // Format location for display
+          let location = complaint.location || '';
+          // If location is empty but we have keywords in other fields, try to extract
+          if (!location && complaint.description) {
+            if (complaint.description.includes("BUILDING")) 
+              location = "BUILDING-WIDE";
+            else if (complaint.description.includes("KITCHEN"))
+              location = "KITCHEN";
+            else if (complaint.description.includes("BATHROOM"))
+              location = "BATHROOM";
+            else if (complaint.description.includes("BEDROOM"))
+              location = "BEDROOM";
+          }
+          
+          // Ensure status has a default value
+          const status = complaint.status || 'OPEN';
+          
+          // EXACT mapping to match HPD table columns in the EXACT order they appear
           row.innerHTML = `
             <td class="py-3 px-4">${complaint.sr_number || ''}</td>
             <td class="py-3 px-4">${complaint.date || ''}</td>
@@ -213,9 +395,8 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
             <td class="py-3 px-4">${complaint.apt || ''}</td>
             <td class="py-3 px-4">${complaint.description || ''}</td>
             <td class="py-3 px-4">${complaint.complaint_detail || ''}</td>
-            <td class="py-3 px-4">${complaint.location || ''}</td>
-            <td class="py-3 px-4">${complaint.status || ''}</td>
-            <td class="py-3 px-4">${complaint.complaint_number || ''}</td>
+            <td class="py-3 px-4">${location}</td>
+            <td class="py-3 px-4">${status}</td>
           `;
           
           complaintsBody.appendChild(row);
@@ -229,39 +410,58 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
         noComplaints.classList.remove("hidden");
       }
       
-      // Display message if one exists
-      if (data.data.message) {
-        const messageElement = document.createElement('div');
-        messageElement.className = 'bg-yellow-50 p-4 text-center rounded mt-4 mb-8';
+      // Populate 311 complaints table
+      const complaints311Body = document.getElementById("complaints-311-table-body");
+      const noComplaints311 = document.getElementById("no-complaints-311");
+      
+      if (data.data.complaints_311 && data.data.complaints_311.length > 0) {
+        // Clear existing rows
+        complaints311Body.innerHTML = '';
         
-        // Special styling for mock data messages
-        if (data.data.message.includes("sample data")) {
-          messageElement.className = 'bg-blue-50 p-4 text-center rounded mt-4 mb-8';
-          messageElement.innerHTML = `
-            <p>${data.data.message}</p>
-            <p class="text-sm mt-2">HPD data is provided as a demonstration when live connections are unavailable.</p>
+        // Create data rows for 311 complaints
+        data.data.complaints_311.forEach(complaint => {
+          const row = document.createElement('tr');
+          row.className = "border-b";
+          
+          // Format location for display
+          let location = complaint.location || '';
+          
+          // Ensure status has a default value
+          const status = complaint.status || 'OPEN';
+          
+          // Format date if needed
+          let dateDisplay = complaint.date || '';
+          if (dateDisplay && dateDisplay.includes('T')) {
+            // If it's in ISO format, convert to readable format
+            try {
+              const dateObj = new Date(dateDisplay);
+              dateDisplay = dateObj.toLocaleDateString();
+            } catch (e) {
+              // Keep original if parsing fails
+            }
+          }
+          
+          // Map fields for 311 complaints
+          row.innerHTML = `
+            <td class="py-3 px-4">${complaint.sr_number || ''}</td>
+            <td class="py-3 px-4">${dateDisplay}</td>
+            <td class="py-3 px-4">${complaint.apt || ''}</td>
+            <td class="py-3 px-4">${complaint.description || ''}</td>
+            <td class="py-3 px-4">${complaint.complaint_detail || ''}</td>
+            <td class="py-3 px-4">${location}</td>
+            <td class="py-3 px-4">${status}</td>
           `;
-        } else {
-          messageElement.textContent = data.data.message;
-        }
+          
+          complaints311Body.appendChild(row);
+        });
         
-        resultsContainer.insertBefore(messageElement, resultsContainer.firstChild);
+        complaints311Body.closest('table').classList.remove("hidden");
+        noComplaints311.classList.add("hidden");
+      } else {
+        complaints311Body.innerHTML = '';
+        complaints311Body.closest('table').classList.add("hidden");
+        noComplaints311.classList.remove("hidden");
       }
-      
-      // Add debug info section to help troubleshoot
-      const debugInfo = document.createElement('div');
-      debugInfo.id = 'debug-info';
-      debugInfo.className = 'bg-gray-100 p-4 rounded-lg mt-8 text-xs font-mono';
-      debugInfo.innerHTML = '<h3 class="font-bold mb-2">Debug Information:</h3>';
-      resultsContainer.after(debugInfo);
-      
-      // Display request/response details for debugging
-      debugInfo.innerHTML += `<div>Request URL: /scrape-hpd/?address=${encodeURIComponent(address)}&zip_code=${encodeURIComponent(zipCode)}</div>`;
-      debugInfo.innerHTML += `<div>Response Status: ${res.status}</div>`;
-      
-      // Log the full response for debugging
-      console.log("Full API Response:", data);
-      debugInfo.innerHTML += `<div>Full Response (see console):</div>`;
       
     } else {
       // Show error
