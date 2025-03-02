@@ -55,11 +55,13 @@
         <table class="min-w-full bg-white rounded-lg shadow-md">
           <thead class="bg-gray-100">
             <tr>
-              <th class="py-3 px-4 text-left">Date</th>
-              <th class="py-3 px-4 text-left">Violation #</th>
-              <th class="py-3 px-4 text-left">Description</th>
-              <th class="py-3 px-4 text-left">Status</th>
+              <th class="py-3 px-4 text-left">Violation Number</th>
               <th class="py-3 px-4 text-left">Severity</th>
+              <th class="py-3 px-4 text-left">Order</th>
+              <th class="py-3 px-4 text-left">Apartment</th>
+              <th class="py-3 px-4 text-left">Story</th>
+              <th class="py-3 px-4 text-left">Date</th>
+              <th class="py-3 px-4 text-left">Description</th>
             </tr>
           </thead>
           <tbody id="violations-table-body">
@@ -78,10 +80,15 @@
         <table class="min-w-full bg-white rounded-lg shadow-md">
           <thead class="bg-gray-100">
             <tr>
+              <th class="py-3 px-4 text-left">Sr Number</th>
               <th class="py-3 px-4 text-left">Date</th>
-              <th class="py-3 px-4 text-left">Complaint #</th>
+              <th class="py-3 px-4 text-left">Complaint Id</th>
+              <th class="py-3 px-4 text-left">Apt</th>
               <th class="py-3 px-4 text-left">Description</th>
+              <th class="py-3 px-4 text-left">Complaint Detail</th>
+              <th class="py-3 px-4 text-left">Location</th>
               <th class="py-3 px-4 text-left">Status</th>
+              <th class="py-3 px-4 text-left">Complaint Number</th>
             </tr>
           </thead>
           <tbody id="complaints-table-body">
@@ -155,15 +162,28 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
       const noViolations = document.getElementById("no-violations");
       
       if (data.data.violations && data.data.violations.length > 0) {
-        violationsBody.innerHTML = data.data.violations.map(v => `
-          <tr class="border-b">
-            <td class="py-3 px-4">${v.date}</td>
-            <td class="py-3 px-4">${v.violation_number}</td>
-            <td class="py-3 px-4">${v.description}</td>
-            <td class="py-3 px-4">${v.status}</td>
-            <td class="py-3 px-4">${v.severity}</td>
-          </tr>
-        `).join('');
+        // Clear existing rows
+        violationsBody.innerHTML = '';
+        
+        // Create data rows using the static column structure
+        data.data.violations.forEach(violation => {
+          const row = document.createElement('tr');
+          row.className = "border-b";
+          
+          // Map fields exactly as they appear in the column headers
+          row.innerHTML = `
+            <td class="py-3 px-4">${violation.violation_number || ''}</td>
+            <td class="py-3 px-4">${violation.severity || ''}</td>
+            <td class="py-3 px-4">${violation.order || ''}</td>
+            <td class="py-3 px-4">${violation.apartment || ''}</td>
+            <td class="py-3 px-4">${violation.story || ''}</td>
+            <td class="py-3 px-4">${violation.date || ''}</td>
+            <td class="py-3 px-4">${violation.description || ''}</td>
+          `;
+          
+          violationsBody.appendChild(row);
+        });
+        
         violationsBody.closest('table').classList.remove("hidden");
         noViolations.classList.add("hidden");
       } else {
@@ -177,14 +197,30 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
       const noComplaints = document.getElementById("no-complaints");
       
       if (data.data.complaints && data.data.complaints.length > 0) {
-        complaintsBody.innerHTML = data.data.complaints.map(c => `
-          <tr class="border-b">
-            <td class="py-3 px-4">${c.date}</td>
-            <td class="py-3 px-4">${c.complaint_number}</td>
-            <td class="py-3 px-4">${c.description}</td>
-            <td class="py-3 px-4">${c.status}</td>
-          </tr>
-        `).join('');
+        // Clear existing rows
+        complaintsBody.innerHTML = '';
+        
+        // Create data rows using the static column structure
+        data.data.complaints.forEach(complaint => {
+          const row = document.createElement('tr');
+          row.className = "border-b";
+          
+          // Map fields exactly as they appear in the column headers
+          row.innerHTML = `
+            <td class="py-3 px-4">${complaint.sr_number || ''}</td>
+            <td class="py-3 px-4">${complaint.date || ''}</td>
+            <td class="py-3 px-4">${complaint.complaint_id || ''}</td>
+            <td class="py-3 px-4">${complaint.apt || ''}</td>
+            <td class="py-3 px-4">${complaint.description || ''}</td>
+            <td class="py-3 px-4">${complaint.complaint_detail || ''}</td>
+            <td class="py-3 px-4">${complaint.location || ''}</td>
+            <td class="py-3 px-4">${complaint.status || ''}</td>
+            <td class="py-3 px-4">${complaint.complaint_number || ''}</td>
+          `;
+          
+          complaintsBody.appendChild(row);
+        });
+        
         complaintsBody.closest('table').classList.remove("hidden");
         noComplaints.classList.add("hidden");
       } else {
