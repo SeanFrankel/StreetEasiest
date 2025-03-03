@@ -76,164 +76,131 @@
       return `<button type="button" onclick="${onclickAction}" class="btn btn-secondary md:px-10 text-white bg-mackerel-300 dark:text-mackerel-400 px-5 py-3 md:py-[15px] justify-center items-center text-sm md:text-base font-codepro uppercase inline-flex rounded-[3px]">${title}</button>`;
     }
 
-    // Global object to track the current number of entries displayed per category.
-    const categoryCounts = {};
-
-    // This function builds dynamic buttons HTML for a given category.
-    function getDynamicButtonsHTML(category) {
-      const btnShowMore = btnTemplate("Show 5 More", `show5More('${category}')`);
-      const btnShowAll = btnTemplate("Show All", `loadMore('${category}', 'all')`);
-      const btnShowOnly5 = btnTemplate("Only show 5 again", `showOnly5('${category}')`);
-      return `<div class="mt-4 flex gap-4">
-                ${btnShowMore}
-                ${btnShowAll}
-                ${btnShowOnly5}
-              </div>`;
+    // Display property information
+    function renderPropertyInfo(metadata) {
+      return `
+        <div class="property-info mb-8 p-6 bg-gray-50 rounded-lg shadow-sm">
+          <h3 class="text-xl font-semibold mb-4 border-b pb-2">Property Information</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><strong>Address:</strong> ${metadata.address || 'N/A'}</div>
+            <div><strong>ZIP Code:</strong> ${metadata.zip_code || 'N/A'}</div>
+            <div><strong>Borough:</strong> ${metadata.borough || 'N/A'}</div>
+            <div><strong>Building ID:</strong> ${metadata.building_id || 'N/A'}</div>
+          </div>
+          <div class="mt-4 text-sm text-gray-500">
+            <p>Data retrieved using the official NYC GeoClient API.</p>
+          </div>
+        </div>
+      `;
     }
-
-    // Render the results table for one category.
-    function renderCategoryTable(category, entries, total) {
-      let headerRow = "";
-      let tableRows = "";
-
-      if (category === "rent_stabilized") {
-        headerRow = `<tr class="bg-gray-200">
-                      <th class="border px-4 py-2">Question</th>
-                      <th class="border px-4 py-2">Answer</th>
-                    </tr>`;
-        const entry = entries[0] || {};
-        tableRows = `
-          <tr>
-            <td class="border px-4 py-2">Does your building have rent stabilized units in it?</td>
-            <td class="border px-4 py-2">${entry.has_rent_stabilized || "N/A"}</td>
-          </tr>
-          <tr>
-            <td class="border px-4 py-2">If yes, what is the building officially defined as?</td>
-            <td class="border px-4 py-2">${entry.official_definition || "N/A"}</td>
-          </tr>
-          <tr>
-            <td class="border px-4 py-2">If yes, what tax abatement does it have?</td>
-            <td class="border px-4 py-2">${entry.tax_abatement || "N/A"}</td>
+    
+    // Render the violations table
+    function renderViolationsTable(violations) {
+      if (!violations || violations.length === 0) {
+        return `
+          <div class="mb-8">
+            <h3 class="text-xl font-semibold mb-2">Housing Violations</h3>
+            <div class="bg-gray-50 p-4 text-center rounded">No housing violations found for this building.</div>
+          </div>
+        `;
+      }
+      
+      const tableRows = violations.map(violation => {
+        let classIndicator = '';
+        if (violation.class) {
+          const violationClass = violation.class.toLowerCase();
+          classIndicator = `<span class="inline-block px-2 py-1 rounded ${
+            violationClass === 'a' ? 'bg-red-100 text-red-800' : 
+            violationClass === 'b' ? 'bg-blue-100 text-blue-800' : 
+            violationClass === 'c' ? 'bg-yellow-100 text-yellow-800' : 
+            'bg-gray-100 text-gray-800'
+          }">${violation.class}</span>`;
+        }
+        
+        return `
+          <tr class="border-b">
+            <td class="border px-4 py-2">${violation.violation_number || 'N/A'}</td>
+            <td class="border px-4 py-2">${classIndicator}</td>
+            <td class="border px-4 py-2">${violation.order || 'N/A'}</td>
+            <td class="border px-4 py-2">${violation.apartment || 'N/A'}</td>
+            <td class="border px-4 py-2">${violation.story || 'N/A'}</td>
+            <td class="border px-4 py-2">${violation.date || 'N/A'}</td>
+            <td class="border px-4 py-2 description-cell">${violation.description || 'No description available'}</td>
           </tr>
         `;
-        return `
-          <div class="result-category mb-8" data-category="${category}">
-            <h3 class="text-xl font-semibold mb-4">Rent Stabilized Lookup</h3>
-            <table class="table-auto w-full border-collapse border border-gray-300">
+      }).join('');
+      
+      return `
+        <div class="violations-section mb-8">
+          <h3 class="text-xl font-semibold mb-4">Housing Violations (${violations.length})</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border">
               <thead>
-                ${headerRow}
+                <tr class="bg-gray-200">
+                  <th class="border px-4 py-2">Violation ID</th>
+                  <th class="border px-4 py-2">Class</th>
+                  <th class="border px-4 py-2">Order #</th>
+                  <th class="border px-4 py-2">Apt #</th>
+                  <th class="border px-4 py-2">Story</th>
+                  <th class="border px-4 py-2">Date</th>
+                  <th class="border px-4 py-2">Description</th>
+                </tr>
               </thead>
               <tbody>
                 ${tableRows}
               </tbody>
             </table>
           </div>
-        `;
-      }
-
-      if (category === "housing_violations") {
-        headerRow = `<tr class="bg-gray-200">
-                      <th class="border px-4 py-2">Type</th>
-                      <th class="border px-4 py-2">Description</th>
-                      <th class="border px-4 py-2">Date</th>
-                      <th class="border px-4 py-2">Current Status</th>
-                      <th class="border px-4 py-2">Issue still outstanding</th>
-                      <th class="border px-4 py-2">Is the Violation Rent-Impariring?</th>
-                    </tr>`;
-        tableRows = entries.map(item => {
-          return `<tr>
-            <td class="border px-4 py-2">${item.type}</td>
-            <td class="border px-4 py-2">${item.description || "No description"}</td>
-            <td class="border px-4 py-2">${item.date || "No date"}</td>
-            <td class="border px-4 py-2">${item["Current Status"] || "Unknown"}</td>
-            <td class="border px-4 py-2">${item["Issue still outstanding"] || "No resolution"}</td>
-            <td class="border px-4 py-2">${item["Is the Violation Rent-Impariring?"] || "Unknown"}</td>
-          </tr>`;
-        }).join("");
-      } else {
-        const displayStatus = (category === "311_complaints");
-        headerRow = `<tr class="bg-gray-200">
-                        <th class="border px-4 py-2">Type</th>
-                        <th class="border px-4 py-2">Description</th>
-                        <th class="border px-4 py-2">Date</th>
-                        <th class="border px-4 py-2">Resolution</th>
-                        ${displayStatus ? `<th class="border px-4 py-2">Status</th>` : ""}
-                      </tr>`;
-        tableRows = entries.map(item => {
-          return `<tr>
-            <td class="border px-4 py-2">${item.type}</td>
-            <td class="border px-4 py-2">${item.description || "No description"}</td>
-            <td class="border px-4 py-2">${item.date || "No date"}</td>
-            <td class="border px-4 py-2">${item.resolution_description || "No resolution"}</td>
-            ${displayStatus ? `<td class="border px-4 py-2">${item.status || "Unknown"}</td>` : ""}
-          </tr>`;
-        }).join("");
-      }
-
-      const buttonsHTML = getDynamicButtonsHTML(category);
-
-      return `
-        <div class="result-category mb-8" data-category="${category}">
-          <h3 class="text-xl font-semibold mb-4">${category.replace(/_/g, " ")}</h3>
-          <input type="text" placeholder="Filter results..." 
-            oninput="filterTable(this, '${category}')" 
-            class="mb-4 p-2 border rounded w-full" />
-          <table class="table-auto w-full border-collapse border border-gray-300">
-            <thead>
-              ${headerRow}
-            </thead>
-            <tbody>
-              ${tableRows}
-            </tbody>
-          </table>
-          ${buttonsHTML}
         </div>
       `;
     }
-
-    function filterTable(input, category) {
-      const filterText = input.value.toLowerCase();
-      const table = document.querySelector(`.result-category[data-category="${category}"] table`);
-      if (!table) return;
-      const rows = table.querySelectorAll("tbody tr");
-      rows.forEach(row => {
-        const rowText = row.textContent.toLowerCase();
-        row.style.display = rowText.indexOf(filterText) > -1 ? "" : "none";
-      });
-    }
-
-    async function loadMore(category, count) {
-      const addressInput = document.getElementById("address").value.trim();
-      const zipCodeInput = document.getElementById("zip-code").value.trim();
-      const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
-      if (categoryDiv) {
-        categoryDiv.innerHTML = '<p class="text-center py-4">Loading...</p>';
+    
+    // Render the 311 complaints table
+    function render311ComplaintsTable(complaints) {
+      if (!complaints || complaints.length === 0) {
+        return `
+          <div class="mb-8">
+            <h3 class="text-xl font-semibold mb-2">311 Complaints</h3>
+            <div class="bg-gray-50 p-4 text-center rounded">No 311 complaints found for this building.</div>
+          </div>
+        `;
       }
-      try {
-        const requestUrl = `${window.location.pathname}?address=${encodeURIComponent(addressInput)}&zip_code=${encodeURIComponent(zipCodeInput)}&category=${category}&count=${count}`;
-        const response = await fetch(requestUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
-        const data = await response.json();
-        if (data.success && data.data[category]) {
-          categoryCounts[category] = data.data[category].entries.length;
-          const updatedTable = renderCategoryTable(category, data.data[category].entries, data.data[category].total);
-          const categoryDiv = document.querySelector(`.result-category[data-category="${category}"]`);
-          if (categoryDiv) {
-            categoryDiv.outerHTML = updatedTable;
-          }
-        }
-      } catch (error) {
-        console.error("Error loading more entries:", error);
-      }
-    }
-
-    function show5More(category) {
-      const current = categoryCounts[category] || 5;
-      const newCount = current + 5;
-      loadMore(category, newCount);
-    }
-
-    function showOnly5(category) {
-      loadMore(category, 5);
+      
+      const tableRows = complaints.map(complaint => {
+        return `
+          <tr class="border-b">
+            <td class="border px-4 py-2">${complaint.unique_key || complaint.id || 'N/A'}</td>
+            <td class="border px-4 py-2">${complaint.complaint_type || 'N/A'}</td>
+            <td class="border px-4 py-2">${complaint.status || 'N/A'}</td>
+            <td class="border px-4 py-2">${complaint.created_date || 'N/A'}</td>
+            <td class="border px-4 py-2">${complaint.closed_date || 'N/A'}</td>
+            <td class="border px-4 py-2 description-cell">${complaint.descriptor || complaint.description || 'No description available'}</td>
+          </tr>
+        `;
+      }).join('');
+      
+      return `
+        <div class="complaints-section mb-8">
+          <h3 class="text-xl font-semibold mb-4">311 Complaints (${complaints.length})</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border">
+              <thead>
+                <tr class="bg-gray-200">
+                  <th class="border px-4 py-2">Complaint ID</th>
+                  <th class="border px-4 py-2">Type</th>
+                  <th class="border px-4 py-2">Status</th>
+                  <th class="border px-4 py-2">Created Date</th>
+                  <th class="border px-4 py-2">Closed Date</th>
+                  <th class="border px-4 py-2">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
     }
 
     document.getElementById("lookup-form").addEventListener("submit", async function (e) {
@@ -247,28 +214,69 @@
         return;
       }
 
-      resultsDiv.innerHTML = "<p>Loading...</p>";
+      resultsDiv.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div><p class="mt-2">Fetching data from NYC Open Data APIs...</p></div>';
       resultsDiv.setAttribute("aria-busy", "true");
 
       try {
-        const requestUrl = `${window.location.pathname}?address=${encodeURIComponent(addressInput)}&zip_code=${encodeURIComponent(zipCodeInput)}`;
+        const requestUrl = `/scrape-hpd/?address=${encodeURIComponent(addressInput)}&zip_code=${encodeURIComponent(zipCodeInput)}`;
         const response = await fetch(requestUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
-        const data = await response.json();
-        if (data.success) {
-          resultsDiv.innerHTML = `
-            <h2 class="text-2xl font-bold mb-6">Results</h2>
-            ${Object.entries(data.data)
-              .map(([key, value]) => {
-                categoryCounts[key] = value.entries.length;
-                return renderCategoryTable(key, value.entries, value.total);
-              })
-              .join("")}
-          `;
+        const responseData = await response.json();
+        
+        if (responseData.success) {
+          const data = responseData.data;
+          
+          // Build the HTML for the results
+          let resultsHTML = '<h2 class="text-2xl font-bold mb-6">Results</h2>';
+          
+          // Add property information
+          if (data.metadata) {
+            resultsHTML += renderPropertyInfo(data.metadata);
+          }
+          
+          // Add violations table
+          if (data.housing_violations) {
+            resultsHTML += renderViolationsTable(data.housing_violations.entries);
+          }
+          
+          // Add 311 complaints table
+          if (data["311_complaints"]) {
+            resultsHTML += render311ComplaintsTable(data["311_complaints"].entries);
+          }
+          
+          // Add HPD direct links if we have a building ID
+          if (data.metadata && data.metadata.building_id) {
+            const buildingId = data.metadata.building_id;
+            resultsHTML += `
+              <div class="hpd-links text-center mb-8">
+                <p class="text-sm text-gray-600 mb-2">View more information on official NYC websites:</p>
+                <div class="flex flex-wrap justify-center gap-2">
+                  <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}" target="_blank" 
+                     class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+                    Building Info
+                  </a>
+                  <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}/violations" target="_blank"
+                     class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+                    Violations
+                  </a>
+                  <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}/complaints" target="_blank"
+                     class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+                    Complaints
+                  </a>
+                  <a href="https://a810-bisweb.nyc.gov/bisweb/PropertyProfileOverviewServlet?bin=${buildingId}" target="_blank"
+                     class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+                    DOB BIS
+                  </a>
+                </div>
+              </div>
+            `;
+          }
+          
+          resultsDiv.innerHTML = resultsHTML;
         } else {
-          resultsDiv.innerHTML = `<p class="text-red-600">Error: ${data.error}</p>`;
+          resultsDiv.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-lg">${responseData.error || "An error occurred while retrieving data."}</div>`;
         }
       } catch (error) {
-        resultsDiv.innerHTML = `<p class="text-red-600">An error occurred: ${error.message}</p>`;
+        resultsDiv.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-lg">Error: ${error.message}</div>`;
       } finally {
         resultsDiv.setAttribute("aria-busy", "false");
       }

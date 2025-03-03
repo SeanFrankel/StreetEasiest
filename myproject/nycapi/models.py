@@ -118,63 +118,13 @@ class NYCAddressLookupPage(BasePage):
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             address = request.GET.get("address", "").strip()
             zip_code = request.GET.get("zip_code", "").strip()
-            count = request.GET.get("count", "").strip()
-            category = request.GET.get("category", "").strip()
-
-            logger.debug(f"Search requested: Address='{address}', Zip Code='{zip_code}'")
-            print(f"[DEBUG] Search requested: Address='{address}', Zip Code='{zip_code}'")
-
-            if not address or not zip_code:
-                return JsonResponse(
-                    {"success": False, "error": "Address and zip code are required."},
-                    status=400
-                )
-
-            try:
-                service = AddressService()
-                data = service.get_address_data(address, zip_code)
-
-                if count == "all":
-                    count = max(len(items) for items in data.values())
-                else:
-                    count = int(count) if count.isdigit() else 5
-
-                filtered_data = {category: data[category]} if category and category in data else data
-
-                serialized_data = {
-                    key: {
-                        "entries": [item.to_dict() if hasattr(item, "to_dict") else item for item in value[:count]],
-                        "total": len(value)
-                    }
-                    for key, value in filtered_data.items()
-                }
-
-                unique_locations = set()
-                for items in data.values():
-                    for item in items:
-                        location = item.additional_info.get("location") if hasattr(item, "additional_info") else None
-                        if location:
-                            if isinstance(location, dict):
-                                lat = location.get("latitude", "N/A")
-                                lon = location.get("longitude", "N/A")
-                                unique_locations.add(f"{lat}, {lon}")
-                            else:
-                                unique_locations.add(location)
-
-                response_data = {
-                    "success": True,
-                    "data": serialized_data,
-                    "unique_locations": list(unique_locations),
-                }
-                return JsonResponse(response_data)
-            except Exception as e:
-                logger.error(f"Error fetching data: {e}")
-                print(f"[ERROR] Error fetching data: {e}")
-                return JsonResponse(
-                    {"success": False, "error": "Internal server error. Please try again later."},
-                    status=500
-                )
-        return render(request, self.template, {"page": self})
+            
+            # Import and call the building_lookup_view from views.py
+            from myproject.nycapi.views import building_lookup_view
+            return building_lookup_view(request)
+        else:
+            # Just load the form page
+            return super().serve(request)
 
 
 class AddressService:
@@ -377,75 +327,9 @@ class AddressService:
             input_house_number = None
 
         data = {
-            "311_complaints": self.fetch_data(
-                "https://data.cityofnewyork.us/resource/erm2-nwe9.json",
-                f"upper(incident_address) IN ({variants_str}) AND incident_zip = '{zip_code}'",
-                {"id": "unique_key", "date": "created_date", "type": "311 Complaint", "description": "descriptor", "status": "status"},
-                "created_date DESC"
-            ),
-            "housing_violations": self.fetch_data(
-                "https://data.cityofnewyork.us/resource/wvxf-dwi5.json",
-                f"upper(streetname) IN ({street_names_str}) AND zip = '{zip_code}'",
-                {"id": "violationid", "date": "inspectiondate", "type": "Housing Violation", "description": "novdescription", "status": "currentstatus"},
-                "inspectiondate DESC"
-            ),
-            # For lead violations, query two APIs without a lowhousenumber clause and merge the results.
-            "lead_violations": (
-                self.fetch_data(
-                    "https://data.cityofnewyork.us/resource/v574-pyre.json",
-                    f"upper(streetname) IN ({street_names_str}) AND zip = '{zip_code}'",
-                    {"id": "violationid", "date": "inspectiondate", "type": "Lead Violation", "description": "novdescription"},
-                    "inspectiondate DESC"
-                )
-                +
-                self.fetch_data(
-                    "https://data.cityofnewyork.us/resource/au8t-hgv2.json",
-                    f"upper(streetname) IN ({street_names_str}) AND zip = '{zip_code}'",
-                    {"id": "violationid", "date": "inspectiondate", "type": "Lead Violation", "description": "novdescription"},
-                    "inspectiondate DESC"
-                )
-            ),
-            "bedbug_reports": self.fetch_data(
-                "https://data.cityofnewyork.us/resource/wz6d-d3jb.json",
-                f"upper(house_number) IN ({house_numbers_str}) AND upper(street_name) IN ({street_names_str}) AND postcode = '{zip_code}'",
-                {"id": "building_id", "date": "filing_date", "type": "Bedbug Report", "description": "infested_dwelling_unit_count"},
-                "filing_date DESC"
-            ),
+            "rent_stabilized": [self.get_rent_stabilized_data(address, zip_code)]
         }
-        # Post-filter housing violations.
-        hv_items = data["housing_violations"]
-        if input_house_number is not None:
-            filtered_hv = []
-            for item in hv_items:
-                try:
-                    low_str = item.additional_info.get("lowhousenumber") or item.additional_info.get("LowHouseNumber") or "0"
-                    high_str = item.additional_info.get("highhousenumber") or item.additional_info.get("HighHouseNumber") or "0"
-                    low = parse_house_number(low_str)
-                    high = parse_house_number(high_str)
-                    if low is not None and high is not None and low <= input_house_number <= high:
-                        filtered_hv.append(item)
-                except Exception as e:
-                    logger.error(f"Error filtering housing violation record: {e}")
-            data["housing_violations"] = filtered_hv
-
-        # Post-filter lead violations using the same range logic.
-        lv_items = data["lead_violations"]
-        if input_house_number is not None:
-            filtered_lv = []
-            for item in lv_items:
-                try:
-                    low_str = item.additional_info.get("lowhousenumber") or item.additional_info.get("LowHouseNumber") or "0"
-                    high_str = item.additional_info.get("highhousenumber") or item.additional_info.get("HighHouseNumber") or "0"
-                    low = parse_house_number(low_str)
-                    high = parse_house_number(high_str)
-                    if low is not None and high is not None and low <= input_house_number <= high:
-                        filtered_lv.append(item)
-                except Exception as e:
-                    logger.error(f"Error filtering lead violation record: {e}")
-            data["lead_violations"] = filtered_lv
-
-        rent_stabilized_result = self.get_rent_stabilized_data(address, zip_code)
-        data["rent_stabilized"] = [rent_stabilized_result]
+        
         return data
 
 

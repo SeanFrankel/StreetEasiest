@@ -140,7 +140,8 @@ def get_hpd_data(building_id):
             # Sort violations by date (most recent first)
             violations.sort(key=lambda x: x.get("date", ""), reverse=True)
             
-            return violations
+            # Limit to 50 results for consistency with 311 data
+            return violations[:50]
         else:
             logger.error(f"HPD API error: {response.status_code} - {response.text}")
             
@@ -171,13 +172,46 @@ def get_hpd_data(building_id):
                     })
                 
                 alt_violations.sort(key=lambda x: x.get("date", ""), reverse=True)
-                return alt_violations
+                # Limit to 50 results for consistency with 311 data
+                return alt_violations[:50]
             else:
                 logger.error(f"Alternate HPD API error: {alt_response.status_code} - {alt_response.text}")
+                
+                # If both endpoints fail, try a third approach with a different field
+                third_url = "https://data.cityofnewyork.us/resource/b2iz-pps8.json"
+                
+                params = {
+                    "$where": f"bin='{building_id}'",  # Try with bin instead of buildingid
+                    "$order": "inspectiondate DESC",
+                    "$limit": 100
+                }
+                
+                third_response = requests.get(third_url, params=params)
+                
+                if third_response.status_code == 200:
+                    third_violations_data = third_response.json()
+                    
+                    if third_violations_data:
+                        third_violations = []
+                        for violation in third_violations_data:
+                            third_violations.append({
+                                "violation_number": violation.get("violationid") or violation.get("novid"),
+                                "class": violation.get("class") or violation.get("novclass"),
+                                "order": violation.get("ordernumber") or violation.get("novorder"),
+                                "apartment": violation.get("apartment") or violation.get("apt"),
+                                "story": violation.get("story") or "",
+                                "date": violation.get("inspectiondate") or violation.get("novissuedate"),
+                                "description": violation.get("novdescription") or violation.get("description")
+                            })
+                        
+                        third_violations.sort(key=lambda x: x.get("date", ""), reverse=True)
+                        # Limit to 50 results for consistency with 311 data
+                        return third_violations[:50]
+                
+                # If all attempts fail, return empty list
                 return []
-            
     except Exception as e:
-        logger.error(f"Error fetching HPD data: {str(e)}")
+        logger.error(f"Error retrieving HPD data: {str(e)}", exc_info=True)
         return []
 
 def get_311_complaints(address, zip_code, building_id=None):
@@ -196,19 +230,28 @@ def get_311_complaints(address, zip_code, building_id=None):
         complaints = query_311_by_address(address, zip_code)
         if complaints:
             logger.info(f"Found {len(complaints)} complaints via address query")
-            return complaints
+            # Sort by date (most recent first)
+            complaints.sort(key=lambda x: x.get("created_date", ""), reverse=True)
+            # Limit to 50 results
+            return complaints[:50]
             
         # 2. Second approach - broader query with just ZIP code
         complaints = query_311_by_zip(zip_code)
         if complaints:
             logger.info(f"Found {len(complaints)} complaints via ZIP query")
-            return complaints
+            # Sort by date (most recent first)
+            complaints.sort(key=lambda x: x.get("created_date", ""), reverse=True)
+            # Limit to 50 results
+            return complaints[:50]
             
         # 3. Third approach - try the NYC 311 service request endpoint
         complaints = query_311_service_requests(zip_code)
         if complaints:
             logger.info(f"Found {len(complaints)} complaints via service requests query")
-            return complaints
+            # Sort by date (most recent first)
+            complaints.sort(key=lambda x: x.get("created_date", ""), reverse=True)
+            # Limit to 50 results
+            return complaints[:50]
         
         logger.warning(f"No 311 complaints found for {address}, {zip_code} using any method")
         return []
@@ -305,23 +348,32 @@ def query_311_service_requests(zip_code):
         return []
         
 def process_complaint_results(data):
-    """Process 311 complaint results into a standard format"""
+    """
+    Process the raw complaint results into a standard format.
+    """
+    if not data:
+        return []
+        
     complaints = []
-    for complaint in data:
-        complaints.append({
-            "unique_key": complaint.get("unique_key"),
-            "complaint_type": complaint.get("complaint_type"),
-            "status": complaint.get("status"),
-            "created_date": complaint.get("created_date"),
-            "closed_date": complaint.get("closed_date", ""),
-            "description": complaint.get("descriptor", "")
-        })
     
-    # Sort by date (most recent first)
-    complaints.sort(key=lambda x: x.get("created_date", ""), reverse=True)
+    for item in data:
+        # Create standard format complaint
+        complaint = {
+            "unique_key": item.get("unique_key", ""),
+            "id": item.get("unique_key", ""),  # For compatibility with both templates
+            "complaint_type": item.get("complaint_type", ""),
+            "descriptor": item.get("descriptor", ""),
+            "description": item.get("descriptor", ""),  # For compatibility with both templates
+            "created_date": item.get("created_date", ""),
+            "closed_date": item.get("closed_date", ""),
+            "status": item.get("status", ""),
+            "agency": item.get("agency", ""),
+            "resolution_description": item.get("resolution_description", "")
+        }
+        
+        complaints.append(complaint)
     
-    # Limit to 50 results
-    return complaints[:50]
+    return complaints
 
 def building_lookup_view(request):
     """
@@ -362,20 +414,32 @@ def building_lookup_view(request):
                 # Step 4: Compile all data for response
                 borough = get_borough_from_zip(zip_code) or "N/A"
                 
-                data = {
+                # Format data to match the nyc_address_lookup_page template format
+                serialized_data = {
+                    "housing_violations": {
+                        "entries": hpd_violations,
+                        "total": len(hpd_violations)
+                    },
+                    "311_complaints": {
+                        "entries": complaints_311,
+                        "total": len(complaints_311)
+                    },
                     "metadata": {
                         "address": address,
                         "zip_code": zip_code,
                         "borough": borough,
                         "building_id": building_id,
                         "data_source": "NYC Open Data APIs"
-                    },
-                    "violations": hpd_violations,
-                    "complaints": [],  # Placeholder for additional HPD complaints if needed
-                    "complaints_311": complaints_311,
+                    }
                 }
                 
-                return JsonResponse({"success": True, "data": data})
+                # Format response consistent with nyc_address_lookup_page expectations
+                response_data = {
+                    "success": True,
+                    "data": serialized_data
+                }
+                
+                return JsonResponse(response_data)
                 
             except Exception as e:
                 logger.error(f"Error in building lookup: {str(e)}", exc_info=True)
@@ -384,8 +448,22 @@ def building_lookup_view(request):
                     "error": f"An error occurred while retrieving data: {str(e)}"
                 })
         else:
-            # Direct page load with query parameters
-            return render(request, "nycapi/hpd_lookup_page.html")
+            # For non-AJAX requests, determine which template to use
+            # If the request is coming from the NYCAddressLookupPage, return that page
+            referer = request.META.get('HTTP_REFERER', '')
+            if "nyc-address-lookup" in referer:
+                from django.shortcuts import redirect
+                return redirect(referer)  # Redirect back to the lookup page
+            else:
+                # Default to HPD template
+                return render(request, "nycapi/hpd_lookup_page.html")
     else:
-        # Just load the form page
-        return render(request, "nycapi/hpd_lookup_page.html")
+        # Just load the form page - but which one depends on where the request came from
+        referer = request.META.get('HTTP_REFERER', '')
+        if "nyc-address-lookup" in referer:
+            # This is coming from the lookup page
+            from django.shortcuts import redirect
+            return redirect(referer)  # Redirect back to the lookup page
+        else:
+            # Default to HPD template
+            return render(request, "nycapi/hpd_lookup_page.html")
