@@ -3,7 +3,7 @@
 
 {% block content %}
 <style>
-  /* Add styles for long descriptions */
+  /* Styles for long descriptions and table layout */
   td.description-cell {
     max-width: 500px;
     min-width: 250px;
@@ -14,7 +14,6 @@
     text-align: left;
   }
   
-  /* Style for severity/class indicators */
   .class-indicator {
     display: inline-block;
     padding: 2px 6px;
@@ -24,57 +23,24 @@
     width: 24px;
   }
   
-  .class-indicator.class-a {
-    background-color: #f8d7da;
-    color: #721c24;
-  }
+  .class-indicator.class-a { background-color: #f8d7da; color: #721c24; }
+  .class-indicator.class-b { background-color: #cce5ff; color: #004085; }
+  .class-indicator.class-c { background-color: #fff3cd; color: #856404; }
   
-  .class-indicator.class-b {
-    background-color: #cce5ff;
-    color: #004085;
-  }
+  .table-container { overflow-x: auto; margin-bottom: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+  th { background-color: #f8f9fa; position: sticky; top: 0; z-index: 10; padding: 10px; }
+  tr:nth-child(even) { background-color: #f2f2f2; }
+  tr:hover { background-color: #e9ecef; }
   
-  .class-indicator.class-c {
-    background-color: #fff3cd;
-    color: #856404;
-  }
-  
-  /* Make tables more readable */
-  .table-container {
-    overflow-x: auto;
-    margin-bottom: 1.5rem;
-  }
-  
-  table {
-    border-collapse: collapse;
-    width: 100%;
-    table-layout: fixed;
-  }
-  
-  th {
-    background-color: #f8f9fa;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    padding: 10px;
-  }
-  
-  tr:nth-child(even) {
-    background-color: #f2f2f2;
-  }
-  
-  tr:hover {
-    background-color: #e9ecef;
-  }
-  
-  /* Column width styles */
-  th:nth-child(1), td:nth-child(1) { width: 10%; } /* VIOLATION ID */
-  th:nth-child(2), td:nth-child(2) { width: 5%; } /* CLASS */
-  th:nth-child(3), td:nth-child(3) { width: 8%; } /* ORDER # */
-  th:nth-child(4), td:nth-child(4) { width: 7%; } /* APT # */
-  th:nth-child(5), td:nth-child(5) { width: 7%; } /* STORY # */
-  th:nth-child(6), td:nth-child(6) { width: 10%; } /* REPORTED DATE */
-  th:nth-child(7), td:nth-child(7) { width: 53%; } /* VIOLATION DESCRIPTION */
+  /* Fixed column widths */
+  th:nth-child(1), td:nth-child(1) { width: 10%; }
+  th:nth-child(2), td:nth-child(2) { width: 5%; }
+  th:nth-child(3), td:nth-child(3) { width: 8%; }
+  th:nth-child(4), td:nth-child(4) { width: 7%; }
+  th:nth-child(5), td:nth-child(5) { width: 7%; }
+  th:nth-child(6), td:nth-child(6) { width: 10%; }
+  th:nth-child(7), td:nth-child(7) { width: 53%; }
 </style>
 
 <div class="site-padding site-container py-8">
@@ -86,19 +52,20 @@
     </div>
   {% endif %}
   
+  <!-- Search Form -->
   <div class="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
-    <h2 class="font-serif4 font-bold text-2xl mb-4">Search HPD Database</h2>
+    <h2 class="font-serif4 font-bold text-2xl mb-4 text-center">Search HPD Database</h2>
     <form id="hpd-lookup-form" class="flex flex-col md:flex-row gap-4">
       <div class="flex-grow">
         <label for="address" class="block mb-1 font-medium">Street Address</label>
         <input type="text" id="address" name="address" 
-               placeholder="e.g., 123 Main St" required
+               placeholder="e.g., 25 East 67th Street" required
                class="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
       <div class="md:w-1/4">
         <label for="zip-code" class="block mb-1 font-medium">ZIP Code</label>
         <input type="text" id="zip-code" name="zip_code" 
-               placeholder="e.g., 10001" required
+               placeholder="e.g., 10065" required
                class="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
       <div class="md:self-end">
@@ -108,12 +75,14 @@
         </button>
       </div>
     </form>
-    <p class="text-sm text-gray-500 mt-2">Enter an address like "393 Hewes St" and ZIP code to get direct HPD data.</p>
+    <p class="text-sm text-gray-500 mt-2 text-center">
+      Enter a street address and ZIP code to retrieve housing data.
+    </p>
   </div>
   
   <div id="loading-indicator" class="hidden text-center py-8">
     <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-    <p class="mt-2">Fetching data from HPD Online...</p>
+    <p class="mt-2">Fetching data from NYC Open Data APIs...</p>
   </div>
   
   <div id="results-container" class="hidden">
@@ -122,12 +91,15 @@
       <div id="property-details" class="grid grid-cols-2 gap-4">
         <!-- Property info will be populated here -->
       </div>
+      <div id="data-source-info" class="mt-4 text-sm text-gray-500">
+        <p>Data retrieved using the official NYC GeoClient API.</p>
+      </div>
     </div>
     
     <div id="violations-container" class="mb-8">
       <h2 class="font-serif4 font-bold text-2xl mb-4">Housing Violations</h2>
       <div class="table-container">
-        <table class="min-w-full bg-white rounded-lg shadow-md">
+        <table class="min-w-full bg-white rounded-lg shadow-md" id="violations-table">
           <thead class="bg-gray-100">
             <tr>
               <th class="py-3 px-4 text-left">VIOLATION ID</th>
@@ -145,87 +117,46 @@
         </table>
       </div>
       <div id="no-violations" class="hidden bg-gray-50 p-4 text-center rounded mt-4">
-        No violations found for this property.
+        No recent violations found.
       </div>
     </div>
     
+    <!-- 311 Complaints Section -->
     <div id="complaints-container" class="mb-8">
-      <h2 class="font-serif4 font-bold text-2xl mb-4">HPD Complaints</h2>
+      <h2 class="font-serif4 font-bold text-2xl mb-4">311 Complaints</h2>
       <div class="table-container">
-        <table class="min-w-full bg-white rounded-lg shadow-md">
+        <table class="min-w-full bg-white rounded-lg shadow-md" id="complaints-table">
           <thead class="bg-gray-100">
             <tr>
-              <th class="py-3 px-4 text-left">SR NUMBER</th>
-              <th class="py-3 px-4 text-left">DATE</th>
               <th class="py-3 px-4 text-left">COMPLAINT ID</th>
-              <th class="py-3 px-4 text-left">APT</th>
-              <th class="py-3 px-4 text-left">DESCRIPTION</th>
-              <th class="py-3 px-4 text-left">COMPLAINT DETAIL</th>
-              <th class="py-3 px-4 text-left">LOCATION</th>
+              <th class="py-3 px-4 text-left">TYPE</th>
               <th class="py-3 px-4 text-left">STATUS</th>
+              <th class="py-3 px-4 text-left">CREATED DATE</th>
+              <th class="py-3 px-4 text-left">CLOSED DATE</th>
+              <th class="py-3 px-4 text-left">DESCRIPTION</th>
             </tr>
           </thead>
           <tbody id="complaints-table-body">
-            <!-- Complaints data will be populated here -->
-          </tbody>
-        </table>
-      </div>
-      <div id="no-complaints" class="hidden bg-gray-50 p-4 text-center rounded mt-4">
-        No complaints found for this property.
-      </div>
-    </div>
-    
-    <!-- New 311 Complaints Section -->
-    <div id="complaints-311-container" class="mb-8">
-      <h2 class="font-serif4 font-bold text-2xl mb-4">NYC 311 Complaints</h2>
-      <div class="table-container">
-        <table class="min-w-full bg-white rounded-lg shadow-md">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="py-3 px-4 text-left">SR NUMBER</th>
-              <th class="py-3 px-4 text-left">DATE</th>
-              <th class="py-3 px-4 text-left">APT</th>
-              <th class="py-3 px-4 text-left">DESCRIPTION</th>
-              <th class="py-3 px-4 text-left">COMPLAINT DETAIL</th>
-              <th class="py-3 px-4 text-left">LOCATION</th>
-              <th class="py-3 px-4 text-left">STATUS</th>
-            </tr>
-          </thead>
-          <tbody id="complaints-311-table-body">
             <!-- 311 Complaints data will be populated here -->
           </tbody>
         </table>
       </div>
-      <div id="no-complaints-311" class="hidden bg-gray-50 p-4 text-center rounded mt-4">
-        No 311 complaints found for this property.
+      <div id="no-complaints" class="hidden bg-gray-50 p-4 text-center rounded mt-4">
+        No recent 311 complaints found.
       </div>
     </div>
     
     <div id="hpd-links" class="mt-4 mb-8 text-center">
       <p class="text-sm text-gray-600">View on HPD Online:</p>
       <div id="direct-links" class="flex justify-center space-x-4 mt-2">
-        <!-- Links will be added here -->
+        <!-- Direct links will be added here -->
       </div>
     </div>
   </div>
   
-  <div id="error-message" class="hidden bg-red-100 text-red-700 p-4 rounded-lg">
-    Error message will appear here
+  <div id="error-message" class="hidden bg-red-100 text-red-700 p-4 rounded-lg mb-4">
+    Error message will appear here.
   </div>
-
-  {% if page.how_to_use %}
-    <div class="rich-text mb-8 mt-12">
-      <h2 class="font-serif4 font-bold text-3xl mb-4">How to Use</h2>
-      {{ page.how_to_use|richtext }}
-    </div>
-  {% endif %}
-  
-  {% if page.data_faqs %}
-    <div class="rich-text mb-8">
-      <h2 class="font-serif4 font-bold text-3xl mb-4">Data FAQs</h2>
-      {{ page.data_faqs|richtext }}
-    </div>
-  {% endif %}
 </div>
 
 <script>
@@ -237,33 +168,27 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
   const loadingIndicator = document.getElementById("loading-indicator");
   const resultsContainer = document.getElementById("results-container");
   const errorDiv = document.getElementById("error-message");
+  const violationsBody = document.getElementById("violations-table-body");
+  const noViolations = document.getElementById("no-violations");
   
-  // Hide previous results and errors, show loading
+  // Hide previous results and errors; show loading indicator.
   resultsContainer.classList.add("hidden");
   errorDiv.classList.add("hidden");
   loadingIndicator.classList.remove("hidden");
   
   try {
-    // Make API call to get HPD data
     const res = await fetch(`/scrape-hpd/?address=${encodeURIComponent(address)}&zip_code=${encodeURIComponent(zipCode)}`, {
       headers: {"X-Requested-With": "XMLHttpRequest"}
     });
     
     const data = await res.json();
-    
     loadingIndicator.classList.add("hidden");
     
     if (data.success) {
-      // Show results container
       resultsContainer.classList.remove("hidden");
-      
-      // Log full data for debugging
       console.log("HPD data:", data.data);
       
-      // Get building ID for direct links
       const buildingId = data.data.metadata.building_id;
-      
-      // Populate property info
       const propertyDetails = document.getElementById("property-details");
       propertyDetails.innerHTML = `
         <div><strong>Address:</strong> ${data.data.metadata.address}</div>
@@ -272,70 +197,57 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
         <div><strong>Building ID:</strong> ${buildingId}</div>
       `;
       
-      // Add direct links to HPD Online
+      const dataSourceInfo = document.getElementById("data-source-info");
+      if (data.data.metadata.data_source) {
+        dataSourceInfo.innerHTML = `
+          <p>Primary data source: ${data.data.metadata.data_source}</p>
+          <p class="text-xs">Data retrieved using the official NYC GeoClient API (with fallback).</p>
+        `;
+      }
+      
       if (buildingId) {
         const directLinks = document.getElementById("direct-links");
         directLinks.innerHTML = `
           <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}" target="_blank" 
-            class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+             class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
             Building Info
           </a>
           <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}/violations" target="_blank"
-            class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+             class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
             Violations
           </a>
           <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}/complaints" target="_blank"
-            class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+             class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
             Complaints
           </a>
           <a href="https://a810-bisweb.nyc.gov/bisweb/PropertyProfileOverviewServlet?bin=${buildingId}" target="_blank"
-            class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+             class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
             DOB BIS
           </a>
         `;
       }
       
-      // Populate violations table
-      const violationsBody = document.getElementById("violations-table-body");
-      const noViolations = document.getElementById("no-violations");
-      
+      // Populate the violations table.
+      violationsBody.innerHTML = '';
       if (data.data.violations && data.data.violations.length > 0) {
-        // Clear existing rows
-        violationsBody.innerHTML = '';
-        
-        // Create data rows using the static column structure
         data.data.violations.forEach(violation => {
           const row = document.createElement('tr');
           row.className = "border-b";
           
-          // Format the severity/class for better display
           let severityClass = violation.class || '';
           let severityDisplay = severityClass;
-          
-          if (severityClass) {
-            // If it's a single character class indicator (like A, B, C)
-            if (severityClass.length === 1) {
-              const classLower = severityClass.toLowerCase();
-              severityDisplay = `<span class="class-indicator class-${classLower}">${severityClass}</span>`;
-            }
+          if (severityClass && severityClass.length === 1) {
+            const classLower = severityClass.toLowerCase();
+            severityDisplay = `<span class="class-indicator class-${classLower}">${severityClass}</span>`;
           }
           
-          // Ensure description has a value
           let description = violation.description || '';
-          
-          // Format description with highlighted section numbers
           if (description) {
-            // Highlight section numbers
             description = description.replace(/(§\s*[\d-]+[^\s]*)/g, '<span class="font-semibold text-blue-800">$1</span>');
-            
-            // Highlight violation types
             description = description.replace(/(adm code|hmc)/gi, '<span class="font-semibold text-indigo-700">$1</span>');
-            
-            // Format apt reference
             description = description.replace(/(located at apt \w+)/g, '<span class="text-green-700">$1</span>');
           }
           
-          // Map fields to match HPD interface columns exactly
           row.innerHTML = `
             <td class="py-3 px-4">${violation.violation_number || ''}</td>
             <td class="py-3 px-4">${severityDisplay}</td>
@@ -345,127 +257,56 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
             <td class="py-3 px-4">${violation.date || ''}</td>
             <td class="py-3 px-4 description-cell">${description}</td>
           `;
-          
           violationsBody.appendChild(row);
         });
-        
-        violationsBody.closest('table').classList.remove("hidden");
-        noViolations.classList.add("hidden");
-      } else {
-        violationsBody.innerHTML = '';
-        violationsBody.closest('table').classList.add("hidden");
-        noViolations.classList.remove("hidden");
       }
       
-      // Populate complaints table
+      // If no rows were added, insert a fallback row.
+      if (violationsBody.children.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="7" class="py-3 px-4 text-center">No recent violations found.</td>`;
+        violationsBody.appendChild(row);
+      }
+      // Hide the "no violations" message.
+      noViolations.classList.add("hidden");
+      
+      // Populate the 311 complaints table
       const complaintsBody = document.getElementById("complaints-table-body");
+      complaintsBody.innerHTML = '';
       const noComplaints = document.getElementById("no-complaints");
       
-      if (data.data.complaints && data.data.complaints.length > 0) {
-        // Clear existing rows
-        complaintsBody.innerHTML = '';
-        
-        // Create data rows using the static column structure - PRECISELY MATCHING HPD COLUMN ORDER
-        data.data.complaints.forEach(complaint => {
-          const row = document.createElement('tr');
-          row.className = "border-b";
-          
-          // Format location for display
-          let location = complaint.location || '';
-          // If location is empty but we have keywords in other fields, try to extract
-          if (!location && complaint.description) {
-            if (complaint.description.includes("BUILDING")) 
-              location = "BUILDING-WIDE";
-            else if (complaint.description.includes("KITCHEN"))
-              location = "KITCHEN";
-            else if (complaint.description.includes("BATHROOM"))
-              location = "BATHROOM";
-            else if (complaint.description.includes("BEDROOM"))
-              location = "BEDROOM";
-          }
-          
-          // Ensure status has a default value
-          const status = complaint.status || 'OPEN';
-          
-          // EXACT mapping to match HPD table columns in the EXACT order they appear
-          row.innerHTML = `
-            <td class="py-3 px-4">${complaint.sr_number || ''}</td>
-            <td class="py-3 px-4">${complaint.date || ''}</td>
-            <td class="py-3 px-4">${complaint.complaint_id || ''}</td>
-            <td class="py-3 px-4">${complaint.apt || ''}</td>
-            <td class="py-3 px-4">${complaint.description || ''}</td>
-            <td class="py-3 px-4">${complaint.complaint_detail || ''}</td>
-            <td class="py-3 px-4">${location}</td>
-            <td class="py-3 px-4">${status}</td>
-          `;
-          
-          complaintsBody.appendChild(row);
-        });
-        
-        complaintsBody.closest('table').classList.remove("hidden");
-        noComplaints.classList.add("hidden");
-      } else {
-        complaintsBody.innerHTML = '';
-        complaintsBody.closest('table').classList.add("hidden");
-        noComplaints.classList.remove("hidden");
-      }
-      
-      // Populate 311 complaints table
-      const complaints311Body = document.getElementById("complaints-311-table-body");
-      const noComplaints311 = document.getElementById("no-complaints-311");
-      
       if (data.data.complaints_311 && data.data.complaints_311.length > 0) {
-        // Clear existing rows
-        complaints311Body.innerHTML = '';
-        
-        // Create data rows for 311 complaints
         data.data.complaints_311.forEach(complaint => {
           const row = document.createElement('tr');
           row.className = "border-b";
           
-          // Format location for display
-          let location = complaint.location || '';
+          let description = complaint.description || complaint.complaint_type || '';
           
-          // Ensure status has a default value
-          const status = complaint.status || 'OPEN';
-          
-          // Format date if needed
-          let dateDisplay = complaint.date || '';
-          if (dateDisplay && dateDisplay.includes('T')) {
-            // If it's in ISO format, convert to readable format
-            try {
-              const dateObj = new Date(dateDisplay);
-              dateDisplay = dateObj.toLocaleDateString();
-            } catch (e) {
-              // Keep original if parsing fails
-            }
-          }
-          
-          // Map fields for 311 complaints
           row.innerHTML = `
-            <td class="py-3 px-4">${complaint.sr_number || ''}</td>
-            <td class="py-3 px-4">${dateDisplay}</td>
-            <td class="py-3 px-4">${complaint.apt || ''}</td>
-            <td class="py-3 px-4">${complaint.description || ''}</td>
-            <td class="py-3 px-4">${complaint.complaint_detail || ''}</td>
-            <td class="py-3 px-4">${location}</td>
-            <td class="py-3 px-4">${status}</td>
+            <td class="py-3 px-4">${complaint.unique_key || complaint.id || ''}</td>
+            <td class="py-3 px-4">${complaint.complaint_type || ''}</td>
+            <td class="py-3 px-4">${complaint.status || ''}</td>
+            <td class="py-3 px-4">${complaint.created_date || ''}</td>
+            <td class="py-3 px-4">${complaint.closed_date || ''}</td>
+            <td class="py-3 px-4 description-cell">${description}</td>
           `;
-          
-          complaints311Body.appendChild(row);
+          complaintsBody.appendChild(row);
         });
         
-        complaints311Body.closest('table').classList.remove("hidden");
-        noComplaints311.classList.add("hidden");
+        // Hide the "no complaints" message when we have complaints
+        noComplaints.classList.add("hidden");
       } else {
-        complaints311Body.innerHTML = '';
-        complaints311Body.closest('table').classList.add("hidden");
-        noComplaints311.classList.remove("hidden");
+        // Add a row to the table saying no complaints
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="6" class="py-3 px-4 text-center">No recent 311 complaints found.</td>`;
+        complaintsBody.appendChild(row);
+        
+        // No need to show the separate message as well - keep it hidden
+        noComplaints.classList.add("hidden");
       }
       
     } else {
-      // Show error
-      errorDiv.textContent = data.error || "Failed to retrieve data from HPD Online";
+      errorDiv.textContent = data.error || "Failed to retrieve data from NYC Open Data API";
       errorDiv.classList.remove("hidden");
     }
   } catch (error) {
@@ -475,4 +316,4 @@ document.getElementById("hpd-lookup-form").addEventListener("submit", async func
   }
 });
 </script>
-{% endblock %} 
+{% endblock %}

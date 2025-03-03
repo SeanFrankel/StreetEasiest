@@ -260,6 +260,10 @@ WAGTAILIMAGES_FEATURE_DETECTION_ENABLED = False
 # Pagination
 DEFAULT_PER_PAGE = 8
 
+# NYC API Keys
+NYC_API_KEY = "401655e9d4ae48b58fb867b62efa1543"  # HPD API Key
+NYC_API_KEY_311 = "c2a45eb9ba03409d8f8a8af178474076"  # 311 API Key
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

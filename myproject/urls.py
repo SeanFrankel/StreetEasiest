@@ -9,7 +9,7 @@ from wagtail.contrib.sitemaps.views import sitemap
 
 from myproject.search import views as search_views
 from myproject.home.views import get_dashboard_data
-from myproject.nycapi.views import scrape_hpd_online
+from myproject.nycapi.views import building_lookup_view
 
 urlpatterns = [
     path("django-admin/", admin.site.urls),
@@ -19,7 +19,7 @@ urlpatterns = [
     path("homedata/", include("homedata.urls")),
     path("sitemap.xml", sitemap),
     path('dashboard-data/', get_dashboard_data, name='dashboard_data'),
-    path('scrape-hpd/', scrape_hpd_online, name='scrape_hpd'),
+    path('scrape-hpd/', building_lookup_view, name='scrape-hpd'),
 ]
 
 
