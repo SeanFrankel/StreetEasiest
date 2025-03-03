@@ -190,105 +190,124 @@ def get_311_complaints(address, zip_code, building_id=None):
         return []
     
     try:
-        # The correct endpoint for 311 data via NYC Open Data:
-        url = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
+        # Try multiple approaches to find complaints
         
-        # Format address for comparison
-        # NYC Open Data stores addresses in a slightly different format
-        # Remove cardinal directions and ordinals for better matching
-        cleaned_address = address.lower()
-        cleaned_address = cleaned_address.replace("east", "").replace("west", "").replace("north", "").replace("south", "")
-        cleaned_address = cleaned_address.replace("st", "").replace("nd", "").replace("rd", "").replace("th", "")
-        cleaned_address = ' '.join(cleaned_address.split())  # Normalize whitespace
+        # 1. First approach - direct query with ZIP and address number
+        complaints = query_311_by_address(address, zip_code)
+        if complaints:
+            logger.info(f"Found {len(complaints)} complaints via address query")
+            return complaints
+            
+        # 2. Second approach - broader query with just ZIP code
+        complaints = query_311_by_zip(zip_code)
+        if complaints:
+            logger.info(f"Found {len(complaints)} complaints via ZIP query")
+            return complaints
+            
+        # 3. Third approach - try the NYC 311 service request endpoint
+        complaints = query_311_service_requests(zip_code)
+        if complaints:
+            logger.info(f"Found {len(complaints)} complaints via service requests query")
+            return complaints
         
-        # Query parameters - 311 database needs an address search that will match
-        # Search for incidents in the same ZIP code, then filter by address in Python
-        params = {
-            "incident_zip": zip_code,
-            "$order": "created_date DESC",
-            "$limit": 1000,  # Get more results to filter through
-            # Limit to building/housing related categories
-            "$where": "complaint_type IN('HEAT/HOT WATER', 'PLUMBING', 'PAINT/PLASTER', 'WATER LEAK', 'DOOR/WINDOW', 'ELECTRIC', 'ELEVATOR', 'BUILDING/USE', 'GENERAL CONSTRUCTION', 'LEAD')"
-        }
-        
-        response = requests.get(url, params=params)
-        
-        if response.status_code == 200:
-            all_complaints = response.json()
-            
-            # Filter for matching address - the 311 dataset might have variations in address format
-            # so we'll do a fuzzy match on the address components
-            filtered_complaints = []
-            for complaint in all_complaints:
-                if "incident_address" in complaint:
-                    incident_address = complaint["incident_address"].lower()
-                    # Do a fuzzy match on the address - if the building number is the same
-                    # and some of the street name matches, consider it a match
-                    address_parts = cleaned_address.split()
-                    incident_parts = incident_address.split()
-                    
-                    if len(address_parts) > 0 and len(incident_parts) > 0:
-                        # Check if the building number is the same
-                        if address_parts[0] == incident_parts[0]:
-                            # Count matching words in the street name
-                            matches = sum(1 for word in address_parts[1:] if word in incident_parts[1:])
-                            if matches >= 1:  # At least one word in the street name matches
-                                filtered_complaints.append(complaint)
-            
-            # Process the filtered complaints
-            complaints = []
-            for complaint in filtered_complaints:
-                complaints.append({
-                    "unique_key": complaint.get("unique_key"),
-                    "complaint_type": complaint.get("complaint_type"),
-                    "status": complaint.get("status"),
-                    "created_date": complaint.get("created_date"),
-                    "closed_date": complaint.get("closed_date", ""),
-                    "description": complaint.get("descriptor", "")
-                })
-            
-            # Sort complaints by created date (most recent first)
-            complaints.sort(key=lambda x: x.get("created_date", ""), reverse=True)
-            
-            # Limit to 100 results
-            return complaints[:100]
-        else:
-            logger.error(f"311 API error: {response.status_code} - {response.text}")
-            
-            # Try alternate 311 dataset
-            alt_url = "https://data.cityofnewyork.us/resource/fhrw-4uyv.json"
-            
-            alt_response = requests.get(alt_url, params=params)
-            
-            if alt_response.status_code == 200:
-                return process_311_data(alt_response.json(), cleaned_address)
-            else:
-                logger.error(f"Alternate 311 API error: {alt_response.status_code} - {alt_response.text}")
-                return []
+        logger.warning(f"No 311 complaints found for {address}, {zip_code} using any method")
+        return []
             
     except Exception as e:
-        logger.error(f"Error fetching 311 complaints: {str(e)}")
+        logger.error(f"Error fetching 311 complaints: {str(e)}", exc_info=True)
+        return []
+        
+def query_311_by_address(address, zip_code):
+    """Query 311 complaints by address"""
+    # Extract address components
+    address_parts = address.strip().split()
+    if not address_parts:
+        return []
+        
+    street_number = address_parts[0]
+    
+    # The 311 endpoint
+    url = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
+    
+    # Query by incident address starting with the number and ZIP
+    params = {
+        "incident_zip": zip_code,
+        "$where": f"starts_with(incident_address, '{street_number}')",
+        "$order": "created_date DESC",
+        "$limit": 100
+    }
+    
+    logger.info(f"Querying 311 by address with params: {params}")
+    response = requests.get(url, params=params)
+    
+    if response.status_code == 200:
+        complaints_data = response.json()
+        logger.info(f"Received {len(complaints_data)} complaints for address query")
+        
+        return process_complaint_results(complaints_data)
+    else:
+        logger.error(f"311 address query failed: {response.status_code} - {response.text}")
         return []
 
-def process_311_data(data, cleaned_address):
-    """Helper function to process 311 data from different endpoints"""
-    # Filter for matching address
-    filtered_complaints = []
-    for complaint in data:
-        if "incident_address" in complaint:
-            incident_address = complaint["incident_address"].lower()
-            address_parts = cleaned_address.split()
-            incident_parts = incident_address.split()
-            
-            if len(address_parts) > 0 and len(incident_parts) > 0:
-                if address_parts[0] == incident_parts[0]:
-                    matches = sum(1 for word in address_parts[1:] if word in incident_parts[1:])
-                    if matches >= 1:
-                        filtered_complaints.append(complaint)
+def query_311_by_zip(zip_code):
+    """Query 311 complaints by ZIP code only and filter to housing types"""
+    url = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
     
-    # Process the filtered complaints
+    # Housing-related complaint types
+    housing_categories = [
+        'HEAT/HOT WATER', 'PLUMBING', 'PAINT/PLASTER', 'WATER LEAK', 
+        'DOOR/WINDOW', 'ELECTRIC', 'ELEVATOR', 'BUILDING/USE', 
+        'GENERAL CONSTRUCTION', 'LEAD'
+    ]
+    
+    # Format the query for complaint types
+    complaint_type_query = " OR ".join([f"complaint_type='{category}'" for category in housing_categories])
+    
+    params = {
+        "incident_zip": zip_code,
+        "$where": f"({complaint_type_query})",
+        "$order": "created_date DESC",
+        "$limit": 100
+    }
+    
+    logger.info(f"Querying 311 by ZIP with params: {params}")
+    response = requests.get(url, params=params)
+    
+    if response.status_code == 200:
+        complaints_data = response.json()
+        logger.info(f"Received {len(complaints_data)} complaints for ZIP query")
+        
+        return process_complaint_results(complaints_data)
+    else:
+        logger.error(f"311 ZIP query failed: {response.status_code} - {response.text}")
+        return []
+
+def query_311_service_requests(zip_code):
+    """Query the 311 service requests endpoint"""
+    url = "https://data.cityofnewyork.us/resource/fhrw-4uyv.json"
+    
+    params = {
+        "incident_zip": zip_code,
+        "$order": "created_date DESC",
+        "$limit": 100
+    }
+    
+    logger.info(f"Querying 311 service requests with params: {params}")
+    response = requests.get(url, params=params)
+    
+    if response.status_code == 200:
+        complaints_data = response.json()
+        logger.info(f"Received {len(complaints_data)} service requests")
+        
+        return process_complaint_results(complaints_data)
+    else:
+        logger.error(f"311 service requests query failed: {response.status_code} - {response.text}")
+        return []
+        
+def process_complaint_results(data):
+    """Process 311 complaint results into a standard format"""
     complaints = []
-    for complaint in filtered_complaints:
+    for complaint in data:
         complaints.append({
             "unique_key": complaint.get("unique_key"),
             "complaint_type": complaint.get("complaint_type"),
@@ -298,9 +317,11 @@ def process_311_data(data, cleaned_address):
             "description": complaint.get("descriptor", "")
         })
     
-    # Sort and limit results
+    # Sort by date (most recent first)
     complaints.sort(key=lambda x: x.get("created_date", ""), reverse=True)
-    return complaints[:100]
+    
+    # Limit to 50 results
+    return complaints[:50]
 
 def building_lookup_view(request):
     """
