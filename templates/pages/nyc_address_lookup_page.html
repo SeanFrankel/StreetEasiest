@@ -39,8 +39,15 @@
   </div>
 
   <script>
-    // Renders a table for a dataset, including a filter input for quick searching.
-    function renderTable(dataArray, title) {
+    /**
+     * Renders a table for a given dataset, excluding any columns listed in excludedCols.
+     *
+     * @param {Object[]} dataArray - Array of objects representing table rows
+     * @param {string} title - Table title
+     * @param {string[]} [excludedCols=[]] - Optional list of columns to exclude
+     * @returns {string} - HTML markup for the table
+     */
+    function renderTable(dataArray, title, excludedCols = []) {
       if (!dataArray || !dataArray.length) {
         return `
           <div class="my-4">
@@ -50,8 +57,10 @@
         `;
       }
       
-      // Determine columns from the keys of the first object
-      const columns = Object.keys(dataArray[0]);
+      // Determine columns from the keys of the first object, minus excludedCols
+      let columns = Object.keys(dataArray[0]);
+      columns = columns.filter(col => !excludedCols.includes(col));
+
       const tableId = title.replace(/\s/g, '_');
 
       let html = `<div class="my-4">`;
@@ -138,8 +147,19 @@
             <p class="mb-1"><strong>ZIP Code:</strong> ${data.data.zip_code}</p>
             <p class="mb-4"><strong>Building ID:</strong> ${data.data.building_id || "N/A"}</p>
           `;
-          // Render each dataset as a table
-          html += renderTable(data.data.hpd_violations, "HPD Violations");
+
+          // Render HPD Violations with excluded columns
+          const excludedColsForViolations = [
+            "housenumber",
+            "lowhousenumber",
+            "highhousenumber",
+            "streetname",
+            "streetcode",
+            "zip"
+          ];
+          html += renderTable(data.data.hpd_violations, "HPD Violations", excludedColsForViolations);
+
+          // Render other datasets normally
           html += renderTable(data.data.complaints, "311 Complaints");
           html += renderTable(data.data.bedbug_reports, "Bedbug Reports");
           html += renderTable(data.data.litigation, "Housing Litigation");
