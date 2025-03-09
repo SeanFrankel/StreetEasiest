@@ -81,24 +81,24 @@ def get_hpd_violations(building_id):
     return data if data else []
 
 def get_311_complaints(address, zip_code, building_id=None):
-    """
-    Fetch 311 complaints.
-    If building_id is available, query by it; otherwise, use the house number and ZIP code.
-    """
     url = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
+    headers = {}
     if building_id:
-        params = {"$where": f"building_id='{building_id}'", "$order": "created_date DESC", "$limit": 50}
-    else:
-        parts = address.strip().split()
-        house_number = parts[0] if parts else ""
+        # 311 data might store bin or building_id differently; try both if needed
         params = {
-            "incident_zip": zip_code,
-            "$where": f"starts_with(incident_address, '{house_number}')",
+            "$where": f"building_id='{building_id}'",  # or bin='{building_id}' if the 311 dataset uses bin
             "$order": "created_date DESC",
             "$limit": 50
         }
-    data = api_get(url, params=params, timeout=10)
-    return data if data else []
+    else:
+        house_number = address.split()[0] if address.split() else ""
+        params = {
+            "$where": f"incident_zip='{zip_code}' AND incident_address like '{house_number}%'",
+            "$order": "created_date DESC",
+            "$limit": 50
+        }
+    return api_get(url, params=params, headers=headers, timeout=10) or []
+
 
 def get_bedbug_reports(building_id):
     """Fetch bedbug reports using the building ID (BIN)."""
@@ -107,12 +107,19 @@ def get_bedbug_reports(building_id):
     data = api_get(url, params=params, timeout=10)
     return data if data else []
 
-def get_housing_litigation(building_id):
-    """Fetch housing litigation records for the building."""
+
+def get_housing_litigation(bin_number):
+    if not bin_number:
+        return []
     url = "https://data.cityofnewyork.us/resource/59kj-x8nc.json"
-    params = {"$where": f"buildingid='{building_id}'", "$order": "caseopendate DESC", "$limit": 50}
-    data = api_get(url, params=params, timeout=10)
-    return data if data else []
+    headers = {}
+    # If bin is text in SoQL, use quotes:
+    params = {
+        "$where": f"bin='{bin_number}'",   # all-lowercase 'bin', in quotes
+        "$order": "caseopendate DESC",
+        "$limit": 50
+    }
+    return api_get(url, params=params, headers=headers, timeout=10) or []
 
 def building_lookup_view(request):
     """
