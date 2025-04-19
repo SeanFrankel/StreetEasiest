@@ -1,17 +1,15 @@
-import json
+# views.py
 import logging
-import os
-import urllib.parse
 import requests
-from datetime import datetime
 from django.conf import settings
 from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
 
 # NYC GeoClient API credentials
-NYC_APP_ID = '04304356a107449aa1656f9e6be87533'
+NYC_APP_ID  = '04304356a107449aa1656f9e6be87533'
 NYC_APP_KEY = 'f35ede6b69904a1fb4f9180c0408a3fb'
+
 
 def get_borough_from_zip(zip_code):
     borough_map = {
@@ -22,129 +20,146 @@ def get_borough_from_zip(zip_code):
         'STATEN ISLAND': list(range(10301, 10315))
     }
     try:
-        zip_num = int(zip_code)
+        z = int(zip_code)
         for borough, zips in borough_map.items():
-            if zip_num in zips:
+            if z in zips:
                 return borough.title()
     except Exception as e:
         logger.error(f"Error determining borough: {e}")
     return None
 
+
 def api_get(url, params=None, headers=None, timeout=10):
     """Helper for GET requests with error handling."""
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=timeout)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            logger.error(f"API call to {url} failed with status {response.status_code}")
+        headers = headers or {}
+        # Optionally: headers["X-App-Token"] = settings.SOCRATA_APP_TOKEN
+        resp = requests.get(url, params=params, headers=headers, timeout=timeout)
+        if resp.status_code == 200:
+            return resp.json()
+        logger.error(f"API call to {url} failed: {resp.status_code}")
     except Exception as e:
-        logger.error(f"API call exception: {e}")
+        logger.error(f"API exception: {e}")
     return None
+
 
 def get_building_id(address, zip_code):
     """
-    Retrieve the building ID using the NYC GeoClient API.
-    Assumes address is in "house_number street" format.
+    Returns a tuple (BIN, BBL) for the given address via GeoClient,
+    authenticating with the subscription key.
     """
     parts = address.strip().split()
     if len(parts) < 2:
         logger.error("Invalid address format")
-        return None
+        return None, None
     house_number = parts[0]
-    street = " ".join(parts[1:])
-    borough = get_borough_from_zip(zip_code)
+    street       = " ".join(parts[1:])
+    borough      = get_borough_from_zip(zip_code)
     if not borough:
-        logger.error("Borough could not be determined")
-        return None
+        logger.error("Cannot determine borough for ZIP %s", zip_code)
+        return None, None
+
     url = "https://api.nyc.gov/geo/geoclient/v2/address"
     params = {
         "houseNumber": house_number,
         "street": street,
         "borough": borough,
-        "zip": zip_code
+        "zip": zip_code,
+        "app_id": NYC_APP_ID
     }
-    headers = {
-        "Ocp-Apim-Subscription-Key": NYC_APP_KEY,
-        "X-App-ID": NYC_APP_ID
-    }
+    # Geoclient requires the subscription key header
+    headers = {"Ocp-Apim-Subscription-Key": NYC_APP_KEY}
     data = api_get(url, params=params, headers=headers, timeout=10)
-    if data and "address" in data:
-        return data["address"].get("buildingIdentificationNumber")
-    return None
+    if data and data.get("address"):
+        addr = data["address"]
+        bin_ = addr.get("buildingIdentificationNumber")
+        bbl  = addr.get("bbl")
+        return bin_, bbl
+    return None, None
+    house_number = parts[0]
+    street       = " ".join(parts[1:])
+    borough      = get_borough_from_zip(zip_code)
+    if not borough:
+        logger.error("Cannot determine borough for ZIP %s", zip_code)
+        return None, None
 
-def get_hpd_violations(building_id):
-    """Fetch HPD violations using a single NYC Open Data endpoint."""
+    url = "https://api.nyc.gov/geo/geoclient/v2/address"
+    params = {
+        "houseNumber": house_number,
+        "street": street,
+        "borough": borough,
+        "zip": zip_code,
+        "app_id": NYC_APP_ID,
+        "app_key": NYC_APP_KEY
+    }
+    data = api_get(url, params=params)
+    if data and data.get("address"):
+        addr = data["address"]
+        bin_ = addr.get("buildingIdentificationNumber")
+        bbl  = addr.get("bbl")
+        return bin_, bbl
+    return None, None
+
+
+def get_hpd_violations(bin_number):
+    if not bin_number:
+        return []
     url = "https://data.cityofnewyork.us/resource/wvxf-dwi5.json"
-    params = {"$where": f"bin='{building_id}'", "$order": "inspectiondate DESC", "$limit": 50}
-    data = api_get(url, params=params, timeout=10)
-    return data if data else []
+    params = {
+        "$where": f"bin='{bin_number}'",
+        "$order": "inspectiondate DESC",
+        "$limit": 50
+    }
+    return api_get(url, params=params, timeout=20) or []
 
-def get_311_complaints(address, zip_code, building_id=None):
+
+def get_311_complaints(bbl):
+    """
+    Fetch 311 complaints using only the BBL.
+    """
+    if not bbl:
+        return []
     url = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
-    headers = {}
-    if building_id:
-        # 311 data might store bin or building_id differently; try both if needed
-        params = {
-            "$where": f"building_id='{building_id}'",  # or bin='{building_id}' if the 311 dataset uses bin
-            "$order": "created_date DESC",
-            "$limit": 50
-        }
-    else:
-        house_number = address.split()[0] if address.split() else ""
-        params = {
-            "$where": f"incident_zip='{zip_code}' AND incident_address like '{house_number}%'",
-            "$order": "created_date DESC",
-            "$limit": 50
-        }
-    return api_get(url, params=params, headers=headers, timeout=10) or []
+    params = {
+        "$where": f"bbl='{bbl}'",
+        "$order": "created_date DESC",
+        "$limit": 50
+    }
+    return api_get(url, params=params, timeout=20) or []
 
 
-def get_bedbug_reports(building_id):
-    """Fetch bedbug reports using the building ID (BIN)."""
+def get_bedbug_reports(bin_number):
+    if not bin_number:
+        return []
     url = "https://data.cityofnewyork.us/resource/wz6d-d3jb.json"
-    params = {"$where": f"bin='{building_id}'", "$order": "filing_date DESC", "$limit": 50}
-    data = api_get(url, params=params, timeout=10)
-    return data if data else []
+    params = {"$where": f"bin='{bin_number}'", "$order": "filing_date DESC", "$limit": 50}
+    return api_get(url, params=params, timeout=20) or []
 
 
 def get_housing_litigation(bin_number):
     if not bin_number:
         return []
     url = "https://data.cityofnewyork.us/resource/59kj-x8nc.json"
-    headers = {}
-    # If bin is text in SoQL, use quotes:
-    params = {
-        "$where": f"bin='{bin_number}'",   # all-lowercase 'bin', in quotes
-        "$order": "caseopendate DESC",
-        "$limit": 50
-    }
-    return api_get(url, params=params, headers=headers, timeout=10) or []
+    params = {"$where": f"bin='{bin_number}'", "$order": "caseopendate DESC", "$limit": 50}
+    return api_get(url, params=params, timeout=20) or []
+
 
 def building_lookup_view(request):
-    """
-    Main AJAX view.
-    Retrieves the building ID, then fetches HPD violations, 311 complaints,
-    bedbug reports, and housing litigation records.
-    """
-    address = request.GET.get("address", "").strip()
+    address  = request.GET.get("address", "").strip()
     zip_code = request.GET.get("zip_code", "").strip()
     if not address or not zip_code:
         return JsonResponse({"success": False, "error": "Address and ZIP code are required."})
-    
-    building_id = get_building_id(address, zip_code)
-    hpd_violations = get_hpd_violations(building_id) if building_id else []
-    complaints = get_311_complaints(address, zip_code, building_id)
-    bedbug_reports = get_bedbug_reports(building_id) if building_id else []
-    litigation = get_housing_litigation(building_id) if building_id else []
-    
+
+    bin_number, bbl = get_building_id(address, zip_code)
+
     result = {
         "address": address,
         "zip_code": zip_code,
-        "building_id": building_id,
-        "hpd_violations": hpd_violations,
-        "complaints": complaints,
-        "bedbug_reports": bedbug_reports,
-        "litigation": litigation,
+        "building_id": bin_number,
+        "bbl": bbl,
+        "hpd_violations": get_hpd_violations(bin_number),
+        "complaints": get_311_complaints(bbl),
+        "bedbug_reports": get_bedbug_reports(bin_number),
+        "litigation": get_housing_litigation(bin_number),
     }
     return JsonResponse({"success": True, "data": result})
