@@ -11,6 +11,7 @@ from modelcluster.fields import ParentalKey
 from willow.image import Image as WillowImage
 
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
+from wagtail.images.widgets import AdminImageChooser
 from wagtail.contrib.settings.models import BaseSiteSetting, register_setting
 from wagtail.fields import RichTextField
 from wagtail.models import Orderable, Page
@@ -51,7 +52,10 @@ class SocialFields(models.Model):
 
     promote_panels = [
         MultiFieldPanel(
-            [FieldPanel("social_image"), FieldPanel("social_text")],
+            [
+                FieldPanel("social_image", widget=AdminImageChooser),
+                FieldPanel("social_text")
+            ],
             "Social networks",
         )
     ]
@@ -85,7 +89,7 @@ class ListingFields(models.Model):
     promote_panels = [
         MultiFieldPanel(
             [
-                FieldPanel("listing_image"),
+                FieldPanel("listing_image", widget=AdminImageChooser),
                 FieldPanel("listing_title"),
                 FieldPanel("listing_summary"),
             ],
@@ -105,6 +109,11 @@ class AuthorSnippet(models.Model):
         related_name="+",
     )
 
+    panels = [
+        FieldPanel("title"),
+        FieldPanel("image", widget=AdminImageChooser),
+    ]
+
     def __str__(self):
         return self.title
 
@@ -113,6 +122,11 @@ class AuthorSnippet(models.Model):
 class ArticleTopic(models.Model):
     title = models.CharField(blank=False, max_length=255)
     slug = models.SlugField(blank=False, max_length=255)
+
+    panels = [
+        FieldPanel("title"),
+        FieldPanel("slug"),
+    ]
 
     def __str__(self):
         return self.title
@@ -177,113 +191,105 @@ class Statistic(models.Model):
 
 @register_setting
 class SocialMediaSettings(BaseSiteSetting):
+    """
+    Settings for social media integration.
+    """
     twitter_handle = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Your Twitter username without the @, e.g. katyperry",
+        help_text="Your Twitter/X handle without the @ symbol"
     )
     linkedin_handle = models.CharField(
-        max_length=255, blank=True, help_text="Your Linkedin handle, e.g. katyperry."
+        max_length=255,
+        blank=True,
+        help_text="Your LinkedIn profile URL"
     )
     facebook_app_id = models.CharField(
-        max_length=255, blank=True, help_text="Your Facebook app ID."
+        max_length=255,
+        blank=True,
+        help_text="Your Facebook App ID"
     )
     instagram_handle = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Your Instagram username, e.g. katyperry",
+        help_text="Your Instagram handle without the @ symbol"
     )
     tiktok_handle = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Your TikTok username, e.g. katyperry",
+        help_text="Your TikTok handle without the @ symbol"
     )
     default_sharing_text = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Default sharing text to use if social text has not been set on a page.",
+        help_text="Default text used when sharing pages on social media"
     )
+
+    panels = [
+        FieldPanel("twitter_handle"),
+        FieldPanel("linkedin_handle"),
+        FieldPanel("facebook_app_id"),
+        FieldPanel("instagram_handle"),
+        FieldPanel("tiktok_handle"),
+        FieldPanel("default_sharing_text"),
+    ]
+
+    class Meta:
+        verbose_name = 'Social Media'
 
 
 @register_setting
 class SystemMessagesSettings(BaseSiteSetting):
-    class Meta:
-        verbose_name = "system messages"
-
-    title_404 = models.CharField("Title", max_length=255, default="Page not found")
-    body_404 = RichTextField(
-        "Text",
-        default="<p>You may be trying to find a page that doesn&rsquo;t exist or has been moved.</p>",
-    )
-
-    placeholder_image = models.ForeignKey(
-        "images.CustomImage",
-        null=True,
-        blank=False,
-        on_delete=models.SET_NULL,
-        related_name="+",
-        help_text="Choose the image you wish to be displayed as a placeholder image.",
-    )
-
-    footer_newsletter_signup_title = models.CharField(
-        blank=False,
-        null=False,
-        default="Sign up for our newsletter",
-        max_length=120,
-    )
-    footer_newsletter_signup_description = models.CharField(
-        blank=True,
+    """
+    Settings for system-wide messages and content.
+    """
+    title_404 = models.CharField(
         max_length=255,
+        default="Page not found",
+        help_text="Title shown on 404 pages"
+    )
+    body_404 = RichTextField(
+        default="<p>The page you are looking for could not be found.</p>",
+        help_text="Content shown on 404 pages"
+    )
+    placeholder_image = models.ForeignKey(
+        'images.CustomImage',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        help_text="Default image used when no image is specified"
+    )
+    footer_newsletter_signup_title = models.CharField(
+        max_length=255,
+        default="Stay Updated",
+        help_text="Title for the newsletter signup section in the footer"
+    )
+    footer_newsletter_signup_description = models.TextField(
+        default="Get the latest updates and news delivered to your inbox.",
+        help_text="Description for the newsletter signup section in the footer"
     )
     footer_newsletter_signup_link = models.URLField(
-        blank=True,
-        null=True,
-        help_text="Link to the newsletter signup form. If left blank, the signup CTA will not be displayed.",
+        max_length=255,
+        default="",
+        help_text="Link for the newsletter signup form"
     )
 
     panels = [
-        MultiFieldPanel(
-            [
-                FieldPanel("title_404"),
-                FieldPanel("body_404"),
-            ],
-            heading="404 page",
-        ),
-        FieldPanel("placeholder_image",),
-        MultiFieldPanel(
-            [
-                FieldPanel("footer_newsletter_signup_title",),
-                FieldPanel("footer_newsletter_signup_description",),
-                FieldPanel("footer_newsletter_signup_link",),
-            ],
-            heading="Footer",
-        ),
+        MultiFieldPanel([
+            FieldPanel('title_404'),
+            FieldPanel('body_404'),
+        ], heading="404 Page"),
+        FieldPanel('placeholder_image', widget=AdminImageChooser),
+        MultiFieldPanel([
+            FieldPanel('footer_newsletter_signup_title'),
+            FieldPanel('footer_newsletter_signup_description'),
+            FieldPanel('footer_newsletter_signup_link'),
+        ], heading="Footer Newsletter"),
     ]
 
-    def get_placeholder_image(self):
-        """
-        """
-        if self.placeholder_image:
-            return self.placeholder_image
-
-        # Get the absolute path to the image file
-        absolute_path = find('images/placeholder-image.webp')
-        if absolute_path:
-            with open(absolute_path, 'rb') as f:
-                image_bytes = f.read()
-
-            img_file = ImageFile(BytesIO(image_bytes), name="Placeholder Image")
-            im = WillowImage.open(img_file)
-            width, height = im.get_size()
-
-            new_default_image = CustomImage(title="Placeholder Image", file=img_file, width=width, height=height)
-            new_default_image.save()
-            new_default_image.tags.add("placeholder")
-
-            self.placeholder_image = new_default_image
-            self.save()  # Save to persist new image as placeholder
-            return self.placeholder_image
-        raise ValidationError("No placeholder image found. Please upload a placeholder image.")
+    class Meta:
+        verbose_name = 'System Messages'
 
 
 # Apply default cache headers on this page model's serve method.
@@ -317,9 +323,6 @@ class BasePage(SocialFields, ListingFields, Page):
         The result is ordered to match that specified by editors using
         the 'page_related_pages' `InlinePanel`.
         """
-
-        # NOTE: avoiding values_list() here for compatibility with preview
-        # See: https://github.com/wagtail/django-modelcluster/issues/30
         ordered_page_pks = tuple(item.page_id for item in self.page_related_pages.all())
         return order_by_pk_position(
             Page.objects.live().public().specific(),

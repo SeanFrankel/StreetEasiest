@@ -1,0 +1,162 @@
+{% extends "base_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags static %}
+
+{% block content %}
+  {% block breadcrumbs %}
+    {% include "navigation/breadcrumbs.html" %}
+  {% endblock %}
+
+    <div class="site-container max-w-6xl mx-auto px-4 py-8">
+        <!-- Fixed Back to Top Button -->
+        <button 
+            onclick="window.scrollTo({top: 0, behavior: 'smooth'})"
+            class="fixed bottom-4 right-4 flex items-center justify-center bg-white hover:bg-mackerel-200 text-mackerel-300 py-2 px-4 rounded-lg shadow-lg transition z-50 border border-mackerel-200"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+            </svg>
+            Back to Top
+        </button>
+
+        <!-- Header Section with improved layout -->
+        <div class="flex flex-col md:flex-row md:items-start gap-8 py-8 border-b border-grey-200 mb-8">
+            <div class="md:w-2/5">
+                <h1 class="font-serif4 font-bold text-4xl md:text-5xl lg:text-6xl mb-4 leading-tight">
+                    NYC Rental Trends Tool
+                </h1>
+            </div>
+            
+            {% if page.intro %}
+                <div class="md:w-3/5">
+                    <div class="rich-text prose text-grey-700">
+                        {{ page.intro|richtext }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if page.how_to_use %}
+            <div class="mb-8">
+                <h2 class="font-serif4 font-bold text-3xl mb-4">How to Use</h2>
+                <div class="rich-text prose text-grey-700 font-sans3">
+                    {{ page.how_to_use|richtext }}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="flex flex-col md:flex-row gap-8 mb-8 max-h-[800px] overflow-y-auto">
+            <!-- Controls Sidebar -->
+            <div class="w-full md:w-64 flex-shrink-0 bg-white rounded-xl shadow-lg border border-grey-200 p-4 max-h-[800px] overflow-y-auto">
+                <!-- Data Type Selection -->
+                <div class="control-group" id="dataTypeContainer">
+                    <label class="control-label font-semibold mb-2 block" for="dataTypeGroup">Data Types</label>
+                    <div class="checkbox-group space-y-2" role="group" aria-labelledby="dataTypeGroup">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="dt_median" value="median" checked class="form-checkbox" aria-label="Show median asking rent">
+                            <label for="dt_median" class="font-sans3 ml-2">Median Asking Rent</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="dt_inventory" value="inventory" class="form-checkbox" aria-label="Show rental inventory">
+                            <label for="dt_inventory" class="font-sans3 ml-2">Rental Inventory</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bedroom Type Selection -->
+                <div class="control-group mt-6" id="bedroomContainer">
+                    <label class="control-label font-semibold mb-2 block" for="bedroomGroup">Bedroom Types</label>
+                    <div class="checkbox-group space-y-2" role="group" aria-labelledby="bedroomGroup">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="bed_All" value="All" checked class="form-checkbox" aria-label="Show all bedrooms">
+                            <label for="bed_All" class="font-sans3 ml-2">All Bedrooms</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="bed_Studio" value="Studio" class="form-checkbox" aria-label="Show studio apartments">
+                            <label for="bed_Studio" class="font-sans3 ml-2">Studio</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="bed_OneBd" value="OneBd" class="form-checkbox" aria-label="Show one bedroom apartments">
+                            <label for="bed_OneBd" class="font-sans3 ml-2">One Bedroom</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="bed_TwoBd" value="TwoBd" class="form-checkbox" aria-label="Show two bedroom apartments">
+                            <label for="bed_TwoBd" class="font-sans3 ml-2">Two Bedroom</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="bed_ThreePlusBd" value="ThreePlusBd" class="form-checkbox" aria-label="Show three plus bedroom apartments">
+                            <label for="bed_ThreePlusBd" class="font-sans3 ml-2">Three+ Bedrooms</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Neighborhood Selection -->
+                <div class="control-group mt-6">
+                    {% include "components/neighborhoods.html" %}
+                </div>
+
+                <!-- Chart Controls -->
+                <div class="control-group mt-6">
+                    <label class="control-label font-semibold mb-2 block">Chart Controls</label>
+                    
+                    <div class="checkbox-group space-y-2">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="toggleInventorySecondary" class="form-checkbox" aria-label="Toggle rental inventory on secondary axis">
+                            <label for="toggleInventorySecondary" class="font-sans3 ml-2">Show Inventory on Secondary Y-Axis</label>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="control-label font-semibold mb-2 block">Data Display Options</label>
+                        <div class="checkbox-group space-y-2">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="rawDataCheckbox" checked class="form-checkbox" aria-label="Show raw data">
+                                <label for="rawDataCheckbox" class="font-sans3 ml-2">Raw Data Only</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="seasonalCheckbox" class="form-checkbox" aria-label="Show seasonally adjusted data">
+                                <label for="seasonalCheckbox" class="font-sans3 ml-2">Seasonally Adjusted Only</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="showBothCheckbox" class="form-checkbox" aria-label="Show both raw and seasonally adjusted data">
+                                <label for="showBothCheckbox" class="font-sans3 ml-2">Both Raw and Adjusted</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reset Button -->
+                <div class="control-group mt-6">
+                    <button id="resetFilters" class="w-full py-2 px-4 bg-mackerel-200 hover:bg-mackerel-300 text-white rounded-lg transition font-sans3" aria-label="Reset all filters">
+                        Reset Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chart Container -->
+            <div class="flex-1 min-h-[500px] max-h-[800px] max-w-[550px]">
+                <div class="chart-container bg-white rounded-xl shadow-lg border border-grey-200 p-6 h-full min-h-[500px] max-h-[800px] relative" style="aspect-ratio: 4/3;">
+                    <div id="loadingIndicator" class="loading-indicator hidden absolute inset-0 flex items-center justify-center bg-white bg-opacity-75" role="status" aria-label="Loading data">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <canvas id="rentChart" aria-label="Rental trends chart" style="width: 100% !important; height: 100% !important; max-height: 100%;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        {% include_block page.body %}
+
+        <!-- Data FAQs -->
+        {% if page.data_faqs %}
+            <div class="mt-12">
+                <h2 class="font-serif4 font-bold text-3xl mb-4">Data FAQs</h2>
+                <div class="prose text-grey-700 font-sans3">
+                    {{ page.data_faqs|richtext }}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Include Chart.js and chart rendering JS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{% static 'homedata/js/rental-trends.js' %}"></script>
+{% endblock %} 

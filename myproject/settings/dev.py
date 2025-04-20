@@ -14,6 +14,9 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # NYC API Key for HPD Datafeed API
 NYC_API_KEY = "f35ede6b69904a1fb4f9180c0408a3fb"  # Replace with your actual API key
 
+# Static files settings
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
 try:
     from .local import *
 except ImportError:

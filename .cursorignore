@@ -1,5 +1,4 @@
-# Ignore CSV files
-*.csv
+
 
 # Ignore common dependency directories
 node_modules/

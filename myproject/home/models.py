@@ -1,5 +1,4 @@
 from django.db import models
-from django.db import models
 from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel
 from wagtail.search import index
 from wagtail.models import Page
@@ -16,8 +15,9 @@ class HomePage(BasePage):
         blank=True,
         min_num=0,
         max_num=1,
+        use_json_field=True,
     )
-    body = StreamField(StoryBlock())
+    body = StreamField(StoryBlock(), use_json_field=True)
     featured_section_title = models.TextField(blank=True)
 
     search_fields = BasePage.search_fields + [index.SearchField("introduction")]
@@ -39,8 +39,11 @@ class HomePage(BasePage):
         ),
     ]
 
+    class Meta:
+        verbose_name = "Home Page"
 
-class NYCAggregatedDashboardPage(Page):
+
+class NYCAggregatedDashboardPage(BasePage):
     """A page that displays the NYC Aggregated Dashboard."""
     header = models.CharField(
         max_length=255,
@@ -52,7 +55,12 @@ class NYCAggregatedDashboardPage(Page):
         help_text="Instructions on how to use the dashboard"
     )
     
-    content_panels = Page.content_panels + [
+    search_fields = BasePage.search_fields + [
+        index.SearchField('header'),
+        index.SearchField('instructions'),
+    ]
+    
+    content_panels = BasePage.content_panels + [
         FieldPanel("header"),
         FieldPanel("instructions"),
     ]

@@ -1,0 +1,308 @@
+{% extends "base_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags static %}
+
+{% block content %}
+
+<!-- //### THIS PAGE IS DEPREACTED, ONLY KEEPING IT HERE FOR REFERENCE ###// -->
+
+<style>
+  /* Styles for long descriptions and table layout */
+  td.description-cell {
+    max-width: 500px;
+    min-width: 250px;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    hyphens: auto;
+    white-space: normal;
+    text-align: left;
+  }
+  
+  .class-indicator {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    text-align: center;
+    width: 24px;
+  }
+  
+  .class-indicator.class-a { background-color: #f8d7da; color: #721c24; }
+  .class-indicator.class-b { background-color: #cce5ff; color: #004085; }
+  .class-indicator.class-c { background-color: #fff3cd; color: #856404; }
+  
+  .table-container { overflow-x: auto; margin-bottom: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+  th { background-color: #f8f9fa; position: sticky; top: 0; z-index: 10; padding: 10px; }
+  tr:nth-child(even) { background-color: #f2f2f2; }
+  tr:hover { background-color: #e9ecef; }
+  
+  /* Fixed column widths */
+  th:nth-child(1), td:nth-child(1) { width: 10%; }
+  th:nth-child(2), td:nth-child(2) { width: 5%; }
+  th:nth-child(3), td:nth-child(3) { width: 8%; }
+  th:nth-child(4), td:nth-child(4) { width: 7%; }
+  th:nth-child(5), td:nth-child(5) { width: 7%; }
+  th:nth-child(6), td:nth-child(6) { width: 10%; }
+  th:nth-child(7), td:nth-child(7) { width: 53%; }
+</style>
+
+<div class="site-padding site-container py-8">
+  <h1 class="font-serif4 font-bold text-4xl lg:text-5xl mb-4">{{ page.header }}</h1>
+  
+  {% if page.instructions %}
+    <div class="rich-text mb-6">
+      {{ page.instructions|richtext }}
+    </div>
+  {% endif %}
+  
+  <!-- Search Form -->
+  <div class="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
+    <h2 class="font-serif4 font-bold text-2xl mb-4 text-center">Search HPD Database</h2>
+    <form id="hpd-lookup-form" class="flex flex-col md:flex-row gap-4">
+      <div class="flex-grow">
+        <label for="address" class="block mb-1 font-medium">Street Address</label>
+        <input type="text" id="address" name="address" 
+               placeholder="e.g., 25 East 67th Street" required
+               class="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div class="md:w-1/4">
+        <label for="zip-code" class="block mb-1 font-medium">ZIP Code</label>
+        <input type="text" id="zip-code" name="zip_code" 
+               placeholder="e.g., 10065" required
+               class="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div class="md:self-end">
+        <button type="submit" 
+                class="bg-white border border-blue-700 text-blue-900 px-6 py-2 rounded hover:bg-blue-50 transition duration-200">
+          Search HPD
+        </button>
+      </div>
+    </form>
+    <p class="text-sm text-gray-500 mt-2 text-center">
+      Enter a street address and ZIP code to retrieve housing data.
+    </p>
+  </div>
+  
+  <div id="loading-indicator" class="hidden text-center py-8">
+    <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+    <p class="mt-2">Fetching data from NYC Open Data APIs...</p>
+  </div>
+  
+  <div id="results-container" class="hidden">
+    <div id="property-info" class="mb-8 bg-white p-6 rounded-lg shadow-md">
+      <h2 class="font-serif4 font-bold text-2xl mb-4 border-b pb-2">Property Information</h2>
+      <div id="property-details" class="grid grid-cols-2 gap-4">
+        <!-- Property info will be populated here -->
+      </div>
+      <div id="data-source-info" class="mt-4 text-sm text-gray-500">
+        <p>Data retrieved using the official NYC GeoClient API.</p>
+      </div>
+    </div>
+    
+    <div id="violations-container" class="mb-8">
+      <h2 class="font-serif4 font-bold text-2xl mb-4">Housing Violations</h2>
+      <div class="table-container">
+        <table class="min-w-full bg-white rounded-lg shadow-md" id="violations-table">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="py-3 px-4 text-left">VIOLATION ID</th>
+              <th class="py-3 px-4 text-left">CLASS</th>
+              <th class="py-3 px-4 text-left">ORDER #</th>
+              <th class="py-3 px-4 text-left">APT #</th>
+              <th class="py-3 px-4 text-left">STORY #</th>
+              <th class="py-3 px-4 text-left">REPORTED DATE</th>
+              <th class="py-3 px-4 text-left">VIOLATION DESCRIPTION</th>
+            </tr>
+          </thead>
+          <tbody id="violations-table-body">
+            <!-- Violations data will be populated here -->
+          </tbody>
+        </table>
+      </div>
+      <div id="no-violations" class="hidden bg-gray-50 p-4 text-center rounded mt-4">
+        No recent violations found.
+      </div>
+    </div>
+    
+    <!-- 311 Complaints Section -->
+    <div id="complaints-container" class="mb-8">
+      <h2 class="font-serif4 font-bold text-2xl mb-4">311 Complaints</h2>
+      <div class="table-container">
+        <table class="min-w-full bg-white rounded-lg shadow-md" id="complaints-table">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="py-3 px-4 text-left">COMPLAINT ID</th>
+              <th class="py-3 px-4 text-left">TYPE</th>
+              <th class="py-3 px-4 text-left">STATUS</th>
+              <th class="py-3 px-4 text-left">CREATED DATE</th>
+              <th class="py-3 px-4 text-left">CLOSED DATE</th>
+              <th class="py-3 px-4 text-left">DESCRIPTION</th>
+            </tr>
+          </thead>
+          <tbody id="complaints-table-body">
+            <!-- 311 Complaints data will be populated here -->
+          </tbody>
+        </table>
+      </div>
+      <div id="no-complaints" class="hidden bg-gray-50 p-4 text-center rounded mt-4">
+        No recent 311 complaints found.
+      </div>
+    </div>
+    
+    <div id="hpd-links" class="mt-4 mb-8 text-center">
+      <p class="text-sm text-gray-600">View on HPD Online:</p>
+      <div id="direct-links" class="flex justify-center space-x-4 mt-2">
+        <!-- Direct links will be added here -->
+      </div>
+    </div>
+  </div>
+  
+  <div id="error-message" class="hidden bg-red-100 text-red-700 p-4 rounded-lg mb-4">
+    Error message will appear here.
+  </div>
+</div>
+
+<script>
+document.getElementById("hpd-lookup-form").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  
+  const address = document.getElementById("address").value.trim();
+  const zipCode = document.getElementById("zip-code").value.trim();
+  const loadingIndicator = document.getElementById("loading-indicator");
+  const resultsContainer = document.getElementById("results-container");
+  const errorDiv = document.getElementById("error-message");
+  const violationsBody = document.getElementById("violations-table-body");
+  const noViolations = document.getElementById("no-violations");
+  
+  // Hide previous results and errors; show loading indicator.
+  resultsContainer.classList.add("hidden");
+  errorDiv.classList.add("hidden");
+  loadingIndicator.classList.remove("hidden");
+  
+  try {
+    const res = await fetch(`/scrape-hpd/?address=${encodeURIComponent(address)}&zip_code=${encodeURIComponent(zipCode)}`, {
+      headers: {"X-Requested-With": "XMLHttpRequest"}
+    });
+    
+    const data = await res.json();
+    loadingIndicator.classList.add("hidden");
+    
+    if (data.success) {
+      resultsContainer.classList.remove("hidden");
+      console.log("HPD data:", data.data);
+      
+      const buildingId = data.data.metadata.building_id;
+      const propertyDetails = document.getElementById("property-details");
+      propertyDetails.innerHTML = `
+        <div><strong>Address:</strong> ${data.data.metadata.address}</div>
+        <div><strong>ZIP Code:</strong> ${data.data.metadata.zip_code}</div>
+        <div><strong>Borough:</strong> ${data.data.metadata.borough}</div>
+        <div><strong>Building ID:</strong> ${buildingId}</div>
+      `;
+      
+      const dataSourceInfo = document.getElementById("data-source-info");
+      if (data.data.metadata.data_source) {
+        dataSourceInfo.innerHTML = `
+          <p>Primary data source: ${data.data.metadata.data_source}</p>
+          <p class="text-xs">Data retrieved using the official NYC GeoClient API (with fallback).</p>
+        `;
+      }
+      
+      if (buildingId) {
+        const directLinks = document.getElementById("direct-links");
+        directLinks.innerHTML = `
+          <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}" target="_blank" 
+             class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+            Building Info
+          </a>
+          <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}/violations" target="_blank"
+             class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+            Violations
+          </a>
+          <a href="https://hpdonline.nyc.gov/hpdonline/building/${buildingId}/complaints" target="_blank"
+             class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+            Complaints
+          </a>
+          <a href="https://a810-bisweb.nyc.gov/bisweb/PropertyProfileOverviewServlet?bin=${buildingId}" target="_blank"
+             class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+            DOB BIS
+          </a>
+        `;
+      }
+      
+      // Populate the violations table.
+      violationsBody.innerHTML = '';
+      if (data.data.violations && data.data.violations.length > 0) {
+        data.data.violations.forEach(violation => {
+          const row = document.createElement('tr');
+          row.className = "border-b";
+          
+          let severityClass = violation.class || '';
+          let severityDisplay = severityClass;
+          if (severityClass && severityClass.length === 1) {
+            const classLower = severityClass.toLowerCase();
+            severityDisplay = `<span class="class-indicator class-${classLower}">${severityClass}</span>`;
+          }
+          
+          let description = violation.description || '';
+          if (description) {
+            description = description.replace(/(§\s*[\d-]+[^\s]*)/g, '<span class="font-semibold text-blue-800">$1</span>');
+            description = description.replace(/(adm code|hmc)/gi, '<span class="font-semibold text-indigo-700">$1</span>');
+          }
+          
+          row.innerHTML = `
+            <td class="py-3 px-4">${violation.violation_id || ''}</td>
+            <td class="py-3 px-4">${severityDisplay}</td>
+            <td class="py-3 px-4">${violation.order_number || ''}</td>
+            <td class="py-3 px-4">${violation.apartment || ''}</td>
+            <td class="py-3 px-4">${violation.story || ''}</td>
+            <td class="py-3 px-4">${violation.reported_date || ''}</td>
+            <td class="py-3 px-4 description-cell">${description}</td>
+          `;
+          
+          violationsBody.appendChild(row);
+        });
+        noViolations.classList.add("hidden");
+      } else {
+        noViolations.classList.remove("hidden");
+      }
+      
+      // Populate the complaints table.
+      const complaintsBody = document.getElementById("complaints-table-body");
+      const noComplaints = document.getElementById("no-complaints");
+      complaintsBody.innerHTML = '';
+      
+      if (data.data.complaints && data.data.complaints.length > 0) {
+        data.data.complaints.forEach(complaint => {
+          const row = document.createElement('tr');
+          row.className = "border-b";
+          
+          row.innerHTML = `
+            <td class="py-3 px-4">${complaint.complaint_id || ''}</td>
+            <td class="py-3 px-4">${complaint.type || ''}</td>
+            <td class="py-3 px-4">${complaint.status || ''}</td>
+            <td class="py-3 px-4">${complaint.created_date || ''}</td>
+            <td class="py-3 px-4">${complaint.closed_date || ''}</td>
+            <td class="py-3 px-4 description-cell">${complaint.description || ''}</td>
+          `;
+          
+          complaintsBody.appendChild(row);
+        });
+        noComplaints.classList.add("hidden");
+      } else {
+        noComplaints.classList.remove("hidden");
+      }
+      
+    } else {
+      errorDiv.textContent = data.error || "An error occurred while fetching the data.";
+      errorDiv.classList.remove("hidden");
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    loadingIndicator.classList.add("hidden");
+    errorDiv.textContent = "An error occurred while processing your request.";
+    errorDiv.classList.remove("hidden");
+  }
+});
+</script>
+{% endblock %} 

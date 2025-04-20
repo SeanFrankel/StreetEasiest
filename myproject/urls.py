@@ -16,7 +16,7 @@ urlpatterns = [
     path("admin/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     path("search/", search_views.search, name="search"),
-    path("homedata/", include("homedata.urls")),
+    path("homedata/", include("myproject.homedata.urls")),
     path("sitemap.xml", sitemap),
     path('dashboard-data/', get_dashboard_data, name='dashboard_data'),
     path('scrape-hpd/', building_lookup_view, name='scrape-hpd'),
