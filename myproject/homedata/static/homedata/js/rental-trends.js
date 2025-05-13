@@ -330,74 +330,81 @@ function updateChart() {
             // Create or update chart
             const ctx = document.getElementById('rentChart').getContext('2d');
             if (window.rentChartInstance) {
-                window.rentChartInstance.destroy();
-            }
+                // Update the labels
+                window.rentChartInstance.data.labels = labels;
 
-            if (datasets.length > 0 && labels) {
-                const hasInventoryData = datasets.some(ds => ds.label.includes('Inventory'));
-                
-                window.rentChartInstance = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: datasets
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: {
-                            mode: 'index',
-                            intersect: false
+                // Update the datasets
+                window.rentChartInstance.data.datasets = datasets;
+                // redraw only new parts
+                window.rentChartInstance.update('none');
+            } else {
+
+                if (datasets.length > 0 && labels) {
+                    const hasInventoryData = datasets.some(ds => ds.label.includes('Inventory'));
+                    
+                    window.rentChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: datasets
                         },
-                        plugins: {
-                            tooltip: {
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
                                 mode: 'index',
                                 intersect: false
                             },
-                            legend: {
-                                position: 'top'
-                            },
-                            title: {
-                                display: true,
-                                text: 'NYC Rental Trends',
-                                font: {
-                                    size: 16,
-                                    weight: 'bold'
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                type: 'linear',
-                                display: true,
-                                position: 'left',
-                                beginAtZero: false,
+                            plugins: {
+                                tooltip: {
+                                    mode: 'index',
+                                    intersect: false
+                                },
+                                legend: {
+                                    position: 'top'
+                                },
                                 title: {
                                     display: true,
-                                    text: 'Rent (USD)'
-                                }
-                            },
-                            ...(useSecondaryAxis && hasInventoryData ? {
-                                y1: {
-                                    type: 'linear',
-                                    display: true,
-                                    position: 'right',
-                                    beginAtZero: false,
-                                    grid: {
-                                        drawOnChartArea: false
-                                    },
-                                    title: {
-                                        display: true,
-                                        text: 'Inventory Count'
+                                    text: 'NYC Rental Trends',
+                                    font: {
+                                        size: 16,
+                                        weight: 'bold'
                                     }
                                 }
-                            } : {})
+                            },
+                            scales: {
+                                y: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'left',
+                                    beginAtZero: false,
+                                    title: {
+                                        display: true,
+                                        text: 'Rent (USD)'
+                                    }
+                                },
+                                ...(useSecondaryAxis && hasInventoryData ? {
+                                    y1: {
+                                        type: 'linear',
+                                        display: true,
+                                        position: 'right',
+                                        beginAtZero: false,
+                                        grid: {
+                                            drawOnChartArea: false
+                                        },
+                                        title: {
+                                            display: true,
+                                            text: 'Inventory Count'
+                                        }
+                                    }
+                                } : {})
+                            }
                         }
-                    }
-                });
-                console.log("Chart created successfully");
-            } else {
-                console.warn("No valid datasets to display");
+                    });
+                    console.log("Chart created successfully");
+                } else {
+                    console.warn("No valid datasets to display");
+                }
             }
 
             loadingIndicator.classList.add('hidden');
@@ -407,3 +414,45 @@ function updateChart() {
             loadingIndicator.classList.add('hidden');
         });
 } 
+
+function downloadPDF() {
+    // Get the canvas as an image
+    const canvas = window.rentChartInstance.canvas;
+    const image = canvas.toDataURL('image/png');
+
+    // Create jsPDF instance
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Add the image to the PDF (positioning it on the page)
+    doc.addImage(image, 'PNG', 10, 10, 180, 160); // Adjust position and size as needed
+
+    // Save the PDF
+    doc.save('chart.pdf');
+}
+
+function downloadExcel() {
+    // Convert chart data to a format suitable for Excel
+    const data = window.rentChartInstance.data;
+    const labels = data.labels;
+    const datasets = data.datasets;
+
+    // Prepare the data for export
+    const sheetData = [];
+    sheetData.push(['Month', ...datasets.map(dataset => dataset.label)]); // Headers
+    labels.forEach((label, index) => {
+      const row = [label];
+      datasets.forEach(dataset => {
+        row.push(dataset.data[index]);
+      });
+      sheetData.push(row);
+    });
+
+    // Create a worksheet and workbook
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Chart Data');
+
+    // Export the data to an Excel file
+    XLSX.writeFile(wb, 'chart_data.xlsx');
+}

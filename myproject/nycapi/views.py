@@ -105,12 +105,22 @@ def get_hpd_violations(bin_number):
     if not bin_number:
         return []
     url = "https://data.cityofnewyork.us/resource/wvxf-dwi5.json"
+    # first get the total count
+    count_params = {
+        "$query": f"SELECT count(*) WHERE bin='{bin_number}'"
+    }
+    count_result = api_get(url, params=count_params, timeout=20)
+    total_count = int(count_result[0]['count']) if count_result else 0
+ 
+    # now get the data
     params = {
         "$where": f"bin='{bin_number}'",
         "$order": "inspectiondate DESC",
         "$limit": 50
     }
-    return api_get(url, params=params, timeout=20) or []
+
+    data = api_get(url, params=params, timeout=20)
+    return data or [], total_count
 
 
 def get_311_complaints(bbl):
@@ -120,13 +130,24 @@ def get_311_complaints(bbl):
     if not bbl:
         return []
     url = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
+
+    # first get the total count
+    count_params = {
+        "$query": f"SELECT count(*) WHERE bbl='{bbl}'"
+    }
+    count_result = api_get(url, params=count_params, timeout=20)
+    total_count = int(count_result[0]['count']) if count_result else 0
+ 
+    # now get the data
+
     params = {
         "$where": f"bbl='{bbl}'",
         "$order": "created_date DESC",
         "$limit": 50
     }
-    return api_get(url, params=params, timeout=20) or []
 
+    data = api_get(url, params=params, timeout=20)
+    return data or [], total_count
 
 def get_bedbug_reports(bin_number):
     if not bin_number:
@@ -152,13 +173,17 @@ def building_lookup_view(request):
 
     bin_number, bbl = get_building_id(address, zip_code)
 
+    violations, hpd_total = get_hpd_violations(bin_number)
+    complaints, complaints_total = get_311_complaints(bbl)
     result = {
         "address": address,
         "zip_code": zip_code,
         "building_id": bin_number,
         "bbl": bbl,
-        "hpd_violations": get_hpd_violations(bin_number),
-        "complaints": get_311_complaints(bbl),
+        "hpd_violations": violations,
+        "hpd_violations_total_count": hpd_total,
+        "complaints": complaints,
+        "complaints_total_count": complaints_total,
         "bedbug_reports": get_bedbug_reports(bin_number),
         "litigation": get_housing_litigation(bin_number),
     }

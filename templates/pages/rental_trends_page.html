@@ -131,7 +131,7 @@
                     </button>
                 </div>
             </div>
-
+ 
             <!-- Chart Container -->
             <div class="flex-1 min-h-[500px] max-h-[800px] max-w-[550px]">
                 <div class="chart-container bg-white rounded-xl shadow-lg border border-grey-200 p-6 h-full min-h-[500px] max-h-[800px] relative" style="aspect-ratio: 4/3;">
@@ -139,6 +139,10 @@
                         <div class="loading-spinner"></div>
                     </div>
                     <canvas id="rentChart" aria-label="Rental trends chart" style="width: 100% !important; height: 100% !important; max-height: 100%;"></canvas>
+                    <div>
+                        <button id="pdfbutton" class="py-2 px-4 bg-mackerel-200 hover:bg-mackerel-300 text-white rounded-lg transition font-sans3" onclick="downloadPDF()">Download as PDF</button>
+                        <button id="excelbutton" class="py-2 px-4 bg-mackerel-200 hover:bg-mackerel-300 text-white rounded-lg transition font-sans3" onclick="downloadExcel()">Download as Excel</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -159,4 +163,8 @@
     <!-- Include Chart.js and chart rendering JS -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{% static 'homedata/js/rental-trends.js' %}"></script>
+    <!-- Include jsPDF Library (download as pdf) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Include SheetJS Library (download as excel) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
 {% endblock %} 

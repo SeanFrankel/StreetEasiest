@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span class="font-sans3 font-medium">HPD Violations</span>
+                  <span class="font-sans3 font-medium">HPD Violations - Total: ${data.data.hpd_violations_total_count}</span>
                 </div>
                 ${dataSummary.hpd_violations ? `
                   <button onclick="scrollToSection('section-HPD_Violations')" class="text-mackerel-300 hover:text-mackerel-400 text-base font-medium font-sans3 flex items-center bg-mackerel-100 py-2 px-4 rounded-lg transition">
@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span class="font-sans3 font-medium">311 Complaints</span>
+                  <span class="font-sans3 font-medium">311 Complaints - Total: ${data.data.complaints_total_count}</span>
                 </div>
                 ${dataSummary.complaints ? `
                   <button onclick="scrollToSection('section-311_Complaints')" class="text-mackerel-300 hover:text-mackerel-400 text-base font-medium font-sans3 flex items-center bg-mackerel-100 py-2 px-4 rounded-lg transition">
