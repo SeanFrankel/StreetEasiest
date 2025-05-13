@@ -17,29 +17,13 @@ This Django project template is designed for creating Wagtail builds quickly, in
 2. **Create a Virtual Environment**: Set up a virtual environment to isolate your project dependencies. These instructions are for GNU/Linux or MacOS, but there are [other operating systems in the Wagtail docs](https://docs.wagtail.org/en/stable/getting_started/tutorial.html#create-and-activate-a-virtual-environment).
 
     ```bash
-    python -m venv myproject/env
-    source myproject/env/bin/activate
+    git clone (this repo)
+    cd StreetEasiest
+    python3 -m venv env
+    source env/bin/activate
     ```
 
-4. **Navigate to Project Directory**: Move into the newly created project directory.
-
-    ```bash
-    cd myproject
-    ```
-
-5. **Install Wagtail**: Install the Wagtail CMS package using pip.
-
-    ```bash
-    pip install wagtail
-    ```
-
-6. **Initialize Project**: Use the `wagtail start` command to create a new project based on the Wagtail Starter Kit template.
-
-    ```bash
-    wagtail start --template=https://github.com/torchbox/wagtail-news-template/archive/refs/heads/main.zip myproject .
-    ```
-
-7. **Install Project Dependencies**: Install the project's dependencies into a virtual environment.
+3. **Install Project Dependencies**: Install the project's dependencies into a virtual environment.
 
     ```bash
     pip install -r requirements.txt
@@ -47,19 +31,19 @@ This Django project template is designed for creating Wagtail builds quickly, in
 
 All commands from now on should be run from inside the virtual environment.
 
-8. **Load Dummy Data**: Load in some dummy data to populate the site with some content.
+4. **Load Dummy Data**: Load in some dummy data to populate the site with some content.
 
     ```bash
     make load-data
     ```
 
-9. **Start the Server**: Start the Django development server.
+5. **Start the Server**: Start the Django development server.
 
     ```bash
     make start
     ```
 
-10. **Access the Site and Admin**: Once the server is running, you can view the site at `localhost:8000` and access the Wagtail admin interface at `localhost:8000/admin`. Log in with the default credentials provided by :
+6. **Access the Site and Admin**: Once the server is running, you can view the site at `localhost:8000` and access the Wagtail admin interface at `localhost:8000/admin`. Log in with the default credentials provided by :
 
     - Username: admin
     - Password: password
