@@ -168,7 +168,7 @@ def get_bedbug_reports(bin_number):
 
 def get_housing_litigation(bin_number):
     if not bin_number:
-        return []
+        return [], 0
     url = "https://data.cityofnewyork.us/resource/59kj-x8nc.json"
     # first get the total count
     count_params = {
