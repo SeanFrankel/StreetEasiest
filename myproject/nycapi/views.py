@@ -103,7 +103,7 @@ def get_building_id(address, zip_code):
 
 def get_hpd_violations(bin_number):
     if not bin_number:
-        return []
+        return [], 0
     url = "https://data.cityofnewyork.us/resource/wvxf-dwi5.json"
     # first get the total count
     count_params = {
@@ -128,7 +128,7 @@ def get_311_complaints(bbl):
     Fetch 311 complaints using only the BBL.
     """
     if not bbl:
-        return []
+        return [], 0
     url = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
 
     # first get the total count
@@ -151,18 +151,36 @@ def get_311_complaints(bbl):
 
 def get_bedbug_reports(bin_number):
     if not bin_number:
-        return []
+        return [], 0
     url = "https://data.cityofnewyork.us/resource/wz6d-d3jb.json"
+    # first get the total count
+    count_params = {
+        "$query": f"SELECT count(*) WHERE bin='{bin_number}'"
+    }
+    count_result = api_get(url, params=count_params, timeout=20)
+    total_count = int(count_result[0]['count']) if count_result else 0
+ 
+    # now get the data
     params = {"$where": f"bin='{bin_number}'", "$order": "filing_date DESC", "$limit": 50}
-    return api_get(url, params=params, timeout=20) or []
+    data = api_get(url, params=params, timeout=20) or []
+    return data or [], total_count
 
 
 def get_housing_litigation(bin_number):
     if not bin_number:
         return []
     url = "https://data.cityofnewyork.us/resource/59kj-x8nc.json"
+    # first get the total count
+    count_params = {
+        "$query": f"SELECT count(*) WHERE bin='{bin_number}'"
+    }
+    count_result = api_get(url, params=count_params, timeout=20)
+    total_count = int(count_result[0]['count']) if count_result else 0
+ 
+    # now get the data
     params = {"$where": f"bin='{bin_number}'", "$order": "caseopendate DESC", "$limit": 50}
-    return api_get(url, params=params, timeout=20) or []
+    data = api_get(url, params=params, timeout=20) or []
+    return data or [], total_count
 
 
 def building_lookup_view(request):
@@ -175,6 +193,9 @@ def building_lookup_view(request):
 
     violations, hpd_total = get_hpd_violations(bin_number)
     complaints, complaints_total = get_311_complaints(bbl)
+    bedbugs, bedbugs_total = get_bedbug_reports(bin_number)
+    housing_lits, housing_total = get_housing_litigation(bin_number)
+
     result = {
         "address": address,
         "zip_code": zip_code,
@@ -184,7 +205,9 @@ def building_lookup_view(request):
         "hpd_violations_total_count": hpd_total,
         "complaints": complaints,
         "complaints_total_count": complaints_total,
-        "bedbug_reports": get_bedbug_reports(bin_number),
-        "litigation": get_housing_litigation(bin_number),
+        "bedbug_reports": bedbugs,
+        "bedbug_reports_total_count": bedbugs_total,
+        "litigation": housing_lits,
+        "litigation_total_count": housing_total,
     }
     return JsonResponse({"success": True, "data": result})

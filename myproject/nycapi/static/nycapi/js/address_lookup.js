@@ -88,14 +88,33 @@ function renderTable(dataArray, title, excludedCols = []) {
   dataArray.forEach((row, index) => {
     html += `<tr class="hover:bg-gray-50 transition" data-row-index="${index}" ${index >= 5 ? 'style="display: none;"' : ''}>`;
     columns.forEach(col => {
+      let value = row[col];
+
+      // Check if the value is a valid ISO 8601 date string
+      if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}$/.test(value)) {
+        const date = new Date(value);
+        if (!isNaN(date)) {
+          // Get components for 12-hour time
+          let hours = date.getHours();
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          const seconds = String(date.getSeconds()).padStart(2, '0');
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          hours = hours % 12 || 12; // Convert 0 to 12 for 12AM
+
+          // Format as MM-DD-YYYY HH:mm:ss AM/PM
+          const formattedDate = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${date.getFullYear()} ${String(hours).padStart(2, '0')}:${minutes}:${seconds} ${ampm}`;
+          value = formattedDate;
+        }
+      }
+
       html += `
         <td
           class="px-3 py-2 border border-gray-300 text-gray-700 whitespace-nowrap"
         >
-          ${row[col] !== undefined ? row[col] : ""}
+          ${value !== undefined ? value : ""}
         </td>
       `;
-    });
+    });    
     html += `</tr>`;
   });
   
@@ -318,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span class="font-sans3 font-medium">Bedbug Reports</span>
+                  <span class="font-sans3 font-medium">Bedbug Reports - Total: ${data.data.bedbug_reports_total_count}</span>
                 </div>
                 ${dataSummary.bedbug_reports ? `
                   <button onclick="scrollToSection('section-Bedbug_Reports')" class="text-mackerel-300 hover:text-mackerel-400 text-base font-medium font-sans3 flex items-center bg-mackerel-100 py-2 px-4 rounded-lg transition">
@@ -334,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span class="font-sans3 font-medium">Housing Litigation</span>
+                  <span class="font-sans3 font-medium">Housing Litigation - Total: ${data.data.litigation_total_count}</span>
                 </div>
                 ${dataSummary.litigation ? `
                   <button onclick="scrollToSection('section-Housing_Litigation')" class="text-mackerel-300 hover:text-mackerel-400 text-base font-medium font-sans3 flex items-center bg-mackerel-100 py-2 px-4 rounded-lg transition">
