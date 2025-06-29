@@ -109,22 +109,29 @@ class RentalDataProcessor:
 
             try:
                 # Skip empty values
-                if not value or str(value).strip() == '':
-                    continue
+                #if not value or str(value).strip() == '':
+                #    value = float(0)
+
 
                 # Handle adjusted data
                 if key.endswith('_adj'):
                     if include_seasonal and adjusted_data is not None:
                         base_date = key[:-4]
                         try:
-                            adjusted_data[base_date] = float(value)
+                            if not value or str(value).strip() == '':
+                                adjusted_data[base_date] = None
+                            else:
+                                adjusted_data[base_date] = float(value)
                         except (ValueError, TypeError):
                             logger.warning(f"Invalid adjusted value '{value}' for {key}")
                             continue
                 # Handle raw data
                 else:
                     try:
-                        raw_data[key] = float(value)
+                        if not value or str(value).strip() == '':
+                            raw_data[key] = None
+                        else:
+                            raw_data[key] = float(value)
                     except (ValueError, TypeError):
                         logger.warning(f"Invalid raw value '{value}' for {key}")
                         continue

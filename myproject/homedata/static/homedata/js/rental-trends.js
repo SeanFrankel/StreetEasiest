@@ -297,6 +297,7 @@ function updateChart() {
                             borderColor: color,
                             backgroundColor: color,
                             fill: false,
+                            spanGaps: false,
                             yAxisID: useSecondaryAxis && isInventory ? 'y1' : 'y'
                         });
                         if (!labels) labels = dates;
