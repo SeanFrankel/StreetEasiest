@@ -14,7 +14,7 @@ class HomePage(BasePage):
         [("link", InternalLinkBlock())],
         blank=True,
         min_num=0,
-        max_num=1,
+        max_num=3,  # Allow up to 3 CTAs
         use_json_field=True,
     )
     body = StreamField(StoryBlock(), use_json_field=True)

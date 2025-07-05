@@ -70,27 +70,49 @@ function getConsistentColor(dataType, bedroom, neighborhood) {
     
     if (colorPalette[neighborhood]) {
         const baseColor = colorPalette[neighborhood];
-        if (bedroom !== 'All') {
-            const hslColor = hexToHSL(baseColor);
-            if (dataType === 'inventory') {
-                hslColor.l = Math.min(hslColor.l + 15, 90);
-            }
-            if (bedroom === 'Studio') hslColor.h = (hslColor.h + 10) % 360;
-            if (bedroom === 'OneBd') hslColor.h = (hslColor.h + 20) % 360;
-            if (bedroom === 'TwoBd') hslColor.h = (hslColor.h + 30) % 360;
-            if (bedroom === 'ThreePlusBd') hslColor.h = (hslColor.h + 40) % 360;
+        const hslColor = hexToHSL(baseColor);
+        
+        if (dataType === 'inventory') {
+            // Generate a secondary color for rental inventory
+            // Use a deterministic but different color from the base neighborhood color
+            const inventoryHue = (hslColor.h + 180) % 360; // Opposite hue
+            const inventorySaturation = Math.min(hslColor.s + 10, 100); // Slightly more saturated
+            const inventoryLightness = Math.max(hslColor.l - 10, 20); // Slightly darker
             
-            colorCache[key] = hslToHex(hslColor);
+            colorCache[key] = hslToHex({
+                h: inventoryHue,
+                s: inventorySaturation,
+                l: inventoryLightness
+            });
         } else {
-            colorCache[key] = baseColor;
+            // For median asking rent, use the base neighborhood color
+            if (bedroom !== 'All') {
+                if (bedroom === 'Studio') hslColor.h = (hslColor.h + 10) % 360;
+                if (bedroom === 'OneBd') hslColor.h = (hslColor.h + 20) % 360;
+                if (bedroom === 'TwoBd') hslColor.h = (hslColor.h + 30) % 360;
+                if (bedroom === 'ThreePlusBd') hslColor.h = (hslColor.h + 40) % 360;
+                
+                colorCache[key] = hslToHex(hslColor);
+            } else {
+                colorCache[key] = baseColor;
+            }
         }
     } else {
+        // For neighborhoods not in the palette, generate colors based on the key
         let hash = 0;
         for (let i = 0; i < key.length; i++) {
             hash = key.charCodeAt(i) + ((hash << 5) - hash);
         }
         const h = Math.abs(hash) % 360;
-        colorCache[key] = hslToHex({ h, s: 70, l: 60 });
+        
+        if (dataType === 'inventory') {
+            // Secondary color for inventory (opposite hue)
+            const inventoryHue = (h + 180) % 360;
+            colorCache[key] = hslToHex({ h: inventoryHue, s: 70, l: 50 });
+        } else {
+            // Primary color for median rent
+            colorCache[key] = hslToHex({ h, s: 70, l: 60 });
+        }
     }
     
     return colorCache[key];
