@@ -312,7 +312,6 @@ function updateChart() {
                         const values = dates.map(date => monthlyData.raw[date]);
                         
                         const color = getConsistentColor(response.dataType, response.bedroom, area);
-                        
                         datasets.push({
                             label: `${area} - ${response.bedroom} - Raw ${isInventory ? 'Inventory' : 'Rent'}`,
                             data: values,
@@ -334,7 +333,6 @@ function updateChart() {
                         const hslColor = hexToHSL(color);
                         hslColor.l = Math.max(hslColor.l - 15, 30);
                         color = hslToHex(hslColor);
-                        
                         datasets.push({
                             label: `${area} - ${response.bedroom} - Adjusted ${isInventory ? 'Inventory' : 'Rent'}`,
                             data: values,
@@ -348,86 +346,90 @@ function updateChart() {
                 });
             });
 
-            console.log("Created datasets:", datasets);
-            
             // Create or update chart
             const ctx = document.getElementById('rentChart').getContext('2d');
             if (window.rentChartInstance) {
-                // Update the labels
-                window.rentChartInstance.data.labels = labels;
+                window.rentChartInstance.destroy();
+                window.rentChartInstance = null;
+            }
 
-                // Update the datasets
-                window.rentChartInstance.data.datasets = datasets;
-                // redraw only new parts
-                window.rentChartInstance.update('none');
-            } else {
-
-                if (datasets.length > 0 && labels) {
-                    const hasInventoryData = datasets.some(ds => ds.label.includes('Inventory'));
-                    
-                    window.rentChartInstance = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: datasets
+            if (datasets.length > 0 && labels) {
+                const hasInventoryData = datasets.some(ds => ds.label.includes('Inventory'));
+                window.rentChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: {
+                        plugins: {
+                            tooltip: {
                                 mode: 'index',
                                 intersect: false
                             },
-                            plugins: {
-                                tooltip: {
-                                    mode: 'index',
-                                    intersect: false
-                                },
-                                legend: {
-                                    position: 'top'
+                            legend: {
+                                position: 'top'
+                            },
+                            title: {
+                                display: true,
+                                text: 'NYC Rental Trends',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                beginAtZero: false,
+                                stacked: false,
+                                weight: 1,
+                                alignToPixels: true,
+                                title: {
+                                    display: true,
+                                    text: 'Rent (USD)'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: useSecondaryAxis && hasInventoryData,
+                                position: 'right',
+                                offset: true,
+                                beginAtZero: false,
+                                stacked: false,
+                                weight: 2,
+                                alignToPixels: true,
+                                min: 0,
+                                grid: {
+                                    drawOnChartArea: false,
+                                    color: '#e15759',
+                                    borderColor: '#e15759',
+                                    borderWidth: 3
                                 },
                                 title: {
                                     display: true,
-                                    text: 'NYC Rental Trends',
-                                    font: {
-                                        size: 16,
-                                        weight: 'bold'
-                                    }
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    type: 'linear',
-                                    display: true,
-                                    position: 'left',
-                                    beginAtZero: false,
-                                    title: {
-                                        display: true,
-                                        text: 'Rent (USD)'
-                                    }
+                                    text: 'Inventory Count',
+                                    color: '#e15759'
                                 },
-                                ...(useSecondaryAxis && hasInventoryData ? {
-                                    y1: {
-                                        type: 'linear',
-                                        display: true,
-                                        position: 'right',
-                                        beginAtZero: false,
-                                        grid: {
-                                            drawOnChartArea: false
-                                        },
-                                        title: {
-                                            display: true,
-                                            text: 'Inventory Count'
-                                        }
-                                    }
-                                } : {})
+                                ticks: {
+                                    color: '#e15759'
+                                }
                             }
                         }
-                    });
-                    console.log("Chart created successfully");
-                } else {
-                    console.warn("No valid datasets to display");
-                }
+                    }
+                });
+                console.log("Chart created successfully");
+            } else {
+                console.warn("No valid datasets to display");
             }
 
             loadingIndicator.classList.add('hidden');

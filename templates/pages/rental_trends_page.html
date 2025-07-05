@@ -161,10 +161,24 @@
     </div>
 
     <!-- Include Chart.js and chart rendering JS -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2"></script>
     <script src="{% static 'homedata/js/rental-trends.js' %}"></script>
     <!-- Include jsPDF Library (download as pdf) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- Include SheetJS Library (download as excel) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
 {% endblock %} 
+
+<style>
+.chart-container {
+    min-width: 900px !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+}
+#rentChart {
+    width: 100% !important;
+    max-width: 1200px !important;
+    min-width: 900px !important;
+    box-sizing: border-box;
+}
+</style> 
