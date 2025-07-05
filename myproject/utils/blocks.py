@@ -85,7 +85,7 @@ class LinkStreamBlock(blocks.StreamBlock):
         icon = "link"
         label = "Link"
         min_num = 1
-        max_num = 1
+        max_num = 2
 
 
 class OptionalLinkStreamBlock(LinkStreamBlock):

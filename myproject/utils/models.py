@@ -17,6 +17,7 @@ from wagtail.fields import RichTextField
 from wagtail.models import Orderable, Page
 from wagtail.rich_text import expand_db_html
 from wagtail.snippets.models import register_snippet
+from wagtail.blocks import StructBlock, CharBlock, ChoiceBlock, PageChooserBlock, URLBlock, BooleanBlock
 
 from myproject.images.models import CustomImage
 from myproject.utils.cache import get_default_cache_control_decorator
@@ -314,6 +315,37 @@ class GoogleAdSenseSettings(BaseSiteSetting):
 
     class Meta:
         verbose_name = 'Google AdSense'
+
+
+class ActionLinkBlock(StructBlock):
+    link_type = ChoiceBlock(
+        choices=[
+            ('internal', 'Internal Page'),
+            ('external', 'External URL'),
+        ],
+        default='internal',
+        help_text="Choose whether this button links to a page on this site or an external website"
+    )
+    internal_page = PageChooserBlock(
+        required=False,
+        help_text="Choose a page from this website"
+    )
+    external_url = URLBlock(
+        required=False,
+        help_text="Enter the full URL (e.g., https://example.com)"
+    )
+    text = CharBlock(
+        required=True,
+        help_text="The text that will be displayed on the button"
+    )
+    open_in_new_tab = BooleanBlock(
+        required=False,
+        help_text="Open link in a new tab"
+    )
+
+    class Meta:
+        icon = "plus"
+        label = "Action Button"
 
 
 # Apply default cache headers on this page model's serve method.

@@ -1,0 +1,15 @@
+{% if value.link_type == 'internal' and value.internal_page %}
+    <a href="{{ value.internal_page.url }}" 
+       {% if value.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+       class="footer-link">
+        {{ value.title }}
+    </a>
+{% elif value.link_type == 'external' and value.external_url %}
+    <a href="{{ value.external_url }}" 
+       {% if value.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}
+       class="footer-link">
+        {{ value.title }}
+    </a>
+{% else %}
+    <span class="footer-link-invalid">{{ value.title }}</span>
+{% endif %} 

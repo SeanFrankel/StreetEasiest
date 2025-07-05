@@ -1,0 +1,192 @@
+{% extends "base_page.html" %}
+{% load wagtailcore_tags %}
+
+{% block content %}
+    {% block breadcrumbs %}
+        {% include "navigation/breadcrumbs.html" %}
+    {% endblock %}
+    
+    <div class="site-padding site-container">
+        <div class="flex flex-col md:flex-row md:items-center py-20">
+            <h1 class="min-w-fit max-w-[600px]font-serif4 [word-spacing:-6px] font-bold text-8xl lg:text-10xl
+            md:pr-16
+            lg:pr-20
+            {% if page.introduction %}
+                md:border-r-[1px]
+                md:basis-2/6
+                border-grey-200
+            {% endif %}
+            ">
+                {{ page.title }}
+            </h1>
+            {% if page.introduction %}
+                <div class="
+                    max-w-[636px]
+                    rich-text
+                    pt-5
+                    md:w-2/3
+                    md:pl-16
+                    lg:pl-20
+                ">
+                    {{ page.introduction|richtext }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Success Messages -->
+        {% if success %}
+            <div class="pb-20 md:pb-40 max-w-[520px]">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <div class="rich-text text-green-800">
+                                {{ message|richtext }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif resubscribed %}
+            <div class="pb-20 md:pb-40 max-w-[520px]">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <div class="rich-text text-green-800">
+                                {{ message|richtext }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif unsubscribed %}
+            <div class="pb-20 md:pb-40 max-w-[520px]">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <div class="rich-text text-green-800">
+                                {{ message|richtext }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Error Messages -->
+        {% if error %}
+            <div class="pb-20 md:pb-40 max-w-[520px]">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <div class="text-red-800">
+                                {{ error }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Signup/Unsubscribe Form -->
+        {% if not success and not error and not resubscribed and not unsubscribed %}
+            <form class="pb-20 md:pb-40 max-w-[520px]" method="POST" id="newsletter-form">
+                {% csrf_token %}
+
+                <div class="flex mb-8 gap-4">
+                    <button type="button" id="subscribe-btn" class="newsletter-toggle-btn bg-mackerel-300 text-white px-4 py-2 rounded-full font-bold" onclick="setNewsletterAction('subscribe')">Sign Up</button>
+                    <button type="button" id="unsubscribe-btn" class="newsletter-toggle-btn bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-bold" onclick="setNewsletterAction('unsubscribe')">Unsubscribe</button>
+                </div>
+                <input type="hidden" name="action" id="newsletter-action" value="subscribe" />
+
+                <!-- Email Field -->
+                <div class="mb-10">
+                    <input 
+                        class="text-base placeholder:text-base p-3.5 border border-mackerel-200 bg-white dark:bg-mackerel-100 dark:text-white placeholder:text-mackerel-400 dark:placeholder:text-white w-full rounded-[30px] min-h-[50px]"
+                        type="email"
+                        name="email"
+                        placeholder="{{ page.email_placeholder }}"
+                        value="{{ form_data.email|default:'' }}"
+                        required
+                    />
+                </div>
+
+                <div id="name-fields" {% if not page.show_name_fields %}style="display:none;"{% endif %}>
+                    {% if page.show_name_fields %}
+                        <!-- First Name Field -->
+                        <div class="mb-10">
+                            <input 
+                                class="text-base placeholder:text-base p-3.5 border border-mackerel-200 bg-white dark:bg-mackerel-100 dark:text-white placeholder:text-mackerel-400 dark:placeholder:text-white w-full rounded-[30px] min-h-[50px]"
+                                type="text"
+                                name="first_name"
+                                placeholder="{{ page.first_name_placeholder }}"
+                                value="{{ form_data.first_name|default:'' }}"
+                                {% if page.require_names %}required{% endif %}
+                            />
+                        </div>
+
+                        <!-- Last Name Field -->
+                        <div class="mb-10">
+                            <input 
+                                class="text-base placeholder:text-base p-3.5 border border-mackerel-200 bg-white dark:bg-mackerel-100 dark:text-white placeholder:text-mackerel-400 dark:placeholder:text-white w-full rounded-[30px] min-h-[50px]"
+                                type="text"
+                                name="last_name"
+                                placeholder="{{ page.last_name_placeholder }}"
+                                value="{{ form_data.last_name|default:'' }}"
+                                {% if page.require_names %}required{% endif %}
+                            />
+                        </div>
+                    {% endif %}
+                </div>
+
+                <button
+                    type="submit"
+                    id="submit-btn"
+                    class="md:px-10 px-5 py-3 md:py-[15px] justify-center items-center text-sm md:text-base font-codepro uppercase inline-flex text-white bg-mackerel-300 dark:text-mackerel-400 rounded-[30px]">
+                    {{ page.submit_button_text }}
+                </button>
+            </form>
+            <script>
+                function setNewsletterAction(action) {
+                    document.getElementById('newsletter-action').value = action;
+                    if (action === 'subscribe') {
+                        document.getElementById('subscribe-btn').classList.add('bg-mackerel-300', 'text-white');
+                        document.getElementById('subscribe-btn').classList.remove('bg-gray-200', 'text-gray-700');
+                        document.getElementById('unsubscribe-btn').classList.remove('bg-mackerel-300', 'text-white');
+                        document.getElementById('unsubscribe-btn').classList.add('bg-gray-200', 'text-gray-700');
+                        document.getElementById('submit-btn').innerText = '{{ page.submit_button_text }}';
+                        document.getElementById('name-fields').style.display = '';
+                    } else {
+                        document.getElementById('unsubscribe-btn').classList.add('bg-mackerel-300', 'text-white');
+                        document.getElementById('unsubscribe-btn').classList.remove('bg-gray-200', 'text-gray-700');
+                        document.getElementById('subscribe-btn').classList.remove('bg-mackerel-300', 'text-white');
+                        document.getElementById('subscribe-btn').classList.add('bg-gray-200', 'text-gray-700');
+                        document.getElementById('submit-btn').innerText = '{{ page.unsubscribe_button_text }}';
+                        document.getElementById('name-fields').style.display = 'none';
+                    }
+                }
+                // Set default to subscribe on page load
+                setNewsletterAction('subscribe');
+            </script>
+        {% endif %}
+    </div>
+{% endblock content %} 

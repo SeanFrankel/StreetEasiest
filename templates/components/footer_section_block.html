@@ -1,0 +1,15 @@
+<div class="footer-section">
+    {% if value.section_heading %}
+        <h3 class="footer-section-heading">{{ value.section_heading }}</h3>
+    {% endif %}
+    
+    {% if value.links %}
+        <ul class="footer-links">
+            {% for link in value.links %}
+                <li class="footer-link-item">
+                    {% include_block link %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div> 

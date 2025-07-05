@@ -9,60 +9,38 @@
 <footer class="site-padding site-container w-full py-20">
     <div class="flex flex-col lg:flex-row gap-20 justify-between">
         {% if settings.navigation.NavigationSettings.footer_navigation %}
-        <div class="grid grid-cols-2 gap-20 justify-between">
-            {% for link_section in settings.navigation.NavigationSettings.footer_navigation %}
-                <div class="mb-10 lg:mb-0 lg:mr-20 flex flex-col gap-10">
-                    <h2 class="text-xl md:text-2xl font-semibold">
-                        {{ link_section.value.section_heading }}
-                    </h2>
-                    <ul class="flex flex-col gap-y-4 md:gap-y-6">
-                        {% for link in link_section.value.links %}
-                        <li>
-                            <a href="{{ link.value.get_url }}"
-                                class="
-                                text-grey-700
-                                dark:text-grey-200
-                                underline
-                                underline-offset-8
-                                decoration-[1.5px]
-                                decoration-mackerel-200
-                                hover:decoration-mackerel-300
-                                ">
-                                {{ link.value.get_title }}
-                            </a>
-                        </li>
-                        {% endfor %}
-                    </ul>
+        <div class="flex-1 grid grid-cols-1 gap-20">
+            {% for section in settings.navigation.NavigationSettings.footer_navigation %}
+                <div class="mb-10 lg:mb-0 flex flex-col gap-6">
+                    {% if section.value.section_heading %}
+                        <h2 class="text-xl md:text-2xl font-semibold">
+                            {{ section.value.section_heading }}
+                        </h2>
+                    {% endif %}
+                    {% if section.value.links %}
+                        <ul class="flex flex-col gap-y-4 md:gap-y-6">
+                            {% for link in section.value.links %}
+                                <li>
+                                    {% include_block link %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if section.value.action %}
+                        <div class="pt-5">
+                            {% if section.value.action.link_type == 'internal' and section.value.action.internal_page %}
+                                {% include "components/button.html" with variant="footer" title=section.value.action.text url=section.value.action.internal_page.url %}
+                            {% elif section.value.action.link_type == 'external' and section.value.action.external_url %}
+                                {% include "components/button.html" with variant="footer" title=section.value.action.text url=section.value.action.external_url %}
+                            {% endif %}
+                        </div>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>
         {% endif %}
-
-        <div>
-            {% if settings.utils.SystemMessagesSettings.footer_newsletter_signup_link %}
-                <div class="flex flex-col max-w-96">
-                    <h2 
-                        class="text-xl md:text-2xl font-semibold"
-                        id="footer-newsletter-signup-title"
-                    >
-                        {{ settings.utils.SystemMessagesSettings.footer_newsletter_signup_title }}
-                    </h2>
-                    {% if settings.utils.SystemMessagesSettings.footer_newsletter_signup_description %}
-                    <p class="pt-3 text-base md:text-lg text-grey-700 dark:text-grey-200 md:leading-[170%]">
-                        {{ settings.utils.SystemMessagesSettings.footer_newsletter_signup_description }}
-                    </p>
-                    {% endif %}
-                    <div class="pt-5 flex gap-1 md:gap-2.5">
-                        <input 
-                            type="email" 
-                            placeholder="Enter your email" 
-                            aria-labelledby="footer-newsletter-signup-title"
-                            class="border-[1px] border-mackerel-200 rounded-[3px] px-5 md:py-2.5 md:px-5 text-base md:text-lg bg-white dark:bg-mackerel-100 dark:text-white">
-                        {% include "components/button.html" with variant="footer" title="Sign up" url=settings.utils.SystemMessagesSettings.footer_newsletter_signup_link %}
-                    </div>
-                </div>
-            {% endif %}
-
+        <div class="flex-1">
+            <h2 class="text-xl md:text-2xl font-semibold">Follow Us On Social Media!</h2>
             {% if settings.utils.SocialMediaSettings.linkedin_handle or settings.utils.SocialMediaSettings.facebook_app_id or settings.utils.SocialMediaSettings.instagram_handle or settings.utils.SocialMediaSettings.tiktok_handle %}
                 <p class="sr-only">Follow us</p>
                 <div class="flex flex-row gap-10 pt-14">
