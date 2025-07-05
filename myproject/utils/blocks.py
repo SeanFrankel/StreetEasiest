@@ -124,29 +124,23 @@ class CardBlock(blocks.StructBlock):
 
 
 class FeaturedArticleBlock(blocks.StructBlock):
-    link = ArticlePageLinkBlock()
-    image = ImageChooserBlock(
-        required=False,
-        help_text="Set to override the image of the chosen article page.",
+    """Featured article block for homepage."""
+    article = blocks.PageChooserBlock(
+        target_model="news.ArticlePage",
+        help_text="Choose an article to feature"
     )
-    description = blocks.TextBlock(
-        max_length=255,
+    custom_title = blocks.CharBlock(
         required=False,
-        help_text="Choose to override a page's listing summary or introduction.",
+        help_text="Override the article's title"
     )
-    cta_text = blocks.CharBlock(
-        max_length=255,
-        blank=False,
-        help_text="This is the cta link text. This will automatically redirect to the article page.",
-    )
-    left_aligned = blocks.BooleanBlock(
+    custom_description = blocks.TextBlock(
         required=False,
-        help_text="If checked, the text will be left-aligned.",
+        help_text="Override the article's description"
     )
 
     class Meta:
-        icon = "doc-full"
-        template = "components/streamfield/blocks/feature_block.html"
+        template = "components/streamfield/blocks/featured_article_block.html"
+        icon = "doc-full-inverse"
 
 
 class BaseSectionBlock(blocks.StructBlock):

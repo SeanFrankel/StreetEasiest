@@ -39,13 +39,12 @@ w-full h-full group
                 width="{{ card_image_1x_webp.width }}"
                 height="{{ card_image_1x_webp.height }}"
                 alt="{{ card_image_1x_webp.alt }}"
-
                 class="
                 aspect-[20/11] 
                 md:aspect-[1]
                 w-full h-full object-cover"
                 {% if card_image_1x_webp.focal_point %}
-                style='{{ card_image_1x_webp.object_position_style }}'
+                style="{{ card_image_1x_webp.object_position_style }}"
                 {% endif %}
             />
         </picture>

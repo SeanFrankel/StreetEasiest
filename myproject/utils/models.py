@@ -292,6 +292,30 @@ class SystemMessagesSettings(BaseSiteSetting):
         verbose_name = 'System Messages'
 
 
+@register_setting
+class GoogleAdSenseSettings(BaseSiteSetting):
+    """
+    Settings for Google AdSense integration.
+    """
+    publisher_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Your Google AdSense Publisher ID (e.g., ca-pub-1234567890123456)"
+    )
+    enable_adsense = models.BooleanField(
+        default=False,
+        help_text="Enable Google AdSense on the website"
+    )
+
+    panels = [
+        FieldPanel('enable_adsense'),
+        FieldPanel('publisher_id'),
+    ]
+
+    class Meta:
+        verbose_name = 'Google AdSense'
+
+
 # Apply default cache headers on this page model's serve method.
 @method_decorator(get_default_cache_control_decorator(), name="serve")
 class BasePage(SocialFields, ListingFields, Page):

@@ -1,5 +1,5 @@
 
-{% load static wagtailcore_tags wagtailuserbar %}
+{% load static wagtailcore_tags wagtailuserbar adsense_tags %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -19,6 +19,7 @@
         {% endif %}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+        {% adsense_head %}
 
         {% comment %}
         Set "noindex" if the site is not being requested on a configured
