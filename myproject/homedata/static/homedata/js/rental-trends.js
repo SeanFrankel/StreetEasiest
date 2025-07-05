@@ -226,7 +226,7 @@ function updateChart() {
 
     if (selectedDataTypes.length === 0 || selectedBedroomTypes.length === 0 || selectedNeighborhoods.length === 0) {
         console.log("No selections made in required fields");
-        if (window.rentChartInstance) { window.rentChartInstance.destroy(); }
+        if (window.rentChartInstance) { window.rentChartInstance.clear(); }
         loadingIndicator.classList.add('hidden');
         return;
     }
