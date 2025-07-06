@@ -13,6 +13,7 @@ from wagtail.contrib.forms.models import AbstractEmailForm, AbstractFormField
 from wagtail.contrib.forms.panels import FormSubmissionsPanel
 from wagtail.admin.panels import ObjectList, TabbedInterface
 from wagtail.search import index
+from wagtail.snippets.models import register_snippet
 
 from myproject.utils.models import BasePage
 
@@ -46,6 +47,7 @@ class FormPage(AbstractEmailForm, BasePage):
     ]
 
 
+@register_snippet
 class NewsletterSubscriber(models.Model):
     """
     Model to store newsletter subscribers with email validation and unsubscribe functionality.
@@ -90,6 +92,17 @@ class NewsletterSubscriber(models.Model):
         default="website",
         help_text="Where the subscriber signed up from"
     )
+
+    panels = [
+        FieldPanel("email"),
+        FieldPanel("first_name"),
+        FieldPanel("last_name"),
+        FieldPanel("is_active"),
+        FieldPanel("subscribed_date"),
+        FieldPanel("unsubscribed_date"),
+        FieldPanel("unsubscribe_token"),
+        FieldPanel("source"),
+    ]
 
     class Meta:
         verbose_name = "Newsletter Subscriber"
