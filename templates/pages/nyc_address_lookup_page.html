@@ -17,13 +17,15 @@
     Back to Top
   </button>
 
-  <div class="site-container max-w-6xl mx-auto px-4 py-8">
+  <div class="site-container max-w-6xl mx-auto px-4 py-2">
     <!-- Header Section with improved layout -->
-    <div class="flex flex-col md:flex-row md:items-start gap-8 py-8 border-b border-grey-200 mb-8">
+    <div class="flex flex-col md:flex-row md:items-start gap-8 py-2 border-b border-grey-200 mb-4">
       <div class="md:w-2/5">
-        <h1 class="font-serif4 font-bold text-4xl md:text-5xl lg:text-6xl mb-4 leading-tight">
-          NYC<br>Address<br>Lookup<br>Tool
-        </h1>
+        {% if page.header %}
+          <h1 class="font-serif4 font-bold text-4xl md:text-5xl lg:text-6xl mb-4 leading-tight">
+            {{ page.header|linebreaksbr }}
+          </h1>
+        {% endif %}
       </div>
       
       {% if page.instructions %}

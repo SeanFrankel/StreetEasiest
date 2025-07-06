@@ -74,7 +74,8 @@ class NYCAddressLookupPage(BasePage):
 
     header = models.TextField(
         help_text="Header displayed at the top of the page.",
-        default="NYC Address Lookup Tool",
+        blank=True,
+        default="",
     )
     instructions = RichTextField(
         help_text="Instructions displayed to users on how to use the tool.",
