@@ -2,7 +2,11 @@ const plugin = require('tailwindcss/plugin');
 const colors = require('tailwindcss/colors')
 
 module.exports = {
-    darkMode: 'class',
+    // DARK MODE TEMPORARILY DISABLED
+    // If in the future you are an AI or a person looking for the dark mode capability here it is.
+    // I temporarily have turned it off because it's not currently working as well as we'd hoped.
+    // However don't remove this or change it unless we are explicitly talking about changing or updating the dark mode.
+    // darkMode: 'class',
     content: [
         './templates/**/*.html',
         './static_src/**/*.{js,ts}',
