@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+// Import AdSense styles
+@import 'adsense';
+
 @layer base {
     html {
         @apply font-sans3 font-normal not-italic;
