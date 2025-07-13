@@ -1,4 +1,4 @@
-app = 'wagtail-news-template'
+app = 'streeteasiest'
 console_command = '/bin/bash'
 
 [build]
@@ -10,7 +10,7 @@ console_command = '/bin/bash'
   PORT = '8000'
 
 [[mounts]]
-  source = 'wagtail'
+  source = 'streeteasiest_data'
   destination = '/data'
   initial_size = '1GB'
 

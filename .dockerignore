@@ -1,13 +1,19 @@
 # Django project
 /media/
 /static/
+/staticfiles/
 *.sqlite3
 
 # Python and others
-__pycache__
+__pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
 .DS_Store
 *.swp
+*.swo
+*~
 /venv/
 /tmp/
 /.vagrant/
@@ -15,12 +21,13 @@ __pycache__
 node_modules/
 /npm-debug.log
 /.idea/
-.vscode
-coverage
+.vscode/
+coverage/
+.coverage
+htmlcov/
 .python-version
 
 # Distribution / packaging
-.Python
 env/
 build/
 develop-eggs/
@@ -37,3 +44,16 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
