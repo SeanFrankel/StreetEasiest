@@ -28,22 +28,6 @@ def format_heading_id(text, id) -> str:
     return formatted_text
 
 
-@register.simple_tag
-def get_favicon_url(settings_instance):
-    """Get the favicon URL from settings, with fallback to static file"""
-    if settings_instance and settings_instance.favicon:
-        return settings_instance.favicon.get_rendition('original').url
-    return None
-
-
-@register.simple_tag
-def get_apple_touch_icon_url(settings_instance):
-    """Get the apple touch icon URL from settings, with fallback to static file"""
-    if settings_instance and settings_instance.apple_touch_icon:
-        return settings_instance.apple_touch_icon.get_rendition('original').url
-    return None
-
-
 # Table of contents
 @register.filter(name="table_of_contents_array")
 def table_of_contents_array(streamfield_content):

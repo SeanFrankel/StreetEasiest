@@ -7,22 +7,9 @@
 
 {% block meta_tags %}
 
-{% get_favicon_url settings.utils.SystemMessagesSettings as favicon_url %}
-{% if favicon_url %}
-    <link rel="icon" href="{{ favicon_url }}" sizes="32x32">
-{% else %}
-    <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" sizes="32x32">
-{% endif %}
-
+<link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" sizes="32x32">
 <link rel="icon" href="{% static 'images/favicons/favicon.svg'%}" type="image/svg+xml">
-
-{% get_apple_touch_icon_url settings.utils.SystemMessagesSettings as apple_touch_icon_url %}
-{% if apple_touch_icon_url %}
-    <link rel="apple-touch-icon" href="{{ apple_touch_icon_url }}">
-{% else %}
-    <link rel="apple-touch-icon" href="{% static 'images/favicons/apple-touch-icon.png' %}">
-{% endif %}
-
+<link rel="apple-touch-icon" href="{% static 'images/favicons/apple-touch-icon.png' %}">
 <link rel="manifest" href="{% static 'images/favicons/favicon.webmanifest' %}">
 <meta name="theme-color" content="#26899E"/>
 

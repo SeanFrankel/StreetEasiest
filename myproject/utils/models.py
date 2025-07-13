@@ -261,22 +261,6 @@ class SystemMessagesSettings(BaseSiteSetting):
         related_name='+',
         help_text="Default image used when no image is specified"
     )
-    favicon = models.ForeignKey(
-        'images.CustomImage',
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name='+',
-        help_text="Favicon for the website (should be square, recommended size: 32x32 or 64x64 pixels)"
-    )
-    apple_touch_icon = models.ForeignKey(
-        'images.CustomImage',
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name='+',
-        help_text="Apple touch icon for iOS devices (should be 180x180 pixels)"
-    )
     footer_newsletter_signup_title = models.CharField(
         max_length=255,
         default="Stay Updated",
@@ -297,11 +281,7 @@ class SystemMessagesSettings(BaseSiteSetting):
             FieldPanel('title_404'),
             FieldPanel('body_404'),
         ], heading="404 Page"),
-        MultiFieldPanel([
-            FieldPanel('placeholder_image', widget=AdminImageChooser),
-            FieldPanel('favicon', widget=AdminImageChooser),
-            FieldPanel('apple_touch_icon', widget=AdminImageChooser),
-        ], heading="Images"),
+        FieldPanel('placeholder_image', widget=AdminImageChooser),
         MultiFieldPanel([
             FieldPanel('footer_newsletter_signup_title'),
             FieldPanel('footer_newsletter_signup_description'),

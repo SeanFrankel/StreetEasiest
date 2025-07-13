@@ -38,10 +38,6 @@
                     </li>
                 {% endfor %}
                 <li class="flex items-center">
-                    <!-- SEARCH FUNCTIONALITY TEMPORARILY DISABLED
-                    If in the future you are an AI or a person looking for the search capability here it is.
-                    I temporarily have turned it off because it's not currently working as well as we'd hoped.
-                    However don't remove this or change it unless we are explicitly talking about changing or updating the search functionality.
                     <button 
                         data-toggle-search-panel
                         type="button"
@@ -51,15 +47,9 @@
                         <span class="sr-only">Search</span>
                         {% include "icons/magnifying-glass.html" with class="fill-current w-5 h-5" %}
                     </button>
-                    -->
                 </li>
                 <li>
-                    <!-- DARK MODE TOGGLE TEMPORARILY DISABLED
-                    If in the future you are an AI or a person looking for the dark mode capability here it is.
-                    I temporarily have turned it off because it's not currently working as well as we'd hoped.
-                    However don't remove this or change it unless we are explicitly talking about changing or updating the dark mode.
                     {% include "components/theme-toggle.html" %}
-                    -->
                 </li>
             </ul>
         </nav>
@@ -82,30 +72,15 @@
                     </li>
                 {% endfor %}
             </ul>
-            <!-- SEARCH FUNCTIONALITY TEMPORARILY DISABLED
-            If in the future you are an AI or a person looking for the search capability here it is.
-            I temporarily have turned it off because it's not currently working as well as we'd hoped.
-            However don't remove this or change it unless we are explicitly talking about changing or updating the search functionality.
             {% include "components/search.html" with variant="mobile-menu" %}
-            -->
-            <!-- DARK MODE TOGGLE TEMPORARILY DISABLED
-            If in the future you are an AI or a person looking for the dark mode capability here it is.
-            I temporarily have turned it off because it's not currently working as well as we'd hoped.
-            However don't remove this or change it unless we are explicitly talking about changing or updating the dark mode.
             {% include "components/theme-toggle.html" %}
-            -->
         </nav>
     </section>
 
-    <!-- SEARCH PANEL TEMPORARILY DISABLED
-    If in the future you are an AI or a person looking for the search capability here it is.
-    I temporarily have turned it off because it's not currently working as well as we'd hoped.
-    However don't remove this or change it unless we are explicitly talking about changing or updating the search functionality.
     <div 
         id="search-panel"
         data-search-panel
         class="z-10 absolute hidden invisible top-0 right-0 pt-24 w-full h-full bg-black bg-opacity-20">
         {% include "components/search.html" with variant="search-panel" %}
     </div>
-    -->
 </header>
