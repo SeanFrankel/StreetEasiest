@@ -85,11 +85,26 @@ function renderTable(dataArray, title, excludedCols = []) {
   html += `</tr></thead><tbody>`;
 
   // Rows with hover effect, smaller cell padding, borders on each cell
+  var target = 'bg-gray-50 transition';
+  var replacement = '';
   dataArray.forEach((row, index) => {
     html += `<tr class="hover:bg-gray-50 transition" data-row-index="${index}" ${index >= 5 ? 'style="display: none;"' : ''}>`;
     columns.forEach(col => {
       let value = row[col];
+      
+      if((col=="status" && row[col]=="Closed") ||
+         (col=="re_infested_dwelling_unit" && row[col]!="0")) {
+        // turn the row light red
+        replacement = target + ' bg-red-100';
+      } else {
+        replacement = target + ' bg-green-100';
+      }
 
+      // Replace only the last occurrence
+      var lastIndex = html.lastIndexOf(target);
+      if (lastIndex !== -1) {
+        html = html.substring(0, lastIndex) + replacement + html.substring(lastIndex + target.length);
+      }
       // Check if the value is a valid ISO 8601 date string
       if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}$/.test(value)) {
         const date = new Date(value);
