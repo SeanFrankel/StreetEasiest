@@ -92,7 +92,7 @@ function renderTable(dataArray, title, excludedCols = []) {
     columns.forEach(col => {
       let value = row[col];
       
-      if((col=="status" && row[col]=="Closed") ||
+      if((col=="status" && row[col]!="Closed") ||
          (col=="re_infested_dwelling_unit" && row[col]!="0")) {
         // turn the row light red
         replacement = target + ' bg-red-100';
