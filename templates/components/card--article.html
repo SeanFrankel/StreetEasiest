@@ -1,5 +1,5 @@
 
-{% load wagtailcore_tags wagtailsettings_tags wagtailimages_tags %}
+{% load wagtailcore_tags wagtailsettings_tags wagtailimages_tags static %}
 
 <div class="flex flex-col 
     md:flex-row
@@ -24,9 +24,9 @@ w-full h-full group
             {% image page.listing_image format-jpeg fill-1600x1200 as card_image_2x_jpg %}
             {% image page.listing_image format-webp fill-800x600 as card_image_1x_webp %}
             {% image page.listing_image format-webp fill-1600x1200 as card_image_2x_webp %}
-        {% elif page.specific_class_name == "ArticlePage" and page.image %}
+        {% elif page.image %}
             {% for block in page.image %}
-                {% if block.block_type == "image" and forloop.first %}
+                {% if block.block_type == "image" and not card_image_1x_jpg and not card_image_1x_webp %}
                     {% image block.value.image format-jpeg fill-800x600 as card_image_1x_jpg %}
                     {% image block.value.image format-jpeg fill-1600x1200 as card_image_2x_jpg %}
                     {% image block.value.image format-webp fill-800x600 as card_image_1x_webp %}
@@ -39,6 +39,7 @@ w-full h-full group
             {% image settings.utils.SystemMessagesSettings.get_placeholder_image format-webp fill-800x600 as card_image_1x_webp %}
             {% image settings.utils.SystemMessagesSettings.get_placeholder_image format-webp fill-1600x1200 as card_image_2x_webp %}
         {% endif %}
+        {% if card_image_1x_webp or card_image_1x_jpg %}
         <picture>
             <source srcset="{{ card_image_1x_webp.url|default:'' }} 1x, {{ card_image_2x_webp.url|default:'' }} 2x" type="image/webp" />
             <source srcset="{{ card_image_1x_jpg.url|default:'' }} 1x, {{ card_image_2x_jpg.url|default:'' }} 2x" type="image/jpeg" />
@@ -51,6 +52,9 @@ w-full h-full group
                 {% if card_image_1x_webp.focal_point %}style="{{ card_image_1x_webp.object_position_style }}"{% endif %}
             />
         </picture>
+        {% else %}
+        <img src="{% static 'images/placeholder-image.webp' %}" alt="No image available" class="aspect-[20/11] md:aspect-[1] w-full h-full object-cover" />
+        {% endif %}
     </div>
 
     <div class="md:h-full md:justify-center md:flex md:flex-col md:max-w-[767px]">
