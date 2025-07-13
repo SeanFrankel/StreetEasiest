@@ -1,6 +1,6 @@
 
 {% extends "base_page.html" %}
-{% load wagtailcore_tags wagtailimages_tags static adsense_tags %}
+{% load wagtailcore_tags wagtailimages_tags static %}
 
 {% block content %}
 {% block breadcrumbs %}
@@ -22,11 +22,6 @@
         <p class="pt-7 rich-text">
             {{ page.introduction|richtext }}
         </p>
-        
-        <!-- Header Ad -->
-        <div class="my-8">
-            {% adsense_ad '1234567890' 'article-header-ad' %}
-        </div>
     </div>
     <div class="lg:self-end lg:ml-auto flex flex-row items-center gap-3 text-sm md:text-base text-grey-700 dark:text-grey-200 font-codepro">
         {% image page.author.image format-webp fill-60x60 gray as author_avatar %}
@@ -227,17 +222,8 @@
   {% endwith %}
 {% endif %}
 
-<!-- Content Ad before body -->
-<div class="site-padding site-container my-8">
-    {% adsense_ad '555666777' 'article-content-ad' %}
-</div>
 
 {% include_block page.body %}
-
-<!-- Footer Ad after body -->
-<div class="site-padding site-container my-8">
-    {% adsense_ad '111222333' 'article-footer-ad' %}
-</div>
 
 {% endblock %}
 
