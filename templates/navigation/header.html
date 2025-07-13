@@ -37,20 +37,6 @@
                         {% endif %}
                     </li>
                 {% endfor %}
-                <li class="flex items-center">
-                    <button 
-                        data-toggle-search-panel
-                        type="button"
-                        aria-expanded="true" 
-                        aria-controls="search-panel" 
-                        aria-label="Show search overlay">
-                        <span class="sr-only">Search</span>
-                        {% include "icons/magnifying-glass.html" with class="fill-current w-5 h-5" %}
-                    </button>
-                </li>
-                <li>
-                    {% include "components/theme-toggle.html" %}
-                </li>
             </ul>
         </nav>
     </div>

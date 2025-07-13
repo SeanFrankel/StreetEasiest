@@ -280,16 +280,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p class="text-lg"><span class="font-medium text-grey-800">Building ID:</span> <span class="text-grey-700">${data.data.building_id || "N/A"}</span></p>
                 <p class="text-lg"><span class="font-medium text-grey-800">BBL:</span> <span class="text-grey-700">${data.data.bbl || 'N/A'}</span></p>
               </div>
-              <button 
-                id="copy-data-btn"
-                onclick="copyAllDataToClipboard()"
-                class="mt-6 md:mt-0 flex items-center justify-center bg-grey-100 hover:bg-grey-200 text-grey-800 py-3 px-6 rounded-lg transition font-sans3"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
-                Copy All Data
-              </button>
             </div>
           </div>
         `;

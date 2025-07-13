@@ -14,7 +14,9 @@
                 <div class="mb-10 lg:mb-0 flex flex-col gap-6">
                     {% if section.value.section_heading %}
                         <h2 class="text-xl md:text-2xl font-semibold">
+                            {% if section.value.section_heading != "." %}
                             {{ section.value.section_heading }}
+                            {% endif %}
                         </h2>
                     {% endif %}
                     {% if section.value.links %}
@@ -40,7 +42,7 @@
         </div>
         {% endif %}
         <div class="flex-1">
-            <h2 class="text-xl md:text-2xl font-semibold">Follow Us On Social Media!</h2>
+            <h2 class="text-xl md:text-2xl font-semibold"></h2>
             {% if settings.utils.SocialMediaSettings.linkedin_handle or settings.utils.SocialMediaSettings.facebook_app_id or settings.utils.SocialMediaSettings.instagram_handle or settings.utils.SocialMediaSettings.tiktok_handle %}
                 <p class="sr-only">Follow us</p>
                 <div class="flex flex-row gap-10 pt-14">
