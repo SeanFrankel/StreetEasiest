@@ -11,19 +11,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Define the directory where the CSVs will be saved.
         save_dir = os.path.join(settings.BASE_DIR, 'myproject', 'homedata', 'data')
-        
-        # Clear the data directory completely
-        if os.path.exists(save_dir):
-            for file in os.listdir(save_dir):
-                file_path = os.path.join(save_dir, file)
-                try:
-                    if os.path.isfile(file_path):
-                        os.remove(file_path)
-                        self.stdout.write(f"Deleted: {file}")
-                except Exception as e:
-                    self.stdout.write(self.style.WARNING(f"Could not delete {file}: {e}"))
-        else:
-            os.makedirs(save_dir, exist_ok=True)
+        os.makedirs(save_dir, exist_ok=True)
 
         # List of files to download.
         # Each entry defines the URL of the ZIP file and the target CSV file name.
