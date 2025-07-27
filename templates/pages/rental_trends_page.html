@@ -21,14 +21,16 @@
         <!-- Header Section with improved layout -->
         <div class="flex flex-col md:flex-row md:items-start gap-8 py-8 border-b border-grey-200 mb-8">
             <div class="md:w-2/5">
-                <h1 class="font-serif4 font-bold text-4xl md:text-5xl lg:text-6xl mb-4 leading-tight">
-                    NYC Rental Trends Tool
-                </h1>
+                {% if page.title %}
+                    <h1 class="font-serif4 font-bold text-4xl md:text-5xl lg:text-6xl mb-4 leading-tight">
+                        {{ page.title|linebreaksbr }}
+                    </h1>
+                {% endif %}
             </div>
             
             {% if page.intro %}
                 <div class="md:w-3/5">
-                    <div class="rich-text prose text-grey-700">
+                    <div class="rich-text prose text-grey-700 font-serif4 font-bold text-xl md:text-2xl lg:text-3xl leading-relaxed text-center md:text-left">
                         {{ page.intro|richtext }}
                     </div>
                 </div>

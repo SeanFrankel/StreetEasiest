@@ -1,7 +1,11 @@
 /**
  * Renders a table for a given dataset, excluding any columns listed in excludedCols.
+ * @param {Array} dataArray - The data to render
+ * @param {string} title - The table title
+ * @param {Array} excludedCols - Columns to exclude from the table
+ * @param {Array} columnOrder - Optional array specifying the order of columns (columns not in this array will be appended at the end)
  */
-function renderTable(dataArray, title, excludedCols = []) {
+function renderTable(dataArray, title, excludedCols = [], columnOrder = []) {
   if (!dataArray || !dataArray.length) {
     return `
       <div class="my-8 bg-grey-100 p-8 rounded-xl border border-grey-200">
@@ -14,6 +18,28 @@ function renderTable(dataArray, title, excludedCols = []) {
   // Determine columns from the keys of the first object, minus excludedCols
   let columns = Object.keys(dataArray[0]);
   columns = columns.filter(col => !excludedCols.includes(col));
+
+  // Apply custom column ordering if provided
+  if (columnOrder && columnOrder.length > 0) {
+    // Create ordered columns array
+    const orderedColumns = [];
+    
+    // Add columns in the specified order (if they exist in the data)
+    columnOrder.forEach(col => {
+      if (columns.includes(col)) {
+        orderedColumns.push(col);
+      }
+    });
+    
+    // Add any remaining columns that weren't in the order array
+    columns.forEach(col => {
+      if (!orderedColumns.includes(col)) {
+        orderedColumns.push(col);
+      }
+    });
+    
+    columns = orderedColumns;
+  }
 
   const tableId = title.replace(/\s/g, '_');
 
@@ -85,26 +111,37 @@ function renderTable(dataArray, title, excludedCols = []) {
   html += `</tr></thead><tbody>`;
 
   // Rows with hover effect, smaller cell padding, borders on each cell
-  var target = 'bg-gray-50 transition';
-  var replacement = '';
   dataArray.forEach((row, index) => {
-    html += `<tr class="hover:bg-gray-50 transition" data-row-index="${index}" ${index >= 5 ? 'style="display: none;"' : ''}>`;
+    // Determine row styling based on data
+    let rowClass = "hover:bg-gray-50 transition";
+    
+    // Check if this row has any issues (non-closed status or infested units)
+    const hasIssues = columns.some(col => 
+      (col === "violationstatus" && row[col] !== "Close") ||
+      (col === "status" && row[col] !== "Closed") ||
+      (col === "infested_dwelling_unit" && row[col] !== "0") ||
+      (col === "casestatus" && row[col] !== "CLOSED")
+    );
+    
+    // Debug logging
+    console.log(`Row ${index}:`, { hasIssues, rowData: row });
+    
+    if (hasIssues) {
+      rowClass += " bg-red-100";
+      console.log(`Row ${index} should be RED`);
+    } else {
+      rowClass += " bg-green-100";
+      console.log(`Row ${index} should be GREEN`);
+    }
+    
+    // Add inline style as backup for debugging
+    const inlineStyle = hasIssues ? 'background-color: #fee2e2;' : 'background-color: #dcfce7;';
+    const displayStyle = index >= 5 ? 'display: none;' : '';
+    const combinedStyle = `${inlineStyle} ${displayStyle}`;
+    
+    html += `<tr class="${rowClass}" data-row-index="${index}" style="${combinedStyle}">`;
     columns.forEach(col => {
       let value = row[col];
-      
-      if((col=="status" && row[col]!="Closed") ||
-         (col=="re_infested_dwelling_unit" && row[col]!="0")) {
-        // turn the row light red
-        replacement = target + ' bg-red-100';
-      } else {
-        replacement = target + ' bg-green-100';
-      }
-
-      // Replace only the last occurrence
-      var lastIndex = html.lastIndexOf(target);
-      if (lastIndex !== -1) {
-        html = html.substring(0, lastIndex) + replacement + html.substring(lastIndex + target.length);
-      }
       // Check if the value is a valid ISO 8601 date string
       if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}$/.test(value)) {
         const date = new Date(value);
@@ -373,7 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         `;
 
-        // Render HPD Violations with excluded columns
+        // Render HPD Violations with excluded columns and custom order
         const excludedColsForViolations = [
           "housenumber",
           "lowhousenumber",
@@ -381,7 +418,9 @@ document.addEventListener('DOMContentLoaded', function() {
           "streetname",
           "streetcode",
           "zip",
+          "approveddate",
           "buildingid",
+          "novissueddate",
           "registrationid",
           "boroid",
           "boro",
@@ -398,9 +437,27 @@ document.addEventListener('DOMContentLoaded', function() {
           "bbl",
           "nta"
         ];
-        html += renderTable(data.data.hpd_violations, "HPD Violations", excludedColsForViolations);
+        
+        // Define the order you want columns to appear in HPD Violations table
+        const columnOrderForViolations = [
+          "apartment",
+          "inspectiondate",
+          "rentimpairing",
+          "class",
+          "violationstatus",
+          "novdescription",
+          "currentstatus",
+          "currentstatusdate",
+          "originalcorrectbydate",
+          "currentstatusid",
+          "novid",
+          "violationid",
+          "originalcertifybydate"
+        ];
+        
+        html += renderTable(data.data.hpd_violations, "HPD Violations", excludedColsForViolations, columnOrderForViolations);
 
-        // Render 311 Complaints with excluded columns
+        // Render 311 Complaints with excluded columns and custom order
         const excludedColsForComplaints = [
           "agency",
           "incident_zip",
@@ -413,6 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
           "address_type",
           "city",
           "landmark",
+          "resolution_action_updated_date",
           "community_board",
           "bbl",
           "borough",
@@ -425,9 +483,21 @@ document.addEventListener('DOMContentLoaded', function() {
           "longitude",
           "location"
         ];
-        html += renderTable(data.data.complaints, "311 Complaints", excludedColsForComplaints);
+        
+        // Define the order you want columns to appear in 311 Complaints table
+        const columnOrderForComplaints = [
+          "complaint_type",
+          "descriptor",
+          "created_date",
+          "status",
+          "resolution_description",
+          "closed_date",
+          "unique_key"
+        ];
+        
+        html += renderTable(data.data.complaints, "311 Complaints", excludedColsForComplaints, columnOrderForComplaints);
 
-        // Render Bedbug Reports with excluded columns
+        // Render Bedbug Reports with excluded columns and custom order
         const excludedColsForBedbugs = [
           "building_id",
           "registration_id",
@@ -445,9 +515,20 @@ document.addEventListener('DOMContentLoaded', function() {
           "bbl",
           "nta"
         ];
-        html += renderTable(data.data.bedbug_reports, "Bedbug Reports", excludedColsForBedbugs);
+        
+        // Define the order you want columns to appear in Bedbug Reports table
+        const columnOrderForBedbugs = [
+          "infested_dwelling_unit_count",
+          "of_dwelling_units",
+          "filing_period_start_date",
+          "filing_date",
+          "eradicated_unit_count",
+          "re_infested_dwelling_unit"
+        ];
+        
+        html += renderTable(data.data.bedbug_reports, "Bedbug Reports", excludedColsForBedbugs, columnOrderForBedbugs);
 
-        // Render Housing Litigation with excluded columns
+        // Render Housing Litigation with excluded columns and custom order
         const excludedColsForLitigation = [
           "buildingid",
           "boroid",
@@ -465,7 +546,18 @@ document.addEventListener('DOMContentLoaded', function() {
           "bbl",
           "nta"
         ];
-        html += renderTable(data.data.litigation, "Housing Litigation", excludedColsForLitigation);
+        
+        // Define the order you want columns to appear in Housing Litigation table
+        const columnOrderForLitigation = [
+          "casetype",
+          "respondent",
+          "caseopendate",
+          "casestatus",
+          "casejudgement",
+          "litigationid"
+        ];
+        
+        html += renderTable(data.data.litigation, "Housing Litigation", excludedColsForLitigation, columnOrderForLitigation);
         
         resultsDiv.innerHTML = html;
       } else {
