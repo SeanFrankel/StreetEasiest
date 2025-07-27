@@ -1,5 +1,5 @@
 
-{% load static wagtailcore_tags wagtailuserbar adsense_tags %}
+{% load static wagtailcore_tags wagtailuserbar %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -18,8 +18,6 @@
         <meta name="description" content="{{ page.search_description }}" />
         {% endif %}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-        {% adsense_head %}
 
         {% comment %}
         Set "noindex" if the site is not being requested on a configured
@@ -48,6 +46,8 @@
         {% block extra_css %}
         
         {% endblock %}
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5539267642012864"
+       crossorigin="anonymous"></script>
     </head>
 
     <body class="{% block body_class %}{% endblock %}">
