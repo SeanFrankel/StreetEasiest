@@ -9,7 +9,7 @@ from myproject.utils.models import BasePage
 
 class HomePage(BasePage):
     template = "pages/home_page.html"
-    introduction = models.TextField(blank=True)
+    introduction = RichTextField(blank=True)
     hero_cta = StreamField(
         [("link", InternalLinkBlock())],
         blank=True,

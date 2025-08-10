@@ -13,9 +13,9 @@
             <!-- Clear Tagline -->
             {% if page.introduction %}
                 <div class="max-w-[636px] mb-8">
-                    <p class="text-xl md:text-2xl text-grey-700 font-sans3 leading-relaxed">
-                        {{ page.introduction }}
-                    </p>
+                    <div class="text-xl md:text-2xl text-grey-700 font-sans3 leading-relaxed">
+                        {{ page.introduction|richtext }}
+                    </div>
                 </div>
             {% endif %}
             
