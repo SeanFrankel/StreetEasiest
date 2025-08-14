@@ -317,6 +317,45 @@ class GoogleAdSenseSettings(BaseSiteSetting):
         verbose_name = 'Google AdSense'
 
 
+@register_setting
+class ConsentModeSettings(BaseSiteSetting):
+    """
+    Settings for Google Consent Mode v2 compliance for EEA/UK traffic.
+    """
+    enable_consent_mode = models.BooleanField(
+        default=False,
+        help_text="Enable Google Consent Mode v2 for EEA/UK traffic compliance"
+    )
+    google_tag_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Google Tag Manager ID (e.g., GTM-XXXXXXX) or Google Analytics 4 ID (e.g., G-XXXXXXXXXX)"
+    )
+    default_consent_state = models.CharField(
+        max_length=20,
+        choices=[
+            ('granted', 'Granted'),
+            ('denied', 'Denied'),
+        ],
+        default='denied',
+        help_text="Default consent state for users outside EEA/UK"
+    )
+    enable_region_detection = models.BooleanField(
+        default=True,
+        help_text="Automatically detect EEA/UK users and apply appropriate consent settings"
+    )
+
+    panels = [
+        FieldPanel('enable_consent_mode'),
+        FieldPanel('google_tag_id'),
+        FieldPanel('default_consent_state'),
+        FieldPanel('enable_region_detection'),
+    ]
+
+    class Meta:
+        verbose_name = 'Consent Mode Settings'
+
+
 class ActionLinkBlock(StructBlock):
     link_type = ChoiceBlock(
         choices=[

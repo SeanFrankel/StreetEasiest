@@ -46,6 +46,10 @@
         {% block extra_css %}
         
         {% endblock %}
+        
+        {% load consent_tags %}
+        {% consent_mode_head %}
+        
         <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5539267642012864"
        crossorigin="anonymous"></script>
     </head>
@@ -63,6 +67,7 @@
 
         {% block footer %}{% endblock footer %}
 
+        {% consent_banner %}
         
         <script type="text/javascript" src="{% static 'js/main.js' %}"></script>
 

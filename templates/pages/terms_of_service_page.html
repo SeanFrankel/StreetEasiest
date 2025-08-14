@@ -1,0 +1,83 @@
+{% extends "base_page.html" %}
+{% load wagtailcore_tags wagtailimages_tags static %}
+
+{% block content %}
+    {% block breadcrumbs %}
+        {% include "navigation/breadcrumbs.html" %}
+    {% endblock %}
+    
+    <div class="site-padding site-container">
+        <div class="relative max-w-[872px] pt-32 tall:pt-40 pb-20">
+            <h1 class="font-serif4 [word-spacing:-6px] font-bold text-7xl lg:text-10xl mb-8">
+                {{ page.title }}
+            </h1>
+            
+            {% if page.introduction %}
+                <div class="max-w-[636px] mb-12">
+                    <div class="text-xl md:text-2xl text-grey-700 font-sans3 leading-relaxed">
+                        {{ page.introduction|richtext }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Terms of Service Content -->
+        {% if page.terms_content %}
+            <section class="max-w-[872px] mb-16">
+                <h2 class="font-serif4 font-bold text-3xl lg:text-4xl mb-6">Terms of Service</h2>
+                <div class="rich-text">
+                    {{ page.terms_content|richtext }}
+                </div>
+            </section>
+        {% endif %}
+
+        <!-- User Obligations -->
+        {% if page.user_obligations %}
+            <section class="max-w-[872px] mb-16">
+                <h2 class="font-serif4 font-bold text-3xl lg:text-4xl mb-6">User Obligations</h2>
+                <div class="rich-text">
+                    {{ page.user_obligations|richtext }}
+                </div>
+            </section>
+        {% endif %}
+
+        <!-- Intellectual Property -->
+        {% if page.intellectual_property %}
+            <section class="max-w-[872px] mb-16">
+                <h2 class="font-serif4 font-bold text-3xl lg:text-4xl mb-6">Intellectual Property</h2>
+                <div class="rich-text">
+                    {{ page.intellectual_property|richtext }}
+                </div>
+            </section>
+        {% endif %}
+
+        <!-- Limitation of Liability -->
+        {% if page.liability %}
+            <section class="max-w-[872px] mb-16">
+                <h2 class="font-serif4 font-bold text-3xl lg:text-4xl mb-6">Limitation of Liability</h2>
+                <div class="rich-text">
+                    {{ page.liability|richtext }}
+                </div>
+            </section>
+        {% endif %}
+
+        <!-- Contact Information -->
+        {% if page.contact_info %}
+            <section class="max-w-[872px] mb-16">
+                <h2 class="font-serif4 font-bold text-3xl lg:text-4xl mb-6">Contact Us</h2>
+                <div class="rich-text">
+                    {{ page.contact_info|richtext }}
+                </div>
+            </section>
+        {% endif %}
+
+        <!-- Last Updated -->
+        <div class="max-w-[872px] pt-8 border-t border-grey-200">
+            <p class="text-sm text-grey-600">
+                Last updated: {{ page.last_published_at|date:"F j, Y" }}
+            </p>
+        </div>
+    </div>
+
+    {% include_block page.body %}
+{% endblock %} 
