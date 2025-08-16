@@ -276,8 +276,12 @@ function scrollToSection(sectionId) {
   }
 }
 
+// DEBUG: Check if this file is loading
+console.log("Address lookup JavaScript loaded!");
+
 // Form submission event: fetch data with the X-Requested-With header
 document.addEventListener('DOMContentLoaded', function() {
+  console.log("DOM loaded, setting up form listener");
   document.getElementById("lookup-form").addEventListener("submit", async function(event) {
     event.preventDefault();
     const address = document.getElementById("address").value.trim();
@@ -306,6 +310,11 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       const data = await response.json();
       
+      // DEBUG: Log the response to console
+      console.log("API Response:", data);
+      console.log("HPD Violations:", data.data?.hpd_violations?.length || "undefined");
+      console.log("Complaints:", data.data?.complaints?.length || "undefined");
+      
       // Reset button state
       searchText.textContent = "Search";
       loadingSpinner.classList.add("hidden");
@@ -316,21 +325,22 @@ document.addEventListener('DOMContentLoaded', function() {
           hpd_violations: data.data.hpd_violations && data.data.hpd_violations.length > 0,
           complaints: data.data.complaints && data.data.complaints.length > 0,
           bedbug_reports: data.data.bedbug_reports && data.data.bedbug_reports.length > 0,
-          litigation: data.data.litigation && data.data.litigation.length > 0
+          litigation: data.data.litigation && data.data.litigation.length > 0,
+          lead_paint_violations: data.data.lead_paint_violations && data.data.lead_paint_violations.length > 0
         };
         
         // Count total records
         const totalRecords = Object.values(dataSummary).filter(Boolean).length;
         
         let html = `
-          <div class="bg-white p-8 rounded-xl shadow-lg border border-grey-200 mb-8">
-            <h2 class="font-serif4 text-3xl md:text-5xl font-semibold mb-6 text-mackerel-400">Property Information</h2>
+          <div class="bg-white p-4 rounded-lg shadow border border-grey-200 mb-4">
+            <h2 class="font-serif4 text-xl md:text-2xl font-semibold mb-3 text-mackerel-400">Property Information</h2>
             <div class="flex flex-col md:flex-row md:items-center md:justify-between">
-              <div class="space-y-3 font-sans3">
-                <p class="text-lg"><span class="font-medium text-grey-800">Address:</span> <span class="text-grey-700">${data.data.address}</span></p>
-                <p class="text-lg"><span class="font-medium text-grey-800">ZIP Code:</span> <span class="text-grey-700">${data.data.zip_code}</span></p>
-                <p class="text-lg"><span class="font-medium text-grey-800">Building ID:</span> <span class="text-grey-700">${data.data.building_id || "N/A"}</span></p>
-                <p class="text-lg"><span class="font-medium text-grey-800">BBL:</span> <span class="text-grey-700">${data.data.bbl || 'N/A'}</span></p>
+              <div class="space-y-1 font-sans3">
+                <p class="text-sm"><span class="font-medium text-grey-800">Address:</span> <span class="text-grey-700">${data.data.address}</span></p>
+                <p class="text-sm"><span class="font-medium text-grey-800">ZIP Code:</span> <span class="text-grey-700">${data.data.zip_code}</span></p>
+                <p class="text-sm"><span class="font-medium text-grey-800">Building ID:</span> <span class="text-grey-700">${data.data.building_id || "N/A"}</span></p>
+                <p class="text-sm"><span class="font-medium text-grey-800">BBL:</span> <span class="text-grey-700">${data.data.bbl || 'N/A'}</span></p>
               </div>
             </div>
           </div>
@@ -338,69 +348,85 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add data summary section with integrated jump links
         html += `
-          <div id="data-summary" class="bg-mackerel-200/10 p-8 rounded-xl border border-mackerel-200 mb-8">
-            <h3 class="font-serif4 text-2xl font-semibold mb-4 text-mackerel-400">Data Summary</h3>
-            <p class="mb-6 text-grey-700 font-sans3">We found ${totalRecords} data sources for this address:</p>
-            <div class="grid grid-cols-1 gap-4">
-              <div class="flex items-center justify-between ${dataSummary.hpd_violations ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-4 rounded-lg border border-grey-200">
+          <div id="data-summary" class="bg-mackerel-200/10 p-4 rounded-lg border border-mackerel-200 mb-4">
+            <h3 class="font-serif4 text-lg font-semibold mb-2 text-mackerel-400">Data Summary</h3>
+            <p class="mb-3 text-sm text-grey-700 font-sans3">We found ${totalRecords} data sources for this address:</p>
+            <div class="grid grid-cols-1 gap-2">
+              <div class="flex items-center justify-between ${dataSummary.hpd_violations ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
                 <div class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span class="font-sans3 font-medium">HPD Violations - Total: ${data.data.hpd_violations_total_count}</span>
+                  <span class="font-sans3 font-medium text-sm">HPD Violations - Total: ${data.data.hpd_violations_total_count || 0}</span>
                 </div>
                 ${dataSummary.hpd_violations ? `
-                  <button onclick="scrollToSection('section-HPD_Violations')" class="text-mackerel-300 hover:text-mackerel-400 text-base font-medium font-sans3 flex items-center bg-mackerel-100 py-2 px-4 rounded-lg transition">
+                  <button onclick="scrollToSection('section-HPD_Violations')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
                     View Data
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                 ` : ''}
               </div>
-              <div class="flex items-center justify-between ${dataSummary.complaints ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-4 rounded-lg border border-grey-200">
+              <div class="flex items-center justify-between ${dataSummary.complaints ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
                 <div class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span class="font-sans3 font-medium">311 Complaints - Total: ${data.data.complaints_total_count}</span>
+                  <span class="font-sans3 font-medium text-sm">311 Complaints - Total: ${data.data.complaints_total_count || 0}</span>
                 </div>
                 ${dataSummary.complaints ? `
-                  <button onclick="scrollToSection('section-311_Complaints')" class="text-mackerel-300 hover:text-mackerel-400 text-base font-medium font-sans3 flex items-center bg-mackerel-100 py-2 px-4 rounded-lg transition">
+                  <button onclick="scrollToSection('section-311_Complaints')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
                     View Data
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                 ` : ''}
               </div>
-              <div class="flex items-center justify-between ${dataSummary.bedbug_reports ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-4 rounded-lg border border-grey-200">
+              <div class="flex items-center justify-between ${dataSummary.bedbug_reports ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
                 <div class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span class="font-sans3 font-medium">Bedbug Reports - Total: ${data.data.bedbug_reports_total_count}</span>
+                  <span class="font-sans3 font-medium text-sm">Bedbug Reports - Total: ${data.data.bedbug_reports_total_count || 0}</span>
                 </div>
                 ${dataSummary.bedbug_reports ? `
-                  <button onclick="scrollToSection('section-Bedbug_Reports')" class="text-mackerel-300 hover:text-mackerel-400 text-base font-medium font-sans3 flex items-center bg-mackerel-100 py-2 px-4 rounded-lg transition">
+                  <button onclick="scrollToSection('section-Bedbug_Reports')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
                     View Data
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                 ` : ''}
               </div>
-              <div class="flex items-center justify-between ${dataSummary.litigation ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-4 rounded-lg border border-grey-200">
+              <div class="flex items-center justify-between ${dataSummary.litigation ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
                 <div class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span class="font-sans3 font-medium">Housing Litigation - Total: ${data.data.litigation_total_count}</span>
+                  <span class="font-sans3 font-medium text-sm">Housing Litigation - Total: ${data.data.litigation_total_count || 0}</span>
                 </div>
                 ${dataSummary.litigation ? `
-                  <button onclick="scrollToSection('section-Housing_Litigation')" class="text-mackerel-300 hover:text-mackerel-400 text-base font-medium font-sans3 flex items-center bg-mackerel-100 py-2 px-4 rounded-lg transition">
+                  <button onclick="scrollToSection('section-Housing_Litigation')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
                     View Data
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                ` : ''}
+              </div>
+              <div class="flex items-center justify-between ${dataSummary.lead_paint_violations ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
+                <div class="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span class="font-sans3 font-medium text-sm">Lead Paint Violations - Total: ${data.data.lead_paint_violations_total_count || 0}</span>
+                </div>
+                ${dataSummary.lead_paint_violations ? `
+                  <button onclick="scrollToSection('section-Lead_Paint_Violations')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
+                    View Data
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
@@ -558,6 +584,53 @@ document.addEventListener('DOMContentLoaded', function() {
         ];
         
         html += renderTable(data.data.litigation, "Housing Litigation", excludedColsForLitigation, columnOrderForLitigation);
+
+        // Lead Paint Violations with excluded columns and custom order
+        const excludedColsForLeadPaint = [
+          "housenumber",
+          "lowhousenumber", 
+          "highhousenumber",
+          "streetname",
+          "streetcode",
+          "zip",
+          "boroid",
+          "boro",
+          "block",
+          "lot",
+          "bin",
+          "bbl",
+          "latitude",
+          "longitude",
+          "communityboard",
+          "councildistrict",
+          "censustract",
+          "nta",
+          "buildingid",
+          "registrationid",
+          "novtype",
+          "ordernumber",
+          "currentstatusid",
+          "approveddate",
+          "originalcertifybydate",
+          "story",
+          "class"
+        ];
+        
+        // Define the order you want columns to appear in Lead Paint Violations table
+        const columnOrderForLeadPaint = [
+          "apartment",
+          "inspectiondate",
+          "novdescription", 
+          "violationstatus",
+          "currentstatus",
+          "currentstatusdate",
+          "violationid",
+          "rentimpairing",
+          "originalcorrectbydate",
+          "novissueddate"
+        ];
+        
+        html += renderTable(data.data.lead_paint_violations, "Lead Paint Violations", excludedColsForLeadPaint, columnOrderForLeadPaint);
         
         resultsDiv.innerHTML = html;
       } else {
