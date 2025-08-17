@@ -335,7 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = `
           <div class="bg-white p-4 rounded-lg shadow border border-grey-200 mb-4">
             <h2 class="font-serif4 text-xl md:text-2xl font-semibold mb-3 text-mackerel-400">Property Information</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 font-sans3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 font-sans3">
               <!-- Column 1: Basic Property Info -->
               <div class="space-y-2">
                 <h3 class="font-medium text-grey-900 text-sm mb-3 border-b border-grey-200 pb-1">Basic Information</h3>
@@ -343,76 +343,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p class="text-sm"><span class="font-medium text-grey-800">ZIP Code:</span> <span class="text-grey-700">${data.data.zip_code}</span></p>
                 <p class="text-sm"><span class="font-medium text-grey-800">Building ID:</span> <span class="text-grey-700">${data.data.building_id || "N/A"}</span></p>
                 <p class="text-sm"><span class="font-medium text-grey-800">BBL:</span> <span class="text-grey-700">${data.data.bbl || 'N/A'}</span></p>
+                <p class="text-sm"><span class="font-medium text-grey-800">Total Residential Units:</span> <span class="text-grey-700">${data.data.residential_units ?? "N/A"}</span></p>
               </div>
               
-              <!-- Column 2: Property Details -->
-              <div class="space-y-2">
-                <h3 class="font-medium text-grey-900 text-sm mb-3 border-b border-grey-200 pb-1">Property Details</h3>
-                <p class="text-sm"><span class="font-medium text-grey-800">Residential Units:</span> <span class="text-grey-700">${data.data.residential_units ?? "N/A"}</span></p>
-                <p class="text-sm"><span class="font-medium text-grey-800">Rent Stabilized (2023):</span> <span class="text-grey-700">${
-                    (() => {
-                        const hasStabilized = data.data.has_rent_stabilized;
-                        const units2023 = data.data.rent_stabilized_units_2023;
-                        
-                        if (hasStabilized === "Yes") {
-                            if (units2023 && units2023 > 0) {
-                                return `Yes (${units2023} units)`;
-                            } else {
-                                return "No data for 2023";
-                            }
-                        } else if (hasStabilized === "No") {
-                            return "No";
-                        } else {
-                            return "N/A - Data unavailable";
-                        }
-                    })()
-                }</span></p>
-                <p class="text-sm"><span class="font-medium text-grey-800">Rent Stabilized (2018):</span> <span class="text-grey-700">${
-                    (() => {
-                        const hasStabilized = data.data.has_rent_stabilized;
-                        const units2018 = data.data.rent_stabilized_units_2018;
-                        
-                        if (hasStabilized === "Yes") {
-                            if (units2018 && units2018 > 0) {
-                                return `Yes (${units2018} units)`;
-                            } else {
-                                return "No data for 2018";
-                            }
-                        } else if (hasStabilized === "No") {
-                            return "No";
-                        } else {
-                            return "N/A - Data unavailable";
-                        }
-                    })()
-                }</span></p>
-                <p class="text-sm"><span class="font-medium text-grey-800">Change (2018→2023):</span> <span class="text-grey-700">${
-                    (() => {
-                        const units2023 = data.data.rent_stabilized_units_2023;
-                        const units2018 = data.data.rent_stabilized_units_2018;
-                        const difference = data.data.rent_stabilized_units_difference;
-                        
-                        if (units2023 !== null && units2023 !== undefined && units2018 !== null && units2018 !== undefined) {
-                            const diff = units2023 - units2018;
-                            if (diff > 0) {
-                                return `+${diff} units (increase)`;
-                            } else if (diff < 0) {
-                                return `${diff} units (decrease)`;
-                            } else {
-                                return "No change";
-                            }
-                        } else if (units2023 > 0 && (!units2018 || units2018 === 0)) {
-                            return `+${units2023} units (new in 2023)`;
-                        } else if (units2018 > 0 && (!units2023 || units2023 === 0)) {
-                            return `-${units2018} units (removed by 2023)`;
-                        } else {
-                            return "N/A - Insufficient data";
-                        }
-                    })()
-                }</span></p>
-                <p class="text-sm"><span class="font-medium text-grey-800">Executed Evictions:</span> <span class="text-grey-700">${data.data.evictions_total_count || 0}</span></p>
-              </div>
-              
-              <!-- Column 3: Ownership Info -->
+              <!-- Column 2: Ownership & Building Info -->
               <div class="space-y-2">
                 <h3 class="font-medium text-grey-900 text-sm mb-3 border-b border-grey-200 pb-1">Ownership Information</h3>
                 <p class="text-sm"><span class="font-medium text-grey-800">Owner Name:</span> <span class="text-grey-700">${data.data.owner_name || "N/A"}</span></p>
@@ -448,87 +382,112 @@ document.addEventListener('DOMContentLoaded', function() {
           <div id="data-summary" class="bg-mackerel-200/10 p-4 rounded-lg border border-mackerel-200 mb-4">
             <h3 class="font-serif4 text-lg font-semibold mb-2 text-mackerel-400">Data Summary</h3>
             <p class="mb-3 text-sm text-grey-700 font-sans3">We found ${totalRecords} data sources for this address:</p>
-            <div class="grid grid-cols-1 gap-2">
-              <div class="flex items-center justify-between ${dataSummary.hpd_violations ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
-                <div class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span class="font-sans3 font-medium text-sm">HPD Violations - Total: ${data.data.hpd_violations_total_count || 0}</span>
-                </div>
-                ${dataSummary.hpd_violations ? `
-                  <button onclick="scrollToSection('section-HPD_Violations')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
-                    View Data
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Left Column: Violations, Reports, and Litigation -->
+              <div class="space-y-2">
+                <h4 class="font-medium text-grey-900 text-sm mb-3 border-b border-grey-200 pb-1">Violations & Reports</h4>
+                
+                <div class="flex items-center justify-between ${dataSummary.hpd_violations ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
+                  <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                  </button>
-                ` : ''}
-              </div>
-              <div class="flex items-center justify-between ${dataSummary.complaints ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
-                <div class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span class="font-sans3 font-medium text-sm">311 Complaints - Total: ${data.data.complaints_total_count || 0}</span>
+                    <span class="font-sans3 font-medium text-sm">HPD Violations - Total: ${data.data.hpd_violations_total_count || 0}</span>
+                  </div>
+                  ${dataSummary.hpd_violations ? `
+                    <button onclick="scrollToSection('section-HPD_Violations')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
+                      View Data
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  ` : ''}
                 </div>
-                ${dataSummary.complaints ? `
-                  <button onclick="scrollToSection('section-311_Complaints')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
-                    View Data
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                
+                <div class="flex items-center justify-between ${dataSummary.complaints ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
+                  <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                  </button>
-                ` : ''}
-              </div>
-              <div class="flex items-center justify-between ${dataSummary.bedbug_reports ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
-                <div class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span class="font-sans3 font-medium text-sm">Bedbug Reports - Total: ${data.data.bedbug_reports_total_count || 0}</span>
+                    <span class="font-sans3 font-medium text-sm">311 Complaints - Total: ${data.data.complaints_total_count || 0}</span>
+                  </div>
+                  ${dataSummary.complaints ? `
+                    <button onclick="scrollToSection('section-311_Complaints')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
+                      View Data
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  ` : ''}
                 </div>
-                ${dataSummary.bedbug_reports ? `
-                  <button onclick="scrollToSection('section-Bedbug_Reports')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
-                    View Data
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                
+                <div class="flex items-center justify-between ${dataSummary.bedbug_reports ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
+                  <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                  </button>
-                ` : ''}
-              </div>
-              <div class="flex items-center justify-between ${dataSummary.litigation ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
-                <div class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span class="font-sans3 font-medium text-sm">Housing Litigation - Total: ${data.data.litigation_total_count || 0}</span>
+                    <span class="font-sans3 font-medium text-sm">Bedbug Reports - Total: ${data.data.bedbug_reports_total_count || 0}</span>
+                  </div>
+                  ${dataSummary.bedbug_reports ? `
+                    <button onclick="scrollToSection('section-Bedbug_Reports')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
+                      View Data
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  ` : ''}
                 </div>
-                ${dataSummary.litigation ? `
-                  <button onclick="scrollToSection('section-Housing_Litigation')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
-                    View Data
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                
+                <div class="flex items-center justify-between ${dataSummary.litigation ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
+                  <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                  </button>
-                ` : ''}
-              </div>
-              <div class="flex items-center justify-between ${dataSummary.lead_paint_violations ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
-                <div class="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span class="font-sans3 font-medium text-sm">Lead Paint Violations - Total: ${data.data.lead_paint_violations_total_count || 0}</span>
+                    <span class="font-sans3 font-medium text-sm">Housing Litigation - Total: ${data.data.litigation_total_count || 0}</span>
+                  </div>
+                  ${dataSummary.litigation ? `
+                    <button onclick="scrollToSection('section-Housing_Litigation')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
+                      View Data
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  ` : ''}
                 </div>
-                ${dataSummary.lead_paint_violations ? `
-                  <button onclick="scrollToSection('section-Lead_Paint_Violations')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
-                    View Data
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                
+                <div class="flex items-center justify-between ${dataSummary.lead_paint_violations ? 'text-mackerel-300' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
+                  <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                  </button>
-                ` : ''}
+                    <span class="font-sans3 font-medium text-sm">Lead Paint Violations - Total: ${data.data.lead_paint_violations_total_count || 0}</span>
+                  </div>
+                  ${dataSummary.lead_paint_violations ? `
+                    <button onclick="scrollToSection('section-Lead_Paint_Violations')" class="text-mackerel-300 hover:text-mackerel-400 text-xs font-medium font-sans3 flex items-center bg-mackerel-100 py-1 px-2 rounded transition">
+                      View Data
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  ` : ''}
+                </div>
+                
+                <div class="flex items-center justify-between ${(data.data.evictions_total_count && data.data.evictions_total_count > 0) ? 'text-red-600' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
+                  <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2V7zm0 0V5a2 2 0 012-2h6l2 2h6a2 2 0 012 2v2M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V9a2 2 0 012-2h2.586l.707-.707A2 2 0 0110.414 6H19a2 2 0 012 2v10a2 2 0 01-2 2h-8.586l-.707-.707z" />
+                    </svg>
+                    <span class="font-sans3 font-medium text-sm">Executed Evictions - Total: ${data.data.evictions_total_count || 0}</span>
+                  </div>
+                  <span class="${(data.data.evictions_total_count && data.data.evictions_total_count > 0) ? 'text-red-600 bg-red-100' : 'text-grey-400 bg-grey-100'} text-xs font-medium font-sans3 py-1 px-2 rounded">
+                    ${(data.data.evictions_total_count && data.data.evictions_total_count > 0) ? 'Court Records' : 'No Records'}
+                  </span>
+                </div>
               </div>
+              
+              <!-- Right Column: Building & Rent Stabilization Information -->
+              <div class="space-y-2">
+                <h4 class="font-medium text-grey-900 text-sm mb-3 border-b border-grey-200 pb-1">Building Information</h4>
               
               ${(() => {
                 // Add rent stabilization information (simplified single-tier approach)
@@ -537,20 +496,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 const units2023 = data.data.rent_stabilized_units_2023;
                 const units2018 = data.data.rent_stabilized_units_2018;
                 const unitsDifference = data.data.rent_stabilized_units_difference;
+                const totalResidentialUnits = data.data.residential_units;
                 
                 let stabilizationHtml = '';
+                
+                // Add total residential units first
+                if (totalResidentialUnits && totalResidentialUnits > 0) {
+                  stabilizationHtml += `
+                    <div class="flex items-center justify-between text-gray-600 bg-white p-2 rounded border border-grey-200">
+                      <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span class="font-sans3 font-medium text-sm">Total Residential Units: ${totalResidentialUnits}</span>
+                      </div>
+                      <span class="text-gray-600 text-xs font-medium font-sans3 bg-gray-100 py-1 px-2 rounded">
+                        Building Info
+                      </span>
+                    </div>
+                  `;
+                }
                 
                 // Add rent stabilization status lines for both years
                 if (hasStabilized) {
                   // 2023 Data
                   if (units2023 && units2023 > 0) {
+                    const percentage2023 = totalResidentialUnits ? Math.round((units2023 / totalResidentialUnits) * 100) : null;
+                    const percentageText2023 = percentage2023 ? ` (${percentage2023}%)` : '';
+                    
                     stabilizationHtml += `
                       <div class="flex items-center justify-between text-green-600 bg-white p-2 rounded border border-grey-200">
                         <div class="flex items-center">
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span class="font-sans3 font-medium text-sm">Rent Stabilized Units (2023): ${units2023}</span>
+                          <span class="font-sans3 font-medium text-sm">Rent Stabilized Units (2023): ${units2023}${percentageText2023 ? ` - ${percentageText2023.replace('(', '').replace(')', '')} of building` : ''}</span>
                         </div>
                         <span class="text-green-600 text-xs font-medium font-sans3 bg-green-100 py-1 px-2 rounded">
                           Latest Data
@@ -561,13 +541,16 @@ document.addEventListener('DOMContentLoaded', function() {
                   
                   // 2018 Data
                   if (units2018 && units2018 > 0) {
+                    const percentage2018 = totalResidentialUnits ? Math.round((units2018 / totalResidentialUnits) * 100) : null;
+                    const percentageText2018 = percentage2018 ? ` (${percentage2018}%)` : '';
+                    
                     stabilizationHtml += `
                       <div class="flex items-center justify-between text-blue-600 bg-white p-2 rounded border border-grey-200">
                         <div class="flex items-center">
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span class="font-sans3 font-medium text-sm">Rent Stabilized Units (2018): ${units2018}</span>
+                          <span class="font-sans3 font-medium text-sm">Rent Stabilized Units (2018): ${units2018}${percentageText2018 ? ` - ${percentageText2018.replace('(', '').replace(')', '')} of building` : ''}</span>
                         </div>
                         <span class="text-blue-600 text-xs font-medium font-sans3 bg-blue-100 py-1 px-2 rounded">
                           Historical Data
@@ -588,7 +571,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       <div class="flex items-center justify-between ${changeColor} ${changeBg} p-2 rounded border">
                         <div class="flex items-center">
                           <span class="text-lg mr-2">${changeIcon}</span>
-                          <span class="font-sans3 font-medium text-sm">Change (2018→2023): ${changeText}</span>
+                          <span class="font-sans3 font-medium text-sm">Rent Stabilized Units Change (2018→2023): ${changeText}</span>
                         </div>
                         <span class="${changeColor} text-xs font-medium font-sans3 py-1 px-2 rounded">
                           5-Year Trend
@@ -629,6 +612,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 return stabilizationHtml;
               })()}
+              </div>
             </div>
           </div>
         `;

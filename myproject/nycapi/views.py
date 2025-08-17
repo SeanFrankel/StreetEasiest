@@ -362,6 +362,68 @@ def get_rent_stabilization_info(bbl, address=None, zip_code=None):
 
 
 
+def get_building_details(bbl, bin_number=None):
+    """
+    Get building details including residential units count from NYC PLUTO data.
+    
+    Args:
+        bbl: Borough-Block-Lot number
+        bin_number: Building Identification Number (optional)
+        
+    Returns:
+        dict: {"residential_units": int or None, "found": bool, "details": str}
+    """
+    if not bbl:
+        return {"residential_units": None, "found": False, "details": "No BBL provided"}
+    
+    try:
+        # Use NYC PLUTO (Primary Land Use Tax Lot Output) data for building details
+        pluto_url = "https://data.cityofnewyork.us/resource/64uk-42ks.json"
+        
+        logger.info(f"Checking PLUTO data for BBL {bbl}")
+        
+        params = {
+            "$where": f"bbl='{bbl}'",
+            "$select": "unitsres,unitstotal,bldgclass,yearbuilt,lotarea,bldgarea",
+            "$limit": 1
+        }
+        
+        data = api_get(pluto_url, params=params, timeout=30)
+        
+        if data and len(data) > 0:
+            building = data[0]
+            residential_units = building.get('unitsres')
+            
+            if residential_units:
+                try:
+                    residential_units = int(residential_units)
+                    logger.info(f"Found {residential_units} residential units for BBL {bbl} from PLUTO data")
+                    return {
+                        "residential_units": residential_units,
+                        "found": True,
+                        "details": f"PLUTO data shows {residential_units} residential units",
+                        "total_units": building.get('unitstotal'),
+                        "building_class": building.get('bldgclass'),
+                        "year_built": building.get('yearbuilt')
+                    }
+                except (ValueError, TypeError):
+                    pass
+            
+            # Building found but no residential units data
+            return {
+                "residential_units": None,
+                "found": True,
+                "details": "Building found but no residential units data available"
+            }
+        
+        logger.info(f"BBL {bbl} not found in PLUTO data")
+        return {"residential_units": None, "found": False, "details": "Building not found in PLUTO data"}
+        
+    except Exception as e:
+        logger.error(f"Error getting building details for BBL {bbl}: {e}")
+        return {"residential_units": None, "found": False, "details": f"Error: {str(e)}"}
+
+
 def get_ownership_info(bbl, bin_number=None):
     """
     Get building ownership information using NYC open data sources.
@@ -688,6 +750,11 @@ def building_lookup_view(request):
     # Log detailed info for debugging
     logger.info(f"Rent stabilization lookup for {address}, BBL {bbl}: {stabilization_info}")
     
+    # Add building details including residential units
+    building_details = get_building_details(bbl, bin_number)
+    logger.info(f"Building details lookup for {address}, BBL {bbl}: {building_details}")
+    time.sleep(0.5)  # Small delay to avoid rate limiting
+    
     # Add ownership information using JustFix methodology
     ownership_info = get_ownership_info(bbl, bin_number)
     logger.info(f"Ownership lookup for {address}, BBL {bbl}: {ownership_info}")
@@ -704,6 +771,10 @@ def building_lookup_view(request):
     
     # For backward compatibility, keep the original field but use 2023 data as primary
     result["rent_stabilized_units"] = stabilization_info["units_count_2023"] or 0
+    
+    # Include building details in result
+    result["residential_units"] = building_details["residential_units"]
+    result["building_details"] = building_details.get("details")
     
     # Include ownership data in result
     result["owner_name"] = ownership_info["owner_name"]
