@@ -285,10 +285,9 @@ def get_lead_paint_violations(bin_number):
 
 def get_rent_stabilization_info(bbl, address=None, zip_code=None):
     """
-    Get rent stabilization information using taxbills.nyc comprehensive data.
+    Get rent stabilization information using NYCDB CSV data (single-tier approach).
     
-    This uses the most reliable source: actual NYC property tax bill data
-    scraped by the talos/nyc-stabilization-unit-counts project.
+    Shows rent stabilized unit counts for 2018 and 2023 from NYCDB data.
     
     Args:
         bbl: Borough-Block-Lot number (e.g., "3024250032")
@@ -296,45 +295,67 @@ def get_rent_stabilization_info(bbl, address=None, zip_code=None):
     Returns:
         dict: {
             "has_rent_stabilized": "Yes"/"No"/"N/A",
-            "units_count": int or None,
-            "source": "TaxBills"/"unavailable", 
+            "units_count_2023": int or None,
+            "units_count_2018": int or None, 
+            "units_difference": int or None,
+            "source": "NYCDB", 
             "official_reason": str or None,
-            "tax_abatement": str or None,
             "details": str or None
         }
     """
     if not bbl:
         return {
             "has_rent_stabilized": "N/A",
-            "units_count": None,
+            "units_count_2023": None,
+            "units_count_2018": None,
+            "units_difference": None,
             "source": "error",
             "official_reason": None,
-            "tax_abatement": None,
             "details": "No BBL provided"
         }
     
-    # Use taxbills.nyc data (comprehensive tax bill scraping)
-    taxbills_result = get_rent_stabilized_count_from_taxbills_nyc(bbl)
+    # Get both 2023 and 2018 data from NYCDB CSV
+    csv_result = get_rent_stabilized_data_from_csv(bbl)
     
-    if taxbills_result["found"] and taxbills_result["units_count"] > 0:
-        return {
-            "has_rent_stabilized": "Yes",
-            "units_count": taxbills_result["units_count"],
-            "source": "TaxBills",
-            "official_reason": "Found in NYC tax bill records",
-            "tax_abatement": taxbills_result["abatements"],
-            "details": taxbills_result["details"]
-        }
+    # Extract counts
+    units_2023 = csv_result.get("units_count_2023")
+    units_2018 = csv_result.get("units_count_2018")
     
-    # If not found in tax bills, the building likely has no rent-stabilized units
-    # This is more definitive than "N/A" since the tax bill data is comprehensive
+    # Calculate difference
+    units_difference = None
+    if units_2023 is not None and units_2018 is not None:
+        units_difference = units_2023 - units_2018
+    elif units_2023 is not None and units_2018 is None:
+        units_difference = units_2023  # New in 2023
+    elif units_2023 is None and units_2018 is not None:
+        units_difference = -units_2018  # Removed by 2023
+    
+    # Determine overall status based on either year having data
+    has_rent_stabilized = "No"
+    source = "NYCDB"
+    official_reason = "No rent-stabilized units found in NYCDB data"
+    
+    if units_2023 or units_2018:
+        has_rent_stabilized = "Yes"
+        if units_2023 and units_2018:
+            official_reason = f"Found in both 2023 ({units_2023} units) and 2018 ({units_2018} units) records"
+        elif units_2023:
+            official_reason = f"Found {units_2023} units in 2023 records (no 2018 data)"
+        else:
+            official_reason = f"Found {units_2018} units in 2018 records (no 2023 data)"
+    elif csv_result["found"]:
+        # Building was found but no rent stabilized units
+        has_rent_stabilized = "No"
+        official_reason = "Building found but no rent-stabilized units in available years"
+    
     return {
-        "has_rent_stabilized": "No",
-        "units_count": 0,
-        "source": "TaxBills",
-        "official_reason": "No rent-stabilized units found in tax bill records",
-        "tax_abatement": None,
-        "details": "Building not found in comprehensive tax bill database of rent-stabilized properties"
+        "has_rent_stabilized": has_rent_stabilized,
+        "units_count_2023": units_2023,
+        "units_count_2018": units_2018,
+        "units_difference": units_difference,
+        "source": source,
+        "official_reason": official_reason,
+        "details": csv_result.get("details")
     }
 
 
@@ -476,91 +497,117 @@ def get_ownership_info(bbl, bin_number=None):
         }
 
 
-def get_rent_stabilized_count_from_taxbills_nyc(bbl):
+def get_rent_stabilized_data_from_csv(bbl):
     """
-    Get rent-stabilized unit count from taxbills.nyc data (talos/nyc-stabilization-unit-counts).
+    Get rent-stabilized unit count from NYCDB CSV data (2018 and 2023 data).
     
-    This uses the comprehensive tax bill scraping data that contains actual rent 
-    stabilization unit counts from NYC property tax bills.
+    This uses the NYCDB rent stabilization data which contains 2018-2023 
+    rent stabilized unit counts from NYC tax bills.
     
     Args:
         bbl: Borough-Block-Lot number
         
     Returns:
-        dict: {"units_count": int, "found": bool, "details": str, "abatements": str}
+        dict: {
+            "units_count_2023": int or None,
+            "units_count_2018": int or None,
+            "found": bool, 
+            "details": str
+        }
     """
     if not bbl:
-        return {"units_count": 0, "found": False, "details": "No BBL provided", "abatements": None}
+        return {
+            "units_count_2023": None,
+            "units_count_2018": None,
+            "found": False,
+            "details": "No BBL provided"
+        }
         
     try:
-        # Use the taxbills.nyc joined.csv data which has comprehensive rent stabilization data
-        # This is the most accurate source as it's scraped directly from tax bills
-        taxbills_url = "https://taxbillsnyc.s3.amazonaws.com/joined.csv"
+        from django.conf import settings
+        import csv
+        import os
         
-        logger.info(f"Checking taxbills.nyc data for BBL {bbl}")
+        csv_path = os.path.join(settings.BASE_DIR, "myproject/nycapi/management/data/rentstab_data_scraped.csv")
         
-        # Make request with CSV format expectation
-        import requests
-        response = requests.get(taxbills_url, timeout=30)
+        if not os.path.exists(csv_path):
+            logger.warning(f"CSV file not found at {csv_path}")
+            return {
+                "units_count_2023": None,
+                "units_count_2018": None,
+                "found": False,
+                "details": "CSV data file not found"
+            }
         
-        if response.status_code == 200:
-            import csv
-            import io
+        logger.info(f"Checking NYCDB CSV data for BBL {bbl}")
+        
+        with open(csv_path, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
             
-            # Parse CSV data
-            csv_data = io.StringIO(response.text)
-            reader = csv.DictReader(csv_data)
-            
-            # Look for our BBL in the data
             for row in reader:
                 if row.get('ucbbl') == str(bbl):
-                    # Found the building! Extract the most recent unit count
-                    # The CSV has columns like 2007uc, 2008uc, ..., 2014uc for unit counts
+                    # Found the building! Extract both 2023 and 2018 unit counts
+                    units_2023_str = row.get('uc2023', '').strip()
+                    units_2018_str = row.get('uc2018', '').strip()
                     
-                    latest_units = 0
-                    latest_year = None
-                    abatements = []
+                    units_2023 = None
+                    units_2018 = None
                     
-                    # Check years 2007-2014 for the most recent count
-                    for year in range(2014, 2006, -1):  # Start from 2014 and go backwards
-                        units_col = f"{year}uc"
-                        abat_col = f"{year}abat"
-                        
-                        if units_col in row and row[units_col]:
-                            try:
-                                units = int(row[units_col])
-                                if units > 0:
-                                    latest_units = units
-                                    latest_year = year
-                                    
-                                    # Also capture abatements for this year
-                                    if abat_col in row and row[abat_col]:
-                                        abatements.append(f"{year}: {row[abat_col]}")
-                                    
-                                    break  # Use the most recent year with data
-                            except (ValueError, TypeError):
-                                continue
+                    # Parse 2023 data
+                    if units_2023_str and units_2023_str.upper() != 'NA':
+                        try:
+                            units_2023 = int(units_2023_str)
+                            if units_2023 <= 0:
+                                units_2023 = None
+                        except (ValueError, TypeError):
+                            units_2023 = None
                     
-                    if latest_units > 0:
-                        abatement_info = "; ".join(abatements) if abatements else None
-                        logger.info(f"Found {latest_units} rent-stabilized units for BBL {bbl} from {latest_year} tax bills")
+                    # Parse 2018 data
+                    if units_2018_str and units_2018_str.upper() != 'NA':
+                        try:
+                            units_2018 = int(units_2018_str)
+                            if units_2018 <= 0:
+                                units_2018 = None
+                        except (ValueError, TypeError):
+                            units_2018 = None
+                    
+                    # Determine if we found valid data
+                    if units_2023 or units_2018:
+                        logger.info(f"Found rent-stabilized data for BBL {bbl}: 2023={units_2023}, 2018={units_2018}")
                         return {
-                            "units_count": latest_units,
+                            "units_count_2023": units_2023,
+                            "units_count_2018": units_2018,
                             "found": True,
-                            "details": f"Tax bill data from {latest_year} shows {latest_units} rent-stabilized units",
-                            "abatements": abatement_info
+                            "details": f"NYCDB data: {units_2023 or 0} units (2023), {units_2018 or 0} units (2018)"
+                        }
+                    else:
+                        # Building found but no valid rent stabilized data
+                        return {
+                            "units_count_2023": None,
+                            "units_count_2018": None,
+                            "found": True,
+                            "details": "Building found but no rent-stabilized units in available years"
                         }
             
-            logger.info(f"BBL {bbl} not found in taxbills.nyc data")
-            return {"units_count": 0, "found": False, "details": "Building not found in tax bill data", "abatements": None}
-        
-        else:
-            logger.error(f"Failed to fetch taxbills.nyc data: HTTP {response.status_code}")
-            return {"units_count": 0, "found": False, "details": "Failed to fetch tax bill data", "abatements": None}
+            logger.info(f"BBL {bbl} not found in NYCDB CSV data")
+            return {
+                "units_count_2023": None,
+                "units_count_2018": None,
+                "found": False,
+                "details": "Building not found in NYCDB data"
+            }
         
     except Exception as e:
-        logger.error(f"Error getting rent-stabilized count from taxbills.nyc for BBL {bbl}: {e}")
-        return {"units_count": 0, "found": False, "details": f"Error: {str(e)}", "abatements": None}
+        logger.error(f"Error reading NYCDB CSV data for BBL {bbl}: {e}")
+        return {
+            "units_count_2023": None,
+            "units_count_2018": None,
+            "found": False,
+            "details": f"Error reading CSV: {str(e)}"
+        }
+
+
+
 
 
 
@@ -646,13 +693,17 @@ def building_lookup_view(request):
     logger.info(f"Ownership lookup for {address}, BBL {bbl}: {ownership_info}")
     time.sleep(0.5)  # Small delay to avoid rate limiting
     
-    # Include rent stabilization data in result
+    # Include rent stabilization data in result (single-tier NYCDB approach)
     result["has_rent_stabilized"] = stabilization_info["has_rent_stabilized"]
-    result["rent_stabilized_units"] = stabilization_info["units_count"] or 0
+    result["rent_stabilized_units_2023"] = stabilization_info["units_count_2023"] or 0
+    result["rent_stabilized_units_2018"] = stabilization_info["units_count_2018"] or 0
+    result["rent_stabilized_units_difference"] = stabilization_info["units_difference"]
     result["stabilization_source"] = stabilization_info["source"]
     result["stabilization_details"] = stabilization_info["details"]
-    result["stabilization_program"] = stabilization_info["tax_abatement"]
     result["stabilization_reason"] = stabilization_info["official_reason"]
+    
+    # For backward compatibility, keep the original field but use 2023 data as primary
+    result["rent_stabilized_units"] = stabilization_info["units_count_2023"] or 0
     
     # Include ownership data in result
     result["owner_name"] = ownership_info["owner_name"]
