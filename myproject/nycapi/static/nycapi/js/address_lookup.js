@@ -326,7 +326,8 @@ document.addEventListener('DOMContentLoaded', function() {
           complaints: data.data.complaints && data.data.complaints.length > 0,
           bedbug_reports: data.data.bedbug_reports && data.data.bedbug_reports.length > 0,
           litigation: data.data.litigation && data.data.litigation.length > 0,
-          lead_paint_violations: data.data.lead_paint_violations && data.data.lead_paint_violations.length > 0
+          lead_paint_violations: data.data.lead_paint_violations && data.data.lead_paint_violations.length > 0,
+          evictions: data.data.evictions && data.data.evictions.length > 0
         };
         
         // Count total records
@@ -472,16 +473,25 @@ document.addEventListener('DOMContentLoaded', function() {
                   ` : ''}
                 </div>
                 
-                <div class="flex items-center justify-between ${(data.data.evictions_total_count && data.data.evictions_total_count > 0) ? 'text-red-600' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
+                <div class="flex items-center justify-between ${dataSummary.evictions ? 'text-red-600' : 'text-grey-400'} bg-white p-2 rounded border border-grey-200">
                   <div class="flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2V7zm0 0V5a2 2 0 012-2h6l2 2h6a2 2 0 012 2v2M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V9a2 2 0 012-2h2.586l.707-.707A2 2 0 0110.414 6H19a2 2 0 012 2v10a2 2 0 01-2 2h-8.586l-.707-.707z" />
                     </svg>
                     <span class="font-sans3 font-medium text-sm">Executed Evictions - Total: ${data.data.evictions_total_count || 0}</span>
                   </div>
-                  <span class="${(data.data.evictions_total_count && data.data.evictions_total_count > 0) ? 'text-red-600 bg-red-100' : 'text-grey-400 bg-grey-100'} text-xs font-medium font-sans3 py-1 px-2 rounded">
-                    ${(data.data.evictions_total_count && data.data.evictions_total_count > 0) ? 'Court Records' : 'No Records'}
-                  </span>
+                  ${dataSummary.evictions ? `
+                    <button onclick="scrollToSection('section-Executed_Evictions')" class="text-red-600 hover:text-red-700 text-xs font-medium font-sans3 flex items-center bg-red-100 py-1 px-2 rounded transition">
+                      View Data
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  ` : `
+                    <span class="text-grey-400 bg-grey-100 text-xs font-medium font-sans3 py-1 px-2 rounded">
+                      No Records
+                    </span>
+                  `}
                 </div>
               </div>
               
@@ -812,6 +822,36 @@ document.addEventListener('DOMContentLoaded', function() {
         ];
         
         html += renderTable(data.data.lead_paint_violations, "Lead Paint Violations", excludedColsForLeadPaint, columnOrderForLeadPaint);
+        
+        // Render Executed Evictions with excluded columns and custom order
+        const excludedColsForEvictions = [
+          "latitude",
+          "longitude",
+          "community_board",
+          "council_district",
+          "census_tract",
+          "bin",
+          "bbl",
+          "nta",
+          "borough",
+          "eviction_zip",
+          "court_index_number",
+          "docket_number",
+          "marshal_first_name",
+          "marshal_last_name"
+        ];
+        
+        // Define the order you want columns to appear in Evictions table (using actual API field names)
+        const columnOrderForEvictions = [
+          "eviction_address",
+          "eviction_apt_num",
+          "executed_date",
+          "residential_commercial_ind",
+          "eviction_possession",
+          "ejectment"
+        ];
+        
+        html += renderTable(data.data.evictions, "Executed Evictions", excludedColsForEvictions, columnOrderForEvictions);
         
         resultsDiv.innerHTML = html;
       } else {

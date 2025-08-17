@@ -199,6 +199,49 @@ def get_bedbug_reports(bin_number):
     return data[:50], total_count
 
 
+def get_evictions_data(bbl):
+    """
+    Fetch evictions data from NYC Open Data API using BBL.
+    Same pattern as all other APIs - use BBL from geoclient.
+    
+    Args:
+        bbl: Borough-Block-Lot number from NYC geoclient
+        
+    Returns:
+        tuple: (evictions_list, total_count)
+    """
+    if not bbl:
+        return [], 0
+        
+    url = "https://data.cityofnewyork.us/resource/6z8x-wfk4.json"
+    
+    # Query for evictions using BBL - same pattern as other APIs
+    params = {
+        "$where": f"bbl='{bbl}'",
+        "$order": "executed_date DESC",
+        "$limit": 1000
+    }
+    
+    logger.info(f"Making Evictions API call for BBL: {bbl}")
+    data = api_get(url, params=params, timeout=30)
+    
+    if not data:
+        logger.warning(f"No evictions data returned for BBL: {bbl}")
+        return [], 0
+    
+    # Filter for residential only (same as other APIs)
+    residential_evictions = []
+    for eviction in data:
+        # Check if residential (field is "residential_commercial_ind")
+        prop_type = eviction.get('residential_commercial_ind', '').lower()
+        if prop_type == 'residential':
+            residential_evictions.append(eviction)
+    
+    logger.info(f"Found {len(residential_evictions)} residential evictions out of {len(data)} total eviction records")
+    
+    return residential_evictions[:50], len(residential_evictions)
+
+
 def get_housing_litigation(bin_number):
     if not bin_number:
         return [], 0
@@ -448,12 +491,10 @@ def get_ownership_info(bbl, bin_number=None):
         # This is the same source JustFix.NYC uses for ownership information
         hpd_registration_url = "https://data.cityofnewyork.us/resource/tesw-yqqr.json"
         
-        # Try searching by BIN first, then BBL
+        # HPD registration only supports buildingid parameter, not BBL
         search_params = []
         if bin_number:
             search_params.append({"buildingid": bin_number})
-        if bbl:
-            search_params.append({"bbl": bbl})
             
         for params in search_params:
             params["$limit"] = 10
@@ -719,9 +760,13 @@ def building_lookup_view(request):
     
     lead_paint, lead_paint_total = get_lead_paint_violations(bin_number)
     logger.info(f"Lead Paint Violations: Found {lead_paint_total} violations, returned {len(lead_paint)} results")
+    time.sleep(0.5)
+    
+    evictions, evictions_total = get_evictions_data(bbl)
+    logger.info(f"Executed Evictions: Found {evictions_total} evictions, returned {len(evictions)} results")
 
     # Check if we got any data at all
-    total_records = hpd_total + complaints_total + bedbugs_total + housing_total + lead_paint_total
+    total_records = hpd_total + complaints_total + bedbugs_total + housing_total + lead_paint_total + evictions_total
     
     result = {
         "address": address,
@@ -738,6 +783,8 @@ def building_lookup_view(request):
         "litigation_total_count": housing_total,
         "lead_paint_violations": lead_paint,
         "lead_paint_violations_total_count": lead_paint_total,
+        "evictions": evictions,
+        "evictions_total_count": evictions_total,
         "api_status": "partial" if total_records == 0 else "ok"
     }
     
