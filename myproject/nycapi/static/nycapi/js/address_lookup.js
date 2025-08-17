@@ -335,12 +335,69 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = `
           <div class="bg-white p-4 rounded-lg shadow border border-grey-200 mb-4">
             <h2 class="font-serif4 text-xl md:text-2xl font-semibold mb-3 text-mackerel-400">Property Information</h2>
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between">
-              <div class="space-y-1 font-sans3">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 font-sans3">
+              <!-- Column 1: Basic Property Info -->
+              <div class="space-y-2">
+                <h3 class="font-medium text-grey-900 text-sm mb-3 border-b border-grey-200 pb-1">Basic Information</h3>
                 <p class="text-sm"><span class="font-medium text-grey-800">Address:</span> <span class="text-grey-700">${data.data.address}</span></p>
                 <p class="text-sm"><span class="font-medium text-grey-800">ZIP Code:</span> <span class="text-grey-700">${data.data.zip_code}</span></p>
                 <p class="text-sm"><span class="font-medium text-grey-800">Building ID:</span> <span class="text-grey-700">${data.data.building_id || "N/A"}</span></p>
                 <p class="text-sm"><span class="font-medium text-grey-800">BBL:</span> <span class="text-grey-700">${data.data.bbl || 'N/A'}</span></p>
+              </div>
+              
+              <!-- Column 2: Property Details -->
+              <div class="space-y-2">
+                <h3 class="font-medium text-grey-900 text-sm mb-3 border-b border-grey-200 pb-1">Property Details</h3>
+                <p class="text-sm"><span class="font-medium text-grey-800">Residential Units:</span> <span class="text-grey-700">${data.data.residential_units ?? "N/A"}</span></p>
+                <p class="text-sm"><span class="font-medium text-grey-800">Rent Stabilized:</span> <span class="text-grey-700">${
+                    (() => {
+                        const hasStabilized = data.data.has_rent_stabilized;
+                        const unitsCount = data.data.rent_stabilized_units;
+                        const source = data.data.stabilization_source;
+                        const program = data.data.stabilization_program;
+                        
+                        if (hasStabilized === "Yes") {
+                            let result = "Yes";
+                            if (unitsCount && unitsCount > 0) {
+                                result += ` (${unitsCount} units)`;
+                            }
+                            return result;
+                        } else if (hasStabilized === "No") {
+                            return "No";
+                        } else {
+                            return "N/A - Data unavailable";
+                        }
+                    })()
+                }</span></p>
+                <p class="text-sm"><span class="font-medium text-grey-800">Executed Evictions:</span> <span class="text-grey-700">${data.data.evictions_total_count || 0}</span></p>
+              </div>
+              
+              <!-- Column 3: Ownership Info -->
+              <div class="space-y-2">
+                <h3 class="font-medium text-grey-900 text-sm mb-3 border-b border-grey-200 pb-1">Ownership Information</h3>
+                <p class="text-sm"><span class="font-medium text-grey-800">Owner Name:</span> <span class="text-grey-700">${data.data.owner_name || "N/A"}</span></p>
+                <p class="text-sm"><span class="font-medium text-grey-800">Owner Contact:</span> <span class="text-grey-700">${data.data.owner_contact || "N/A"}</span></p>
+                ${(() => {
+                  const regInfo = data.data.registration_info;
+                  let regHtml = '';
+                  
+                  if (regInfo) {
+                    if (regInfo.management_company) {
+                      regHtml += `<p class="text-sm"><span class="font-medium text-grey-800">Management Company:</span> <span class="text-grey-700">${regInfo.management_company}</span></p>`;
+                    }
+                    
+                    if (regInfo.registration_date) {
+                      const regDate = new Date(regInfo.registration_date).toLocaleDateString();
+                      regHtml += `<p class="text-sm"><span class="font-medium text-grey-800">Last HPD Registration:</span> <span class="text-grey-700">${regDate}</span></p>`;
+                    }
+                    
+                    if (regInfo.year_built) {
+                      regHtml += `<p class="text-sm"><span class="font-medium text-grey-800">Year Built:</span> <span class="text-grey-700">${regInfo.year_built}</span></p>`;
+                    }
+                  }
+                  
+                  return regHtml;
+                })()}
               </div>
             </div>
           </div>
@@ -432,6 +489,98 @@ document.addEventListener('DOMContentLoaded', function() {
                   </button>
                 ` : ''}
               </div>
+              
+              ${(() => {
+                // Add rent stabilization and tax abatement information
+                const hasStabilized = data.data.has_rent_stabilized === "Yes";
+                const stabilizationProgram = data.data.stabilization_program;
+                const stabilizationReason = data.data.stabilization_reason;
+                const unitsCount = data.data.rent_stabilized_units;
+                
+                let stabilizationHtml = '';
+                
+                // Add rent stabilization status line
+                if (hasStabilized) {
+                  stabilizationHtml += `
+                    <div class="flex items-center justify-between text-green-600 bg-white p-2 rounded border border-grey-200">
+                      <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="font-sans3 font-medium text-sm">Rent Stabilized Units: ${unitsCount || 0}</span>
+                      </div>
+                      <span class="text-green-600 text-xs font-medium font-sans3 bg-green-100 py-1 px-2 rounded">
+                        Confirmed
+                      </span>
+                    </div>
+                  `;
+                  
+                  // Add tax abatements as separate lines if they exist
+                  if (stabilizationProgram) {
+                    // Parse the abatements string (format: "2014: drie,j51,scrie")
+                    const abatementMatch = stabilizationProgram.match(/(\d{4}):\s*(.+)/);
+                    if (abatementMatch) {
+                      const year = abatementMatch[1];
+                      const abatements = abatementMatch[2].split(',').map(a => a.trim());
+                      
+                      abatements.forEach(abatement => {
+                        const abatementName = {
+                          'drie': 'DRIE (Disability Rent Increase Exemption)',
+                          'scrie': 'SCRIE (Senior Citizen Rent Increase Exemption)', 
+                          'j51': 'J-51 (Tax Abatement Program)',
+                          '421a': '421-a (Tax Incentive Program)',
+                          '421-a': '421-a (Tax Incentive Program)'
+                        }[abatement.toLowerCase()] || abatement.toUpperCase();
+                        
+                        stabilizationHtml += `
+                          <div class="flex items-center justify-between text-blue-600 bg-white p-2 rounded border border-grey-200">
+                            <div class="flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                              </svg>
+                              <span class="font-sans3 font-medium text-sm">${abatementName}</span>
+                            </div>
+                            <span class="text-blue-600 text-xs font-medium font-sans3 bg-blue-100 py-1 px-2 rounded">
+                              Last Certified: ${year}
+                            </span>
+                          </div>
+                        `;
+                      });
+                    }
+                  }
+                } else if (data.data.has_rent_stabilized === "No") {
+                  stabilizationHtml += `
+                    <div class="flex items-center justify-between text-red-600 bg-white p-2 rounded border border-grey-200">
+                      <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="font-sans3 font-medium text-sm">No Rent Stabilized Units</span>
+                      </div>
+                      <span class="text-red-600 text-xs font-medium font-sans3 bg-red-100 py-1 px-2 rounded">
+                        Not Found
+                      </span>
+                    </div>
+                  `;
+                } else {
+                  // N/A case
+                  stabilizationHtml += `
+                    <div class="flex items-center justify-between text-grey-500 bg-white p-2 rounded border border-grey-200">
+                      <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="font-sans3 font-medium text-sm">Rent Stabilization Status</span>
+                      </div>
+                      <span class="text-grey-500 text-xs font-medium font-sans3 bg-grey-100 py-1 px-2 rounded">
+                        Data Unavailable
+                      </span>
+                    </div>
+                  `;
+                }
+                
+                return stabilizationHtml;
+              })()}
             </div>
           </div>
         `;

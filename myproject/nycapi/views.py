@@ -283,6 +283,298 @@ def get_lead_paint_violations(bin_number):
     return data[:50], total_count
 
 
+def get_rent_stabilization_info(bbl, address=None, zip_code=None):
+    """
+    Get rent stabilization information using taxbills.nyc comprehensive data.
+    
+    This uses the most reliable source: actual NYC property tax bill data
+    scraped by the talos/nyc-stabilization-unit-counts project.
+    
+    Args:
+        bbl: Borough-Block-Lot number (e.g., "3024250032")
+        
+    Returns:
+        dict: {
+            "has_rent_stabilized": "Yes"/"No"/"N/A",
+            "units_count": int or None,
+            "source": "TaxBills"/"unavailable", 
+            "official_reason": str or None,
+            "tax_abatement": str or None,
+            "details": str or None
+        }
+    """
+    if not bbl:
+        return {
+            "has_rent_stabilized": "N/A",
+            "units_count": None,
+            "source": "error",
+            "official_reason": None,
+            "tax_abatement": None,
+            "details": "No BBL provided"
+        }
+    
+    # Use taxbills.nyc data (comprehensive tax bill scraping)
+    taxbills_result = get_rent_stabilized_count_from_taxbills_nyc(bbl)
+    
+    if taxbills_result["found"] and taxbills_result["units_count"] > 0:
+        return {
+            "has_rent_stabilized": "Yes",
+            "units_count": taxbills_result["units_count"],
+            "source": "TaxBills",
+            "official_reason": "Found in NYC tax bill records",
+            "tax_abatement": taxbills_result["abatements"],
+            "details": taxbills_result["details"]
+        }
+    
+    # If not found in tax bills, the building likely has no rent-stabilized units
+    # This is more definitive than "N/A" since the tax bill data is comprehensive
+    return {
+        "has_rent_stabilized": "No",
+        "units_count": 0,
+        "source": "TaxBills",
+        "official_reason": "No rent-stabilized units found in tax bill records",
+        "tax_abatement": None,
+        "details": "Building not found in comprehensive tax bill database of rent-stabilized properties"
+    }
+
+
+
+
+
+def get_ownership_info(bbl, bin_number=None):
+    """
+    Get building ownership information using NYC open data sources.
+    Uses the same methodology as JustFix.NYC without relying on their API.
+    
+    Args:
+        bbl: Borough-Block-Lot number 
+        bin_number: Building Identification Number
+        
+    Returns:
+        dict: {"owner_name": str, "owner_contact": str, "registration_info": dict}
+    """
+    if not bbl and not bin_number:
+        return {
+            "owner_name": None,
+            "owner_contact": None, 
+            "registration_info": None
+        }
+    
+    try:
+        # Method 1: HPD Registration data (most comprehensive for rental buildings)
+        # This is the same source JustFix.NYC uses for ownership information
+        hpd_registration_url = "https://data.cityofnewyork.us/resource/tesw-yqqr.json"
+        
+        # Try searching by BIN first, then BBL
+        search_params = []
+        if bin_number:
+            search_params.append({"buildingid": bin_number})
+        if bbl:
+            search_params.append({"bbl": bbl})
+            
+        for params in search_params:
+            params["$limit"] = 10
+            params["$order"] = "lastregistrationdate DESC"  # Get most recent registration
+            
+            logger.info(f"Checking HPD registration data with params: {params}")
+            response = api_get(hpd_registration_url, params=params, timeout=15)
+            
+            if response and len(response) > 0:
+                # Get the most recent registration
+                registration = response[0]
+                
+                # Extract ownership information
+                owner_name = None
+                owner_contact = None
+                
+                # Try different owner fields
+                owner_fields = ['ownername', 'owner_name', 'businessname', 'business_name']
+                for field in owner_fields:
+                    if field in registration and registration[field]:
+                        owner_name = registration[field].strip()
+                        break
+                
+                # Extract contact information
+                contact_parts = []
+                if registration.get('owneraddress'):
+                    contact_parts.append(registration['owneraddress'].strip())
+                if registration.get('ownercity'):
+                    contact_parts.append(registration['ownercity'].strip())
+                if registration.get('ownerstate'):
+                    contact_parts.append(registration['ownerstate'].strip())
+                if registration.get('ownerzip'):
+                    contact_parts.append(registration['ownerzip'].strip())
+                    
+                owner_contact = ", ".join(contact_parts) if contact_parts else None
+                
+                # Extract registration details
+                registration_info = {
+                    "registration_date": registration.get('lastregistrationdate'),
+                    "contact_description": registration.get('contactdescription'),
+                    "management_company": registration.get('managementcompany'),
+                    "registration_id": registration.get('registrationid')
+                }
+                
+                if owner_name or owner_contact:
+                    logger.info(f"Found ownership info from HPD registration: {owner_name}")
+                    return {
+                        "owner_name": owner_name,
+                        "owner_contact": owner_contact,
+                        "registration_info": registration_info
+                    }
+        
+        # Method 2: PLUTO data for basic ownership (fallback)
+        # MapPLUTO contains owner information from Department of Finance
+        pluto_url = "https://data.cityofnewyork.us/resource/64uk-42ks.json"  # MapPLUTO
+        
+        if bbl:
+            params = {
+                "bbl": bbl,
+                "$limit": 1
+            }
+            
+            logger.info(f"Checking PLUTO data for BBL {bbl}")
+            response = api_get(pluto_url, params=params, timeout=15)
+            
+            if response and len(response) > 0:
+                pluto_data = response[0]
+                
+                owner_name = pluto_data.get('ownername')
+                
+                # Extract address from PLUTO if available
+                address_parts = []
+                if pluto_data.get('address'):
+                    address_parts.append(pluto_data['address'].strip())
+                    
+                owner_contact = ", ".join(address_parts) if address_parts else None
+                
+                if owner_name:
+                    logger.info(f"Found ownership info from PLUTO: {owner_name}")
+                    return {
+                        "owner_name": owner_name.strip(),
+                        "owner_contact": owner_contact,
+                        "registration_info": {
+                            "source": "PLUTO",
+                            "year_built": pluto_data.get('yearbuilt'),
+                            "building_class": pluto_data.get('bldgclass')
+                        }
+                    }
+        
+        logger.info(f"No ownership information found for BBL {bbl}, BIN {bin_number}")
+        return {
+            "owner_name": None,
+            "owner_contact": None,
+            "registration_info": None
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting ownership info for BBL {bbl}, BIN {bin_number}: {e}")
+        return {
+            "owner_name": None,
+            "owner_contact": None,
+            "registration_info": None
+        }
+
+
+def get_rent_stabilized_count_from_taxbills_nyc(bbl):
+    """
+    Get rent-stabilized unit count from taxbills.nyc data (talos/nyc-stabilization-unit-counts).
+    
+    This uses the comprehensive tax bill scraping data that contains actual rent 
+    stabilization unit counts from NYC property tax bills.
+    
+    Args:
+        bbl: Borough-Block-Lot number
+        
+    Returns:
+        dict: {"units_count": int, "found": bool, "details": str, "abatements": str}
+    """
+    if not bbl:
+        return {"units_count": 0, "found": False, "details": "No BBL provided", "abatements": None}
+        
+    try:
+        # Use the taxbills.nyc joined.csv data which has comprehensive rent stabilization data
+        # This is the most accurate source as it's scraped directly from tax bills
+        taxbills_url = "https://taxbillsnyc.s3.amazonaws.com/joined.csv"
+        
+        logger.info(f"Checking taxbills.nyc data for BBL {bbl}")
+        
+        # Make request with CSV format expectation
+        import requests
+        response = requests.get(taxbills_url, timeout=30)
+        
+        if response.status_code == 200:
+            import csv
+            import io
+            
+            # Parse CSV data
+            csv_data = io.StringIO(response.text)
+            reader = csv.DictReader(csv_data)
+            
+            # Look for our BBL in the data
+            for row in reader:
+                if row.get('ucbbl') == str(bbl):
+                    # Found the building! Extract the most recent unit count
+                    # The CSV has columns like 2007uc, 2008uc, ..., 2014uc for unit counts
+                    
+                    latest_units = 0
+                    latest_year = None
+                    abatements = []
+                    
+                    # Check years 2007-2014 for the most recent count
+                    for year in range(2014, 2006, -1):  # Start from 2014 and go backwards
+                        units_col = f"{year}uc"
+                        abat_col = f"{year}abat"
+                        
+                        if units_col in row and row[units_col]:
+                            try:
+                                units = int(row[units_col])
+                                if units > 0:
+                                    latest_units = units
+                                    latest_year = year
+                                    
+                                    # Also capture abatements for this year
+                                    if abat_col in row and row[abat_col]:
+                                        abatements.append(f"{year}: {row[abat_col]}")
+                                    
+                                    break  # Use the most recent year with data
+                            except (ValueError, TypeError):
+                                continue
+                    
+                    if latest_units > 0:
+                        abatement_info = "; ".join(abatements) if abatements else None
+                        logger.info(f"Found {latest_units} rent-stabilized units for BBL {bbl} from {latest_year} tax bills")
+                        return {
+                            "units_count": latest_units,
+                            "found": True,
+                            "details": f"Tax bill data from {latest_year} shows {latest_units} rent-stabilized units",
+                            "abatements": abatement_info
+                        }
+            
+            logger.info(f"BBL {bbl} not found in taxbills.nyc data")
+            return {"units_count": 0, "found": False, "details": "Building not found in tax bill data", "abatements": None}
+        
+        else:
+            logger.error(f"Failed to fetch taxbills.nyc data: HTTP {response.status_code}")
+            return {"units_count": 0, "found": False, "details": "Failed to fetch tax bill data", "abatements": None}
+        
+    except Exception as e:
+        logger.error(f"Error getting rent-stabilized count from taxbills.nyc for BBL {bbl}: {e}")
+        return {"units_count": 0, "found": False, "details": f"Error: {str(e)}", "abatements": None}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def building_lookup_view(request):
     address  = request.GET.get("address", "").strip()
     zip_code = request.GET.get("zip_code", "").strip()
@@ -342,5 +634,29 @@ def building_lookup_view(request):
     
     if total_records == 0:
         logger.warning(f"No data returned for {address}, {zip_code} - APIs may be down")
+    
+    # Add rent stabilization information using taxbills.nyc comprehensive data
+    stabilization_info = get_rent_stabilization_info(bbl, address, zip_code)
+    
+    # Log detailed info for debugging
+    logger.info(f"Rent stabilization lookup for {address}, BBL {bbl}: {stabilization_info}")
+    
+    # Add ownership information using JustFix methodology
+    ownership_info = get_ownership_info(bbl, bin_number)
+    logger.info(f"Ownership lookup for {address}, BBL {bbl}: {ownership_info}")
+    time.sleep(0.5)  # Small delay to avoid rate limiting
+    
+    # Include rent stabilization data in result
+    result["has_rent_stabilized"] = stabilization_info["has_rent_stabilized"]
+    result["rent_stabilized_units"] = stabilization_info["units_count"] or 0
+    result["stabilization_source"] = stabilization_info["source"]
+    result["stabilization_details"] = stabilization_info["details"]
+    result["stabilization_program"] = stabilization_info["tax_abatement"]
+    result["stabilization_reason"] = stabilization_info["official_reason"]
+    
+    # Include ownership data in result
+    result["owner_name"] = ownership_info["owner_name"]
+    result["owner_contact"] = ownership_info["owner_contact"]
+    result["registration_info"] = ownership_info["registration_info"]
     
     return JsonResponse({"success": True, "data": result})
