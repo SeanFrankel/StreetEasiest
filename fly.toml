@@ -8,6 +8,10 @@ console_command = '/bin/bash'
   DATABASE_URL = 'sqlite:////data/db.sqlite3'
   MEDIA_ROOT = '/data/media'
   PORT = '8000'
+  NYC_GEOCLIENT_APP_ID = '04304356a107449aa1656f9e6be87533'
+  NYC_GEOCLIENT_APP_KEY = 'f35ede6b69904a1fb4f9180c0408a3fb'
+  NYC_HPD_API_KEY = '401655e9d4ae48b58fb867b62efa1543'
+  NYC_311_API_KEY = 'c2a45eb9ba03409d8f8a8af178474076'
 
 [[mounts]]
   source = 'wagtail'

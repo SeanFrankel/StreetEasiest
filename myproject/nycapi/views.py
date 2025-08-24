@@ -35,10 +35,13 @@ def api_get(url, params=None, headers=None, timeout=10, retries=2):
     # Add User-Agent to avoid being blocked
     headers["User-Agent"] = "StreetEasiest/1.0 (NYC Data Lookup Tool)"
     
-    # NYC Open Data APIs work without authentication for basic queries
-    # Commenting out API key authentication as it's causing 403 errors
-    # Most NYC APIs have generous rate limits without requiring authentication
-    logger.info(f"Making API call to {url} without authentication")
+    # Check if this is a Geoclient API call (requires subscription key)
+    is_geoclient = "api.nyc.gov/geo/geoclient" in url
+    auth_info = "with subscription key" if is_geoclient and "Ocp-Apim-Subscription-Key" in headers else "without authentication"
+    
+    logger.info(f"Making API call to {url} {auth_info}")
+    logger.info(f"Headers: {list(headers.keys())}")
+    logger.info(f"Params: {params}")
     
     for attempt in range(retries + 1):
         try:
@@ -49,6 +52,9 @@ def api_get(url, params=None, headers=None, timeout=10, retries=2):
             
             if resp.status_code == 200:
                 return resp.json()
+            elif resp.status_code in [401, 403]:  # Unauthorized/Forbidden
+                logger.error(f"API call to {url} failed with authentication error: {resp.status_code} - Response: {resp.text[:500]}")
+                return None
             elif resp.status_code in [503, 429]:  # Rate limited or service unavailable
                 if attempt < retries:
                     wait_time = (2 ** attempt) + 1  # Exponential backoff: 2, 5, 9 seconds
@@ -59,7 +65,7 @@ def api_get(url, params=None, headers=None, timeout=10, retries=2):
                     logger.error(f"Rate limited/throttled (HTTP {resp.status_code}) for {url} - Max retries exceeded")
                     return None
             else:
-                logger.error(f"API call to {url} failed: {resp.status_code} - Response: {resp.text[:200]}")
+                logger.error(f"API call to {url} failed: {resp.status_code} - Response: {resp.text[:500]}")
                 return None
                 
         except Exception as e:
@@ -91,22 +97,38 @@ def get_building_id(address, zip_code):
         logger.error("Cannot determine borough for ZIP %s", zip_code)
         return None, None
 
+    # Debug: Check if API keys are being read correctly
+    app_id = getattr(settings, 'NYC_GEOCLIENT_APP_ID', '')
+    app_key = getattr(settings, 'NYC_GEOCLIENT_APP_KEY', '')
+    logger.error(f"FORCE DEBUG: NYC_GEOCLIENT_APP_ID = '{app_id}' (length: {len(app_id)})")
+    logger.error(f"FORCE DEBUG: NYC_GEOCLIENT_APP_KEY = '{app_key}' (length: {len(app_key)})")
+    
+    if not app_id or not app_key:
+        logger.error(f"Missing Geoclient API credentials! APP_ID: {bool(app_id)}, APP_KEY: {bool(app_key)}")
+        return None, None
+
     url = "https://api.nyc.gov/geo/geoclient/v2/address"
     params = {
         "houseNumber": house_number,
         "street": street,
         "borough": borough,
         "zip": zip_code,
-        "app_id": getattr(settings, 'NYC_GEOCLIENT_APP_ID', '')
+        "app_id": app_id
     }
     # Geoclient requires the subscription key header
-    headers = {"Ocp-Apim-Subscription-Key": getattr(settings, 'NYC_GEOCLIENT_APP_KEY', '')}
+    headers = {"Ocp-Apim-Subscription-Key": app_key}
+    
+    logger.info(f"Making Geoclient API call to {url} with app_id={app_id[:8]}... and subscription key={app_key[:8]}...")
+    
     data = api_get(url, params=params, headers=headers, timeout=10)
     if data and data.get("address"):
         addr = data["address"]
         bin_ = addr.get("buildingIdentificationNumber")
         bbl  = addr.get("bbl")
+        logger.info(f"Successfully got BIN: {bin_}, BBL: {bbl} from Geoclient")
         return bin_, bbl
+    else:
+        logger.error(f"Geoclient API failed or returned no address data. Response: {data}")
     return None, None
 
 

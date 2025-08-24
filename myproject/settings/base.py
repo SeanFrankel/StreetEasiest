@@ -259,12 +259,12 @@ WAGTAILIMAGES_FEATURE_DETECTION_ENABLED = False
 # Pagination
 DEFAULT_PER_PAGE = 8
 
-# NYC API Keys - These are overridden in dev.py/production.py
+# NYC API Keys - Read from environment variables in production, overridden in dev.py
 # Default empty values for safety
-NYC_GEOCLIENT_APP_ID = ""
-NYC_GEOCLIENT_APP_KEY = ""
-NYC_HPD_API_KEY = ""
-NYC_311_API_KEY = ""
+NYC_GEOCLIENT_APP_ID = os.environ.get("NYC_GEOCLIENT_APP_ID", "")
+NYC_GEOCLIENT_APP_KEY = os.environ.get("NYC_GEOCLIENT_APP_KEY", "")
+NYC_HPD_API_KEY = os.environ.get("NYC_HPD_API_KEY", "")
+NYC_311_API_KEY = os.environ.get("NYC_311_API_KEY", "")
 
 LOGGING = {
     "version": 1,

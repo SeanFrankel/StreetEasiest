@@ -204,8 +204,7 @@ class RentalTrendsPage(BasePage):
 
     template = "pages/rental_trends_page.html"
 
-    intro = models.CharField(
-        max_length=255,
+    intro = RichTextField(
         blank=True,
         help_text='Intro text for the page.'
     )
