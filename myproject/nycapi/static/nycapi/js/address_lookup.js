@@ -4,8 +4,9 @@
  * @param {string} title - The table title
  * @param {Array} excludedCols - Columns to exclude from the table
  * @param {Array} columnOrder - Optional array specifying the order of columns (columns not in this array will be appended at the end)
+ * @param {Object} columnLabels - Optional object mapping column names to display labels
  */
-function renderTable(dataArray, title, excludedCols = [], columnOrder = []) {
+function renderTable(dataArray, title, excludedCols = [], columnOrder = [], columnLabels = {}) {
   if (!dataArray || !dataArray.length) {
     return `
       <div class="my-8 bg-grey-100 p-8 rounded-xl border border-grey-200">
@@ -100,11 +101,12 @@ function renderTable(dataArray, title, excludedCols = [], columnOrder = []) {
         <tr>
   `;
   columns.forEach(col => {
+    const displayLabel = columnLabels[col] || col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     html += `
       <th
         class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-300"
       >
-        ${col}
+        ${displayLabel}
       </th>
     `;
   });
@@ -695,6 +697,7 @@ document.addEventListener('DOMContentLoaded', function() {
           "censustract",
           "bin",
           "bbl",
+          "ordernumber",
           "nta"
         ];
         
@@ -715,11 +718,28 @@ document.addEventListener('DOMContentLoaded', function() {
           "originalcertifybydate"
         ];
         
-        html += renderTable(data.data.hpd_violations, "HPD Violations", excludedColsForViolations, columnOrderForViolations);
+        // Define custom column labels for HPD Violations table
+        const columnLabelsForViolations = {
+          "inspectiondate": "Inspection Date",
+          "apartment": "Apartment",
+          "rentimpairing": "Rent Impairing",
+          "class": "Violation Class",
+          "violationstatus": "Violation Status",
+          "novdescription": "Violation Description",
+          "currentstatus": "Current Status",
+          "currentstatusdate": "Current Status Date",
+          "originalcorrectbydate": "Original Correct By Date",
+          "currentstatusid": "Current Status ID",
+          "novid": "NOV ID",
+          "violationid": "Violation ID",
+          "originalcertifybydate": "Original Certify By Date",
+
+        };
+        
+        html += renderTable(data.data.hpd_violations, "HPD Violations", excludedColsForViolations, columnOrderForViolations, columnLabelsForViolations);
 
         // Render 311 Complaints with excluded columns and custom order
         const excludedColsForComplaints = [
-          "agency",
           "incident_zip",
           "incident_address",
           "street_name",
@@ -741,7 +761,6 @@ document.addEventListener('DOMContentLoaded', function() {
           "park_borough",
           "latitude",
           "longitude",
-          "location"
         ];
         
         // Define the order you want columns to appear in 311 Complaints table
@@ -750,12 +769,27 @@ document.addEventListener('DOMContentLoaded', function() {
           "complaint_type",
           "descriptor",
           "status",
+          "agency_name",
           "resolution_description",
           "closed_date",
+          "location_type",
           "unique_key"
         ];
         
-        html += renderTable(data.data.complaints, "311 Complaints", excludedColsForComplaints, columnOrderForComplaints);
+        // Define custom column labels for 311 Complaints table
+        const columnLabelsForComplaints = {
+          "created_date": "Date Created",
+          "complaint_type": "Complaint Type",
+          "descriptor": "Issue Description", 
+          "status": "Status",
+          "agency_name": "Agency",
+          "resolution_description": "Resolution Details",
+          "closed_date": "Date Closed",
+          "location_type": "Location Type",
+          "unique_key": "Reference # (Unique Key)"
+        };
+        
+        html += renderTable(data.data.complaints, "311 Complaints", excludedColsForComplaints, columnOrderForComplaints, columnLabelsForComplaints);
 
         // Render Bedbug Reports with excluded columns and custom order
         const excludedColsForBedbugs = [
@@ -786,7 +820,17 @@ document.addEventListener('DOMContentLoaded', function() {
           "re_infested_dwelling_unit"
         ];
         
-        html += renderTable(data.data.bedbug_reports, "Bedbug Reports", excludedColsForBedbugs, columnOrderForBedbugs);
+        // Define custom column labels for Bedbug Reports table
+        const columnLabelsForBedbugs = {
+          "filing_period_start_date": "Filing Period Start Date",
+          "filing_date": "Filing Date",
+          "infested_dwelling_unit_count": "# of Infested Units",
+          "of_dwelling_units": "Total # of Dwelling Units", 
+          "eradicated_unit_count": "# of Eradicated Units",
+          "re_infested_dwelling_unit": "# of Re-infested Units"
+        };
+        
+        html += renderTable(data.data.bedbug_reports, "Bedbug Reports", excludedColsForBedbugs, columnOrderForBedbugs, columnLabelsForBedbugs);
 
         // Render Housing Litigation with excluded columns and custom order
         const excludedColsForLitigation = [
@@ -817,7 +861,17 @@ document.addEventListener('DOMContentLoaded', function() {
           "litigationid"
         ];
         
-        html += renderTable(data.data.litigation, "Housing Litigation", excludedColsForLitigation, columnOrderForLitigation);
+        // Define custom column labels for Housing Litigation table
+        const columnLabelsForLitigation = {
+          "casetype": "Case Type",
+          "respondent": "Respondent",
+          "caseopendate": "Case Open Date",
+          "casestatus": "Case Status", 
+          "casejudgement": "Case Judgement",
+          "litigationid": "Litigation ID"
+        };
+        
+        html += renderTable(data.data.litigation, "Housing Litigation", excludedColsForLitigation, columnOrderForLitigation, columnLabelsForLitigation);
 
         // Lead Paint Violations with excluded columns and custom order
         const excludedColsForLeadPaint = [
@@ -864,7 +918,21 @@ document.addEventListener('DOMContentLoaded', function() {
           "novissueddate"
         ];
         
-        html += renderTable(data.data.lead_paint_violations, "Lead Paint Violations", excludedColsForLeadPaint, columnOrderForLeadPaint);
+        // Define custom column labels for Lead Paint Violations table
+        const columnLabelsForLeadPaint = {
+          "inspectiondate": "Inspection Date",
+          "apartment": "Apartment",
+          "novdescription": "Violation Description",
+          "violationstatus": "Violation Status",
+          "currentstatus": "Current Status",
+          "currentstatusdate": "Current Status Date", 
+          "violationid": "Violation ID",
+          "rentimpairing": "Rent Impairing",
+          "originalcorrectbydate": "Original Correct By Date",
+          "novissueddate": "NOV Issued Date"
+        };
+        
+        html += renderTable(data.data.lead_paint_violations, "Lead Paint Violations", excludedColsForLeadPaint, columnOrderForLeadPaint, columnLabelsForLeadPaint);
         
         // Render Executed Evictions with excluded columns and custom order
         const excludedColsForEvictions = [
@@ -878,7 +946,6 @@ document.addEventListener('DOMContentLoaded', function() {
           "nta",
           "borough",
           "eviction_zip",
-          "court_index_number",
           "docket_number",
           "marshal_first_name",
           "marshal_last_name"
@@ -891,10 +958,22 @@ document.addEventListener('DOMContentLoaded', function() {
           "eviction_apt_num",
           "residential_commercial_ind",
           "eviction_possession",
-          "ejectment"
+          "ejectment",
+          "court_index_number"
         ];
         
-        html += renderTable(data.data.evictions, "Executed Evictions", excludedColsForEvictions, columnOrderForEvictions);
+        // Define custom column labels for Executed Evictions table
+        const columnLabelsForEvictions = {
+          "executed_date": "Date Eviction Was Executed",
+          "eviction_address": "Eviction Address",
+          "eviction_apt_num": "Apartment #",
+          "residential_commercial_ind": "Property Type",
+          "ejectment": "Ejectment? (explainer at bottom of page)",
+          "eviction_possession": "Eviction/Possession",
+          "court_index_number": "Court Index Number (Unique Key)"
+        };
+        
+        html += renderTable(data.data.evictions, "Executed Evictions", excludedColsForEvictions, columnOrderForEvictions, columnLabelsForEvictions);
         
         // Render Speculation Watch List with relevant columns
         const excludedColsForSpeculation = [
@@ -922,7 +1001,23 @@ document.addEventListener('DOMContentLoaded', function() {
           "bbl"
         ];
         
-        html += renderTable(data.data.speculation_watchlist, "Speculation Watch List", excludedColsForSpeculation, columnOrderForSpeculation);
+        // Define custom column labels for Speculation Watch List table
+        const columnLabelsForSpeculation = {
+          "str_name": "Street Name",
+          "hnum_lo": "House # (Low)",
+          "hnum_hi": "House # (High)",
+          "postcode": "ZIP Code",
+          "grantee": "Grantee (New Owner)",
+          "deed_date": "Deed Date",
+          "price": "Sale Price",
+          "cap_rate": "Capitalization Rate",
+          "borough": "Borough",
+          "block": "Block",
+          "lot": "Lot",
+          "bbl": "BBL"
+        };
+        
+        html += renderTable(data.data.speculation_watchlist, "Speculation Watch List", excludedColsForSpeculation, columnOrderForSpeculation, columnLabelsForSpeculation);
         
         // Render Property Valuation with relevant financial and property info
         const excludedColsForValuation = [
@@ -1069,7 +1164,48 @@ document.addEventListener('DOMContentLoaded', function() {
           "other_area_gross"
         ];
         
-        html += renderTable(data.data.property_valuation, "Property Valuation", excludedColsForValuation, columnOrderForValuation);
+        // Define custom column labels for Property Valuation table
+        const columnLabelsForValuation = {
+          "year": "Tax Year",
+          "curmkttot": "Current Market Value",
+          "curacttot": "Current Assessed Value", 
+          "curtxbtot": "Current Taxable Value",
+          "curtaxclass": "Current Tax Class",
+          "bldg_class": "Building Class",
+          "units": "Total Units",
+          "gross_sqft": "Gross Square Feet",
+          "finmkttot": "Final Market Value",
+          "finacttot": "Final Assessed Value",
+          "fintxbtot": "Final Taxable Value", 
+          "fintaxclass": "Final Tax Class",
+          "tenmkttot": "Tentative Market Value",
+          "tenacttot": "Tentative Assessed Value",
+          "tentxbtot": "Tentative Taxable Value",
+          "tentaxclass": "Tentative Tax Class",
+          "pymkttot": "Previous Year Market Value",
+          "pyacttot": "Previous Year Assessed Value",
+          "pytxbtot": "Previous Year Taxable Value",
+          "pytaxclass": "Previous Year Tax Class",
+          "zoning": "Zoning District",
+          "lot_irreg": "Lot Irregularity",
+          "bld_ext": "Building Extension",
+          "bld_story": "# of Stories",
+          "land_area": "Land Area (sq ft)",
+          "num_bldgs": "# of Buildings",
+          "coop_apts": "# of Coop Apartments",
+          "residential_area_gross": "Residential Area (sq ft)",
+          "office_area_gross": "Office Area (sq ft)",
+          "retail_area_gross": "Retail Area (sq ft)",
+          "hotel_area_gross": "Hotel Area (sq ft)",
+          "loft_area_gross": "Loft Area (sq ft)",
+          "factory_area_gross": "Factory Area (sq ft)",
+          "warehouse_area_gross": "Warehouse Area (sq ft)",
+          "storage_area_gross": "Storage Area (sq ft)",
+          "garage_area": "Garage Area (sq ft)",
+          "other_area_gross": "Other Area (sq ft)"
+        };
+        
+        html += renderTable(data.data.property_valuation, "Property Valuation", excludedColsForValuation, columnOrderForValuation, columnLabelsForValuation);
         
         resultsDiv.innerHTML = html;
       } else {
