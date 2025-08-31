@@ -622,6 +622,119 @@ def get_ownership_info(bbl, bin_number=None):
         }
 
 
+def get_speculation_watchlist(address, zip_code, bbl=None):
+    """
+    Check if a building is on the NYC Speculation Watch List.
+    
+    The Speculation Watch List tracks buildings where the city thinks 
+    landlords might be trying to raise rent-stabilized rents improperly.
+    
+    Args:
+        address: Building address  
+        zip_code: ZIP code
+        bbl: Borough-Block-Lot number (optional, more reliable)
+        
+    Returns:
+        tuple: (watchlist_data, is_on_watchlist)
+    """
+    if not bbl and (not address or not zip_code):
+        return [], False
+        
+    try:
+        url = "https://data.cityofnewyork.us/resource/adax-9mit.json"
+        
+        # Try BBL first (most reliable) - confirmed working field name: bbl
+        if bbl:
+            params = {
+                "$where": f"bbl='{bbl}'",
+                "$limit": 10
+            }
+            
+            logger.info(f"Checking Speculation Watch List with BBL {bbl}")
+            data = api_get(url, params=params, timeout=30)
+            
+            if data and len(data) > 0:
+                logger.info(f"Found {len(data)} matches on Speculation Watch List via BBL")
+                return data, True
+        
+        # Fallback: Try by borough + block + lot (confirmed field names: borough, block, lot)
+        if bbl and len(bbl) == 10:
+            boro = bbl[0]
+            block = bbl[1:6].lstrip('0') or '0'
+            lot = bbl[6:10].lstrip('0') or '0'
+            
+            params = {
+                "$where": f"borough='{boro}' AND block='{block}' AND lot='{lot}'",
+                "$limit": 10
+            }
+            
+            logger.info(f"Checking Speculation Watch List with boro={boro}, block={block}, lot={lot}")
+            data = api_get(url, params=params, timeout=30)
+            
+            if data and len(data) > 0:
+                logger.info(f"Found {len(data)} matches on Speculation Watch List via boro/block/lot")
+                return data, True
+        
+        logger.info(f"No matches found on Speculation Watch List for {address}, {zip_code}")
+        return [], False
+        
+    except Exception as e:
+        logger.error(f"Error checking Speculation Watch List for {address}, {zip_code}: {e}")
+        return [], False
+
+
+def get_property_valuation(bbl):
+    """
+    Get property valuation and tax assessment data for a building.
+    
+    This includes market value, assessed value, tax class, and other
+    Department of Finance assessment information from the official DOF
+    Property Valuation and Assessment Data (Tax Classes 1,2,3,4).
+    
+    Args:
+        bbl: Borough-Block-Lot number (format: BBBBBBBBB where B=borough, B=block, L=lot)
+        
+    Returns:
+        tuple: (valuation_data, found)
+    """
+    if not bbl:
+        logger.warning("get_property_valuation called with no BBL")
+        return [], False
+        
+    try:
+        # NYC DOF Property Valuation and Assessment Data API endpoint
+        url = "https://data.cityofnewyork.us/resource/8y4t-faws.json"
+        
+        # Use confirmed working field names: boro, block, lot
+        if len(bbl) == 10:
+            boro = bbl[0]
+            block = bbl[1:6].lstrip('0') or '0'
+            lot = bbl[6:10].lstrip('0') or '0'
+            
+            # Query for most recent assessment data with comprehensive fields
+            params = {
+                "$where": f"boro='{boro}' AND block='{block}' AND lot='{lot}'",
+                "$order": "year DESC",
+                "$limit": 10
+            }
+            
+            logger.info(f"Checking DOF Property Valuation for BBL {bbl} (boro={boro}, block={block}, lot={lot})")
+            data = api_get(url, params=params, timeout=30)
+            
+            if data and len(data) > 0:
+                logger.info(f"Found {len(data)} DOF property valuation records for BBL {bbl}")
+                return data, True
+        else:
+            logger.warning(f"Invalid BBL format: {bbl}, expected 10 digits")
+        
+        logger.info(f"No DOF property valuation data found for BBL {bbl}")
+        return [], False
+            
+    except Exception as e:
+        logger.error(f"Error getting DOF property valuation for BBL {bbl}: {e}")
+        return [], False
+
+
 def get_rent_stabilized_data_from_csv(bbl):
     """
     Get rent-stabilized unit count from NYCDB CSV data (2018 and 2023 data).
@@ -786,6 +899,16 @@ def building_lookup_view(request):
     
     evictions, evictions_total = get_evictions_data(bbl)
     logger.info(f"Executed Evictions: Found {evictions_total} evictions, returned {len(evictions)} results")
+    time.sleep(0.5)
+    
+    # Add Speculation Watch List check
+    speculation_data, is_on_watchlist = get_speculation_watchlist(address, zip_code, bbl)
+    logger.info(f"Speculation Watch List: Found {len(speculation_data)} entries, on list: {is_on_watchlist}")
+    time.sleep(0.5)
+    
+    # Add Property Valuation data
+    valuation_data, valuation_found = get_property_valuation(bbl)
+    logger.info(f"Property Valuation: Found {len(valuation_data)} records, data available: {valuation_found}")
 
     # Check if we got any data at all
     total_records = hpd_total + complaints_total + bedbugs_total + housing_total + lead_paint_total + evictions_total
@@ -807,6 +930,12 @@ def building_lookup_view(request):
         "lead_paint_violations_total_count": lead_paint_total,
         "evictions": evictions,
         "evictions_total_count": evictions_total,
+        "speculation_watchlist": speculation_data,
+        "is_on_speculation_watchlist": is_on_watchlist,
+        "speculation_watchlist_count": len(speculation_data),
+        "property_valuation": valuation_data,
+        "property_valuation_found": valuation_found,
+        "property_valuation_count": len(valuation_data),
         "api_status": "partial" if total_records == 0 else "ok"
     }
     
