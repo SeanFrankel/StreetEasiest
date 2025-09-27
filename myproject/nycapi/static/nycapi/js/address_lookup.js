@@ -422,10 +422,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Add rent stabilization status lines for both years
                 if (hasStabilized) {
-                  // 2023 Data
-                  if (units2023 && units2023 > 0) {
+                  // 2023 Data - always show if we have rent stabilized units
+                  if (units2023 !== null && units2023 !== undefined && units2023 >= 0) {
                     const percentage2023 = totalResidentialUnits ? Math.round((units2023 / totalResidentialUnits) * 100) : null;
-                    const percentageText2023 = percentage2023 ? ` (${percentage2023}%)` : '';
+                    const percentageText2023 = percentage2023 ? ` - ${percentage2023}% of building` : '';
                     
                     stabilizationHtml += `
                       <div class="flex items-center justify-between text-green-600 bg-white p-2 rounded border border-grey-200">
@@ -433,7 +433,7 @@ document.addEventListener('DOMContentLoaded', function() {
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span class="font-sans3 font-medium text-sm">Rent Stabilized Units (2023): ${units2023}${percentageText2023 ? ` - ${percentageText2023.replace('(', '').replace(')', '')} of building` : ''}</span>
+                          <span class="font-sans3 font-medium text-sm">Rent Stabilized Units (2023): ${units2023}${percentageText2023}</span>
                         </div>
                         <span class="text-green-600 text-xs font-medium font-sans3 bg-green-100 py-1 px-2 rounded">
                           Latest Data
@@ -442,10 +442,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                   }
                   
-                  // 2018 Data
-                  if (units2018 && units2018 > 0) {
+                  // 2018 Data - always show if we have rent stabilized units
+                  if (units2018 !== null && units2018 !== undefined && units2018 >= 0) {
                     const percentage2018 = totalResidentialUnits ? Math.round((units2018 / totalResidentialUnits) * 100) : null;
-                    const percentageText2018 = percentage2018 ? ` (${percentage2018}%)` : '';
+                    const percentageText2018 = percentage2018 ? ` - ${percentage2018}% of building` : '';
                     
                     stabilizationHtml += `
                       <div class="flex items-center justify-between text-blue-600 bg-white p-2 rounded border border-grey-200">
@@ -453,7 +453,7 @@ document.addEventListener('DOMContentLoaded', function() {
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span class="font-sans3 font-medium text-sm">Rent Stabilized Units (2018): ${units2018}${percentageText2018 ? ` - ${percentageText2018.replace('(', '').replace(')', '')} of building` : ''}</span>
+                          <span class="font-sans3 font-medium text-sm">Rent Stabilized Units (2018): ${units2018}${percentageText2018}</span>
                         </div>
                         <span class="text-blue-600 text-xs font-medium font-sans3 bg-blue-100 py-1 px-2 rounded">
                           Historical Data
@@ -462,8 +462,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                   }
                   
-                  // Change indicator
-                  if (units2023 && units2018) {
+                  // Change indicator - always show if we have both years of data
+                  if ((units2023 !== null && units2023 !== undefined) && (units2018 !== null && units2018 !== undefined)) {
                     const diff = units2023 - units2018;
                     const changeColor = diff > 0 ? 'text-green-700' : diff < 0 ? 'text-red-700' : 'text-grey-600';
                     const changeBg = diff > 0 ? 'bg-green-50 border-green-200' : diff < 0 ? 'bg-red-50 border-red-200' : 'bg-grey-50 border-grey-200';
