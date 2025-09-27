@@ -13,7 +13,6 @@ function initComponent(ComponentClass) {
 
 document.addEventListener('DOMContentLoaded', () => {
     initComponent(ThemeToggle);
-    initComponent(ThemeToggle);
     initComponent(SkipLink);
     initComponent(HeaderSearchPanel);
     initComponent(MobileMenu);
