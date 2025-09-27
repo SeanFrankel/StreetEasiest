@@ -668,7 +668,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   `}
                 </div>
               </div>
-            </div>
+                      </div>
           </div>
         `;
 
@@ -761,6 +761,7 @@ document.addEventListener('DOMContentLoaded', function() {
           "park_borough",
           "latitude",
           "longitude",
+          "location"
         ];
         
         // Define the order you want columns to appear in 311 Complaints table
@@ -782,7 +783,7 @@ document.addEventListener('DOMContentLoaded', function() {
           "complaint_type": "Complaint Type",
           "descriptor": "Issue Description", 
           "status": "Status",
-          "agency_name": "Agency",
+          "agency_name": "Agency Responsible for Resolving",
           "resolution_description": "Resolution Details",
           "closed_date": "Date Closed",
           "location_type": "Location Type",
@@ -1023,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const excludedColsForValuation = [
           "parid",
           "boro",
-          "block", 
+          "block",
           "lot",
           "easement",
           "subident_reuc",
@@ -1120,14 +1121,28 @@ document.addEventListener('DOMContentLoaded', function() {
           "bld_dep",
           "yrbuilt",
           "yralt2",
-          "yralt2_range"
+          "yralt2_range",
+          "pymkttot",
+          "pyacttot",
+          "pytxbtot",
+          "pytaxclass",
+          "residential_area_gross",
+          "office_area_gross",
+          "retail_area_gross",
+          "hotel_area_gross",
+          "loft_area_gross",
+          "factory_area_gross",
+          "warehouse_area_gross",
+          "storage_area_gross",
+          "garage_area",
+          "other_area_gross"
         ];
         
         // Define the order for Property Valuation table (real DOF API field names, most important first)
         const columnOrderForValuation = [
           "year",
           "curmkttot",
-          "curacttot",
+          "curacttot", 
           "curtxbtot",
           "curtaxclass",
           "bldg_class",
@@ -1166,43 +1181,29 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Define custom column labels for Property Valuation table
         const columnLabelsForValuation = {
-          "year": "Tax Year",
-          "curmkttot": "Current Market Value",
-          "curacttot": "Current Assessed Value", 
-          "curtxbtot": "Current Taxable Value",
-          "curtaxclass": "Current Tax Class",
-          "bldg_class": "Building Class",
-          "units": "Total Units",
-          "gross_sqft": "Gross Square Feet",
-          "finmkttot": "Final Market Value",
-          "finacttot": "Final Assessed Value",
-          "fintxbtot": "Final Taxable Value", 
-          "fintaxclass": "Final Tax Class",
-          "tenmkttot": "Tentative Market Value",
-          "tenacttot": "Tentative Assessed Value",
-          "tentxbtot": "Tentative Taxable Value",
-          "tentaxclass": "Tentative Tax Class",
-          "pymkttot": "Previous Year Market Value",
-          "pyacttot": "Previous Year Assessed Value",
-          "pytxbtot": "Previous Year Taxable Value",
-          "pytaxclass": "Previous Year Tax Class",
-          "zoning": "Zoning District",
-          "lot_irreg": "Lot Irregularity",
-          "bld_ext": "Building Extension",
-          "bld_story": "# of Stories",
-          "land_area": "Land Area (sq ft)",
-          "num_bldgs": "# of Buildings",
+          "year": "Fiscal Year",
+          "curmkttot": "Current Market Value (City Estimate)",
+          "curacttot": "Current Assessed Value (Portion of City Estimate Used for Tax Bill)", 
+          "curtxbtot": "Current Taxable Value (Assessed Value Minus any Exemptions)",
+          "curtaxclass": "Current Tax Class (1-->4)",
+          "bldg_class": "Building Class (Usually Corresponds to Tax Class)",
+          "units": "Total Residential, Industrial, and/or Commerical Units",
           "coop_apts": "# of Coop Apartments",
-          "residential_area_gross": "Residential Area (sq ft)",
-          "office_area_gross": "Office Area (sq ft)",
-          "retail_area_gross": "Retail Area (sq ft)",
-          "hotel_area_gross": "Hotel Area (sq ft)",
-          "loft_area_gross": "Loft Area (sq ft)",
-          "factory_area_gross": "Factory Area (sq ft)",
-          "warehouse_area_gross": "Warehouse Area (sq ft)",
-          "storage_area_gross": "Storage Area (sq ft)",
-          "garage_area": "Garage Area (sq ft)",
-          "other_area_gross": "Other Area (sq ft)"
+          "gross_sqft": "Gross Square Footage of Building",
+          "finmkttot": "Final Market Value (Property’s Market Value as Listed on the Final Assessment Roll)",
+          "finacttot": "Final Assessed Value (Portion of Final Market Value Used for Tax Bill)",
+          "fintxbtot": "Final Taxable Value (Assessed Value Minus any Exemptions)", 
+          "fintaxclass": "Final Tax Class (1-->4, Normally the same as the Current Tax Class)",
+          "tenmkttot": "Tentative Market Value (City Estimate for Next Year's Value)",
+          "tenacttot": "Tentative Assessed Value (City Estimate for Next Year's Value)",
+          "tentxbtot": "Tentative Taxable Value (City Estimate for Next Year's Value)",
+          "tentaxclass": "Tentative Tax Class (City Estimate for Next Year's Value)",
+          "zoning": "Zoning District (Type of Activity or Building Allowed for Property)",
+          "lot_irreg": "Lot Irregularity (See Data FAQs Below for More Info)",
+          "bld_ext": "Building Extension (See Data FAQs Below for More Info)",
+          "bld_story": "# of Stories of Building",
+          "land_area": "Land Area in Sq Ft (See Data FAQs Below for More Info)",
+          "num_bldgs": "# of Buildings on Property"
         };
         
         html += renderTable(data.data.property_valuation, "Property Valuation", excludedColsForValuation, columnOrderForValuation, columnLabelsForValuation);
